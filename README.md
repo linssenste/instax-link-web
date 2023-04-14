@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 # linssenste
@@ -54,3 +55,6 @@ npm run test:unit
 npm run lint
 ```
 >>>>>>> 2f5d60b (first commit)
+=======
+
+>>>>>>> a5345cb (Create README.md)
