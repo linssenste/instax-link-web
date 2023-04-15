@@ -169,7 +169,6 @@ function resizePolaroidEvent(targetSize: PRINTER_CONFIG): void {
     height: 100%;
     width: 100%;
     overflow: hidden;
-    background-color: red;
     overflow-x: hidden !important;
     overflow-y: auto !important;
 
@@ -184,7 +183,6 @@ function resizePolaroidEvent(targetSize: PRINTER_CONFIG): void {
 .app-content {
     position: absolute;
     top: 50%;
-    background-color: red;
     left: 50%;
     transform: translate(-50%, -50%);
 
