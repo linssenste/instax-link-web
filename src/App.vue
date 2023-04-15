@@ -2,9 +2,8 @@
     <v-app theme="myCustomLightTheme">
         <v-main class="app">
             <PrinterAppTemplate v-on:color-update="themeColor=$event" v-on:config-update="config=$event">
-                <template v-slot:default="{ state }">
-
-                    {{themeColor}} - {{config}} -{{state}}
+                <template v-slot:default="{ printerStatus, print, color }">
+                    <router-view :color="color" :config="config" :printerStatus="printerStatus" :print="print" />
                 </template>
 
             </PrinterAppTemplate>

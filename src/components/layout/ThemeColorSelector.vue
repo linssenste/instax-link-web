@@ -1,6 +1,6 @@
 <template>
     <div class="ml-0 d-flex flex-row align-center">
-        <a href="https://github.com/linssenste/instax-link-web" target="_blank">
+        <a style="text-decoration: none!important;" href="https://github.com/linssenste/instax-link-web" target="_blank">
             <v-btn class="mr-6" color="black" icon variant="tonal" density="comfortable"><v-icon size="large"
                     color="black">mdi-github</v-icon></v-btn>
         </a>
@@ -51,6 +51,7 @@ function emitColor(): void {
 <style scoped>
 .color-selector-item {
     width: 20px;
+    cursor: pointer;
     height: 20px;
     transition: all 50ms linear;
     margin-right: 14px !important;
@@ -65,8 +66,7 @@ function emitColor(): void {
 .color-selector-item-selected {
     pointer-events: none;
     transform: scale(1.3);
-    border-radius: 6px !important;
+    border-radius: 4px !important;
 
-    transition: border-radius 1150ms linear;
 }
 </style>
