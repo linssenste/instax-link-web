@@ -19,7 +19,6 @@
 <script setup lang="ts">
 
 const props=defineProps<{
-    printerStatus: number
     status: any
 }>()
 

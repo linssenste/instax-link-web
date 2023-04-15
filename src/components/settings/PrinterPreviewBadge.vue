@@ -1,7 +1,7 @@
 <template>
     <div v-if="printerStatus<1">
         <v-btn :loading="printerStatus===0" v-on:click="connectPrinter()" color="blue-darken-2" variant="tonal" icon
-            :ripple="false">
+            :ripple="false" data-testid="connect-button">
             <v-icon color="blue-darken-2">mdi-bluetooth</v-icon>
         </v-btn>
     </div>
@@ -18,7 +18,8 @@
             </div>
 
             <div class="d-flex flex-row align-center mt-1">
-                <PrinterStatus class="ml-1" :printerStatus="printerStatus" :color="color" />
+                <PrinterStatusText data-testid="printer-status" class="ml-1" :printerStatus="printerStatus"
+                    :color="color" />
                 <ImagesLeft :status="status" data-testid="images-left" />
                 <BatteryStatus class="ml-6" :status="status" data-testid="battery-status" />
             </div>
@@ -32,7 +33,7 @@
 <script setup lang="ts">
 import ImagesLeft from './ImagesLeft.vue';
 import BatteryStatus from './BatteryStatus.vue';
-import PrinterStatus from './PrinterStatus.vue';
+import PrinterStatusText from './PrinterStatusText.vue';
 
 const props=defineProps<{
     status: any,
