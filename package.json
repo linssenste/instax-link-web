@@ -19,6 +19,7 @@
     "image-compressor.js": "^1.1.4",
     "roboto-fontface": "*",
     "vue": "^3.2.47",
+    "vue-confetti-explosion": "^1.0.2",
     "vue-picture-cropper": "^0.6.1",
     "vue-router": "^4.1.6",
     "vuetify": "^3.1.14",

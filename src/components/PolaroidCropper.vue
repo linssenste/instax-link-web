@@ -1,39 +1,40 @@
 <template>
     <div class="area " oncontextmenu="return false">
-        <div class=" elevation-10" :style="`width: ${((deviceStatus.width/deviceStatus.height)*350)+30}px`"
-            style="position: relative; height: 485px;  border: 15px solid white; border-top: 20px solid white!important;background-color: white; border-radius: 8px; ">
+        <div :class="image!=null&&(isPrinting||aborting==true)? 'print-in-action':''" class=" elevation-10"
+            :style="`width: ${((config.width/config.height)*300)+30}px`"
+            style="position: relative; height: 445px;  border: 15px solid white; border-top: 20px solid white!important;background-color: white; border-radius: 8px; ">
 
 
             <div v-on:dblclick="$event.preventDefault(); $event.stopImmediatePropagation()"
-                :style="`width: ${((deviceStatus.width/deviceStatus.height)*350)}px;`"
-                style="position: relative; height: 100%; height: 350px; margin-top: 10px;  border-radius: 5px; overflow: hidden!important; background-color: #F0F0F0; ">
+                :style="`width: ${((config.width/config.height)*300)}px;`"
+                style="position: relative; height: 100%; height: 300px; margin-top: 10px;  border-radius: 5px; overflow: hidden!important; background-color: #F0F0F0; ">
 
                 <PrintingOverlay :color="color" v-if="image!=null&&(isPrinting||aborting==true)" :progress="status"
                     :isPrinting="isPrinting" :aborting="aborting" :printingCount="printingCount" />
 
                 <!-- {{  }} -->
 
-                <VuePictureCropper :key="deviceStatus.width" v-if="image!=null"
+                <VuePictureCropper :key="config.width" v-if="image!=null"
                     :style="isPrinting? 'opacity: .2; pointer-events: none':''"
                     v-on:click="$event.preventDefault(); $event.stopImmediatePropagation()"
                     v-on:dblclick="$event.preventDefault(); $event.stopImmediatePropagation()" ref="cropperObj" :boxStyle="{
-                        width: ((deviceStatus.width/deviceStatus.height)*350)+'px',
-                        height: '350px',
+                        width: ((config.width/config.height)*300)+'px',
+                        height: '300px',
                         backgroundColor: '#FFFFFF'
 
                     }"
                     style="transform: scale(1);border: 2px solid #EAEAEA; border-radius: 5px!important; overflow: hidden!important"
                     :presetMode="{
                         mode: 'fixedSize',
-                        width: deviceStatus.width,
-                        height: deviceStatus.width,
+                        width: config.width,
+                        height: config.width,
                     }" :img="image" :options="{
     viewMode: 0,
     doubleClickToggle: false,
     toggleDragModeOnDblclick: false,
     autoCropArea: true,
     dragMode: 'move',
-    aspectRatio: deviceStatus.width/deviceStatus.height,
+    aspectRatio: config.width/config.height,
     cropBoxMovable: false,
     cropBoxResizable: false
 }" />
@@ -57,17 +58,16 @@
             </div>
             <div style=" width: 100%; height: 105px; background-color: white;">
                 <div v-if="image!=null&&isPrinting!=true" class="d-flex flex-row ma-0 hide-scrollbar align-center pt-0 pl-1"
-                    :style="`width: ${((deviceStatus.width/deviceStatus.height)*350)}px; overflow-x: auto; height: 50px`">
+                    :style="`width: ${((config.width/config.height)*300)}px; overflow-x: auto; height: 50px`">
 
 
 
-                    <PageBackgroundSelector :key="deviceStatus.width" v-on:change="setBackgroundColor($event)"
-                        :dense="true" />
+                    <PageBackgroundSelector :key="config.width" v-on:change="setBackgroundColor($event)" :dense="true" />
 
 
 
                 </div>
-                <div v-if="image!=null&&isPrinting!=true" class="d-flex mt-0  flex-row align-center ma-0">
+                <div v-if="image!=null&&isPrinting!=true" class="d-flex pt-2  flex-row align-center ma-0">
 
 
 
@@ -95,12 +95,13 @@
 
 
                 <div v-if="isPrinting==true&&!aborting" class="d-flex flex-row align-center justify-center pt-9">
-                    <v-btn :disabled="totalPrints<=1" v-on:click="totalPrints-=1" :ripple="false" class="mr-4" icon
-                        density="compact" variant="tonal"><v-icon size="x-small">mdi-minus</v-icon></v-btn>
-                    <div style="font-size: 18px; width: 15px; text-align: center;" class="font-weight-medium">
+                    <v-btn :disabled="totalPrints<=1||printingCount>=1" v-on:click="totalPrints-=1" :ripple="false"
+                        class="mr-4" icon density="compact" variant="tonal"><v-icon
+                            size="x-small">mdi-minus</v-icon></v-btn>
+                    <div style="font-size: 20px; width: 15px; text-align: center;" class="font-weight-medium">
                         {{totalPrints}}</div>
-                    <v-btn :disabled="totalPrints>=10" v-on:click="totalPrints+=1" :ripple="false" class="ml-4" icon
-                        density="compact" variant="tonal"><v-icon size="x-small">mdi-plus</v-icon></v-btn>
+                    <v-btn :disabled="totalPrints>=10||printingCount>=1" v-on:click="totalPrints+=1" :ripple="false"
+                        class="ml-4" icon density="compact" variant="tonal"><v-icon size="x-small">mdi-plus</v-icon></v-btn>
 
                 </div>
 
@@ -118,7 +119,7 @@
 
 
 
-        <div class="pt-5" style="height: 100px; width: 100%; ">
+        <div class="pt-5" style="height: 80px; width: 100%; ">
 
             <!-- <div style="height: 30px">
                 <div v-if="image!=null&&isPrinting!=true" class="d-flex flex-row align-center">
@@ -143,13 +144,15 @@
             </div> -->
 
             <v-btn :style="image==null||aborting||(isPrinting==true&&status==0)? 'opacity: .2;':''"
-                v-if="!isPrinting&&!aborting&&isConnected" :color="`${color}`" rounded="lg" class="font-weight-bold mt-5"
+                v-if="!isPrinting&&!aborting&&isConnected" :color="`${color}`" rounded="lg" class="font-weight-bold mt-2"
                 variant="flat" block v-on:click="saveImage">Print
                 image</v-btn>
-            <v-btn v-on:click="connectPrinter()" v-else-if="!isConnected" color="transparent" variant="flat"
-                class="font-weight-bold mt-5 text-grey-darken-2" rounded="lg" block><v-icon
-                    class="mr-2">mdi-bluetooth-connect</v-icon>Connect Printer</v-btn>
-            <v-btn v-else-if="isConnected&&(isPrinting||aborting)" class="mt-5 font-weight-bold " :loading="aborting"
+
+            <v-btn :style="hasBluetoothAccess!==true? 'opacity: .5; pointer-events: none':''" v-on:click="connectPrinter()"
+                v-else-if="!isConnected" color="blue-darken-2" variant="tonal"
+                class="font-weight-bold mt-2 text-blue-darken-1" rounded="lg" block><v-icon class="mr-2"
+                    color="blue-darken-1">mdi-bluetooth</v-icon>Connect Printer</v-btn>
+            <v-btn v-else-if="isConnected&&(isPrinting||aborting)" class="mt-2 font-weight-bold " :loading="aborting"
                 variant="flat" :color="`${color}`" rounded="lg" block v-on:click="cancelPrint()"><v-icon
                     class="mr-2">mdi-close</v-icon>Cancel</v-btn>
         </div>
@@ -182,12 +185,16 @@ const props=defineProps<{
     isConnected: boolean;
     aborting: boolean;
     color: string;
-    deviceStatus: any,
+
+    hasBluetoothAccess: boolean,
+    config: any,
     printingCount: number
+
+
 
 }>()
 
-props.deviceStatus;
+props.config;
 
 
 
@@ -273,10 +280,9 @@ function getFileData(file: File): void {
 }
 
 async function saveImage(): Promise<void> {
-    console.log("SAVE")
-    const deviceConfig=JSON.parse(localStorage.getItem('instax-printer')||'{}');
 
-    const canvas=cropper!.getCroppedCanvas({ width: parseInt(deviceConfig.width as string|'800'), height: parseInt(deviceConfig.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false });
+
+    const canvas=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false });
 
 
 
@@ -296,19 +302,19 @@ async function saveImage(): Promise<void> {
         let compressedFile=null;
         while (isCompressed==false) {
             const options={
-                maxWidth: parseInt(deviceConfig.width as string|'800'),
-                maxHeight: parseInt(deviceConfig.height as string|'800'),
-                minWidth: parseInt(deviceConfig.width as string|'800'),
-                minHeight: parseInt(deviceConfig.height as string|'800'),
+                maxWidth: parseInt(props.config.width as string|'800'),
+                maxHeight: parseInt(props.config.height as string|'800'),
+                minWidth: parseInt(props.config.width as string|'800'),
+                minHeight: parseInt(props.config.height as string|'800'),
                 quality: compressionQuality, // Adjust this value to control the image compression quality
             };
 
             compressedFile=await compressor.compress(file, options)
 
             // Check if the compressed file size is smaller than 65kB
-            if (compressedFile.size>=(parseInt(deviceConfig.compression as string|"32"))*1024) {
+            if (compressedFile.size>=(parseInt(props.config.compression as string|"32"))*1024) {
                 compressionQuality-=.1
-                console.log("QUALITY = ", compressionQuality, compressedFile.size, (parseInt(deviceConfig.compression as string|"32"))*1024)
+                console.log("QUALITY = ", compressionQuality, compressedFile.size, (parseInt(props.config.compression as string|"32"))*1024)
                 continue;
             }
 
@@ -398,6 +404,62 @@ img {
 }
 </style>
 <style scoped lang="scss">
+.print-in-action {}
+
+.print-in-action:hover {
+    /* Start the shake animation and make the animation last for 0.5 seconds */
+    animation: shake 0.5s;
+
+    /* When the animation is finished, start again */
+    animation-iteration-count: infinite;
+}
+
+@keyframes shake {
+    0% {
+        transform: translate(1px, 1px) rotate(0deg);
+    }
+
+    10% {
+        transform: translate(-1px, -2px) rotate(-1deg);
+    }
+
+    20% {
+        transform: translate(-3px, 0px) rotate(1deg);
+    }
+
+    30% {
+        transform: translate(3px, 2px) rotate(0deg);
+    }
+
+    40% {
+        transform: translate(1px, -1px) rotate(1deg);
+    }
+
+    50% {
+        transform: translate(-1px, 2px) rotate(-1deg);
+    }
+
+    60% {
+        transform: translate(-3px, 1px) rotate(0deg);
+    }
+
+    70% {
+        transform: translate(3px, 1px) rotate(-1deg);
+    }
+
+    80% {
+        transform: translate(-1px, -1px) rotate(1deg);
+    }
+
+    90% {
+        transform: translate(1px, 2px) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(1px, -2px) rotate(-1deg);
+    }
+}
+
 .color-button {
     height: 30px;
     width: 30px;
@@ -427,6 +489,6 @@ img {
 
 .area {
     position: relative;
-    padding-top: 80px;
+    padding-top: 90px;
 }
 </style>

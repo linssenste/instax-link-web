@@ -13,17 +13,6 @@ const router = createRouter({
       name: 'instax-creator',
       component: () =>
         import(/* webpackChunkName: "instax-creator" */ '@/views/InstaxCreatorPage.vue')
-    },
-    {
-      path: '/imprint',
-      name: 'app-imprint',
-      component: () => import(/* webpackChunkName: "app-information" */ '@/views/ImprintPage.vue')
-    },
-    {
-      path: '/privacy',
-      name: 'app-privacy',
-      component: () =>
-        import(/* webpackChunkName: "app-information" */ '@/views/PrivacyPolicyPage.vue')
     }
   ]
 })

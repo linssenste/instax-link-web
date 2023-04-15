@@ -37,30 +37,35 @@ export class InstaxBluetooth {
   }
 
   protected async send(command: Uint8Array, response = true): Promise<Event | void> {
-    await this._characteristicRef.write!.writeValueWithoutResponse(command)
-
-    if (response != true) return
     let timeout: ReturnType<typeof setTimeout> | null = null
 
-    const notificationHandle = await this._characteristicRef.notify!.startNotifications()
+    let notificationHandle = null
+    let notificationPromise = null
+    let timeoutPromise = null
+    if (response === true) {
+      notificationHandle = await this._characteristicRef.notify!.startNotifications()
 
-    const notificationPromise = new Promise<Event>((resolve) => {
-      notificationHandle.addEventListener(
-        'characteristicvaluechanged',
-        (e: Event) => {
-          if (timeout) clearTimeout(timeout)
-          resolve(e)
-        },
-        { once: true }
-      )
-    })
+      notificationPromise = new Promise<Event>((resolve) => {
+        notificationHandle.addEventListener(
+          'characteristicvaluechanged',
+          (e: Event) => {
+            if (timeout) clearTimeout(timeout)
+            resolve(e)
+          },
+          { once: true }
+        )
+      })
 
-    const timeoutPromise = new Promise<Event>((resolve, reject) => {
-      timeout = setTimeout(() => {
-        notificationHandle.removeEventListener('characteristicvaluechanged', () => {})
-        reject(new Error('Notification timeout'))
-      }, 100)
-    })
+      timeoutPromise = new Promise<Event>((resolve, reject) => {
+        timeout = setTimeout(() => {
+          notificationHandle.removeEventListener('characteristicvaluechanged', () => {})
+          reject(new Error('Notification timeout'))
+        }, 100)
+      })
+    }
+
+    await this._characteristicRef.write!.writeValueWithoutResponse(command)
+    if (response != true) return
 
     try {
       const event = await Promise.race([notificationPromise, timeoutPromise])

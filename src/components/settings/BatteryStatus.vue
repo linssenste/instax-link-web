@@ -3,12 +3,14 @@
         <v-icon :color="batteryColor" v-if="!status.isCharging" data-testid="battery-icon">
             mdi-battery{{(Math.round((status.batteryLevel||20)/10)*10)<100? '-'
                 +Math.round((status.batteryLevel||20)/10)*10:''}} </v-icon>
-                <v-icon v-else color="green" data-testid="charging-icon">
+                <v-icon v-else color="green-darken-1" data-testid="charging-icon">
                     mdi-battery-charging
                 </v-icon>
-                <div :class="`text-${batteryColor}`" class="font-weight-bold ml-1" data-testid="battery-text">
-                    <span v-if="!status.isCharging"> {{status.batteryLevel||50}} %</span>
-                    <span v-else class="text-uppercase" style="letter-spacing: .8px;">Charging</span>
+                <div :class="`text-${batteryColor}`" class="font-weight-bold ml-1" style="font-size: 14px"
+                    data-testid="battery-text">
+                    <span v-if="!status.isCharging&&status.batteryLevel!=null"> {{status.batteryLevel||50}} %</span>
+                    <span v-else-if="status.isCharging==true" class="text-uppercase"
+                        style="letter-spacing: .8px;">POWER</span>
                 </div>
     </div>
 </template>
@@ -22,12 +24,12 @@ const props=defineProps<{
 
 const batteryColor=computed(() => {
     return (props.status.isCharging===true||(props.status.batteryLevel||50)>=95)
-        ? 'green'
+        ? 'green-darken-1'
         :(props.status.batteryLevel||50)>=30
-            ? 'black'
+            ? 'grey-darken-2'
             :(props.status.batteryLevel||50)>=20
-                ? 'orange'
-                :'red'
+                ? 'orange-darken-1'
+                :'red-darken-1'
 })
 
 nextTick(() => {
