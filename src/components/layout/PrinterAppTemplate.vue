@@ -1,14 +1,14 @@
 <template>
-    <div oncontextmenu="return false" class="app-area" id="app-area">
-
+    <div oncontextmenu="return false" class="app-area" id="app-area" data-testid="app-area">
         <PolaroidSizeSelector class="polaroid-selector" :color="themeColor" :isConnected="printerStatus>=1" :config="config"
-            v-on:resize="resizePolaroidEvent($event)" />
+            v-on:resize="resizePolaroidEvent($event)" data-testid="polaroid-size-selector" />
 
-        <ThemeColorSelector class="theme-color-selector" v-on:color-change="changedThemeColor($event)" />
+        <ThemeColorSelector class="theme-color-selector" v-on:color-change="changedThemeColor($event)"
+            data-testid="theme-color-selector" />
 
         <PrinterSettings v-on:ready="printerStatus=1" class="printer-connector" :hasBluetoothAccess="hasBluetoothAccess"
             v-on:update="config=$event" :color="themeColor" style="z-index: 100" v-on:connect="connectPrinter()"
-            :printer="printer" :printerStatus="printerStatus" />
+            :printer="printer" :printerStatus="printerStatus" data-testid="printer-settings" />
         <div class="app-content">
             <slot name="default" :state="printerStatus" />
         </div>
@@ -47,10 +47,10 @@ onMounted(() => {
 
 })
 
-const themeColor=ref<string>('pink')
+const themeColor=ref<string>('pink');
 watch(themeColor, () => {
 
-    emit('color-update', themeColor)
+    emit('color-update', themeColor.value)
 }, { immediate: true })
 
 const printer=ref<any>(null);
