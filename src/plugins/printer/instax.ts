@@ -46,9 +46,9 @@ export class InstaxPrinter extends InstaxBluetooth {
     })
 
     for (let index = 0; index < printCount; index++) {
-      if (aborted === true) return
       callback(index)
-      await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true)
+      if (aborted === true) return
+      //   await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true)
 
       await new Promise((r) => setTimeout(r, 12500))
     }

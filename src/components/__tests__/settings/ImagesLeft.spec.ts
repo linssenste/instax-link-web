@@ -7,7 +7,7 @@ import * as directives from 'vuetify/directives'
 
 import ImagesLeft from '@/components/settings/ImagesLeft.vue'
 
-describe('Images left badge', () => {
+describe('ImagesLeft component', () => {
   let wrapper: any
 
   beforeEach(() => {
@@ -18,7 +18,6 @@ describe('Images left badge', () => {
         plugins: [vuetify]
       },
       props: {
-        isPrinting: false,
         status: {
           imagesLeft: 5
         }
@@ -26,18 +25,13 @@ describe('Images left badge', () => {
     })
   })
 
-  it('renders the images icon if not printing and status is not null', async () => {
-    expect(wrapper.find('[data-testid="images-icon"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="images-text"]').exists()).toBe(true)
+  it('renders the component', async () => {
+    expect(wrapper.exists()).toBe(true)
   })
 
-  it('renders printing text if isPrinting is true', async () => {
-    await wrapper.setProps({
-      isPrinting: true
-    })
-    await nextTick()
-
-    expect(wrapper.find('[data-testid="printing-text"]').exists()).toBe(true)
+  it('renders the images icon and text', async () => {
+    expect(wrapper.find('[data-testid="images-icon"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="images-text"]').exists()).toBe(true)
   })
 
   it('displays the correct number of images left', async () => {
@@ -54,12 +48,12 @@ describe('Images left badge', () => {
   it('displays the correct color for the images icon based on imagesLeft', async () => {
     await wrapper.setProps({
       status: {
-        imagesLeft: 1
+        imagesLeft: 0
       }
     })
     await nextTick()
 
-    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red')).toBe(true)
+    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red-lighten-1')).toBe(true)
 
     await wrapper.setProps({
       status: {
@@ -68,6 +62,76 @@ describe('Images left badge', () => {
     })
     await nextTick()
 
-    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red')).toBe(false)
+    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red-lighten-1')).toBe(false)
+  })
+
+  it('displays the correct color for the images text based on imagesLeft', async () => {
+    await wrapper.setProps({
+      status: {
+        imagesLeft: 0
+      }
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').classes('text-red-lighten-1')).toBe(true)
+
+    await wrapper.setProps({
+      status: {
+        imagesLeft: 5
+      }
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').classes('text-red-lighten-1')).toBe(false)
+  })
+
+  it('displays the correct text for the images text based on imagesLeft', async () => {
+    await wrapper.setProps({
+      status: {
+        imagesLeft: 0
+      }
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').text()).toContain('0 / 10')
+
+    await wrapper.setProps({
+      status: {
+        imagesLeft: 5
+      }
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').text()).toContain('5 / 10')
+  })
+
+  it('displays 0 if status is null', async () => {
+    await wrapper.setProps({
+      status: null
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').text()).toContain('0 / 10')
+  })
+
+  it('displays 0 if imagesLeft is null', async () => {
+    await wrapper.setProps({
+      status: {
+        imagesLeft: null
+      }
+    })
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="images-text"]').text()).toContain('0 / 10')
+  })
+
+  it('displays 0 if imagesLeft is less than 0', async () => {
+    await wrapper.setProps({
+      status: {
+        imagesLeft: -2
+      }
+    })
+    await nextTick()
+    expect(wrapper.find('[data-testid="images-text"]').text()).toContain('0 / 10')
   })
 })

@@ -22,6 +22,14 @@ describe('Battery status badge', () => {
     })
   })
 
+  it('renders the component', async () => {
+    expect(wrapper.exists()).toBe(true)
+  })
+
+  it('does not render if status is null', async () => {
+    expect(wrapper.find('[data-testid="battery-status"]').exists()).toBe(false)
+  })
+
   it('renders the battery icon if status is not null and is not charging', async () => {
     await wrapper.setProps({
       status: {
@@ -49,7 +57,7 @@ describe('Battery status badge', () => {
     expect(wrapper.find('[data-testid="battery-status"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="charging-icon"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="battery-text"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="battery-text"]').text()).toContain('Charging')
+    expect(wrapper.find('[data-testid="battery-text"]').text()).toContain('POWER')
   })
 
   it('uses the correct color based on battery level and charging status', async () => {
@@ -64,7 +72,7 @@ describe('Battery status badge', () => {
     expect(
       wrapper
         .find('[data-testid="battery-status"] [data-testid="battery-icon"]')
-        .classes('text-red')
+        .classes('text-red-darken-1')
     ).toBe(true)
 
     await wrapper.setProps({
@@ -78,7 +86,7 @@ describe('Battery status badge', () => {
     expect(
       wrapper
         .find('[data-testid="battery-status"] [data-testid="battery-icon"]')
-        .classes('text-black')
+        .classes('text-grey-darken-2')
     ).toBe(true)
 
     await wrapper.setProps({
@@ -92,7 +100,7 @@ describe('Battery status badge', () => {
     expect(
       wrapper
         .find('[data-testid="battery-status"] [data-testid="battery-icon"]')
-        .classes('text-green')
+        .classes('text-green-darken-1')
     ).toBe(true)
 
     await wrapper.setProps({
@@ -106,7 +114,7 @@ describe('Battery status badge', () => {
     expect(
       wrapper
         .find('[data-testid="battery-status"] [data-testid="charging-icon"]')
-        .classes('text-green')
+        .classes('text-green-darken-1')
     ).toBe(true)
   })
 })
