@@ -1,27 +1,23 @@
 <template>
     <div>
-        <div v-if="!hasBluetoothAccess" class="pr-3  " style="margin-top: 10px; letter-spacing: 1px; font-size: 15px">
+        <div v-if="!hasBluetoothAccess" class="pr-3 no-bluetooth-access" data-testid="no-bluetooth-access">
             <div class="text-uppercase text-red font-weight-bold d-flex flex-row align-center">
                 <v-icon color="red" class="mr-2" size="small">mdi-bluetooth-off</v-icon>NO
                 Bluetooth access
             </div>
-
-            <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility"
-                target="_blank" class="text-grey-darken-1 ml-7" style="font-size: 14px">
+            <a data-testid="no-bluetooth-access-help"
+                href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility"
+                target="_blank" class="text-grey-darken-1 ml-7 api-browser-support">
                 API Browser Support</a>
         </div>
-
         <v-menu v-else v-model="settingsMenu" :disabled="printerStatus===-1" eager :offset="-100"
             :close-on-content-click="false" transition="fade-transition">
             <template v-slot:activator="{ props }">
-
-                <PrinterCard :color="color" v-bind="props" v-on:connect="connectPrinter()" :status="deviceStatus"
+                <PrinterPreviewBadge :color="color" v-bind="props" v-on:connect="connectPrinter()" :status="deviceStatus"
                     :printerStatus="printerStatus" :loading="initialLoad" />
             </template>
-
-
-            <PrinterSettingsCard v-on:close="settingsMenu=false" v-on:disconnect="disconnectPrinter()"
-                :status="deviceStatus" :color="color" :printerStatus="printerStatus" />
+            <PrinterDetailsCard v-on:close="settingsMenu=false" v-on:disconnect="disconnectPrinter()" :status="deviceStatus"
+                :color="color" :printerStatus="printerStatus" />
         </v-menu>
     </div>
 </template>
@@ -30,8 +26,8 @@
 import { INSTAX_OPCODES } from '@/plugins/printer/events';
 import { watch } from 'vue';
 import { ref } from 'vue';
-import PrinterCard from './PrinterCard.vue';
-import PrinterSettingsCard from './PrinterSettingsCard.vue';
+import PrinterPreviewBadge from './PrinterPreviewBadge.vue';
+import PrinterDetailsCard from './PrinterDetailsCard.vue';
 import { nextTick } from 'vue';
 
 
@@ -66,14 +62,14 @@ function disconnectPrinter(): void {
         clearInterval(timeoutHandle.value)
     }
 
-    props.printer.disconnect();
+    if (props.printer!=null) props.printer.disconnect();
 
 }
 
 
 function connectPrinter(): void {
 
-    emit('connect');
+    if (props.hasBluetoothAccess==true) emit('connect');
     errorCounter.value=0;
 }
 
@@ -190,3 +186,15 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
 
 
 </script>
+
+<style scoped>
+.no-bluetooth-access {
+    margin-top: 10px;
+    letter-spacing: 1px;
+    font-size: 15px;
+}
+
+.api-browser-support {
+    font-size: 14px;
+}
+</style>
