@@ -1,84 +1,58 @@
 <template>
-    <div class="area " oncontextmenu="return false">
-        <div class=" elevation-10" :style="`width: ${((config.width/config.height)*300)+30}px`"
-            style="position: relative; height: 445px;  border: 15px solid white; border-top: 20px solid white!important;background-color: white; border-radius: 8px; ">
+    <div oncontextmenu="return false" class="polaroid-area elevation-4"
+        :style="`width: ${((config.width/config.height)*300)+30}px`" data-testid="polaroid-area">
 
 
-            <div v-on:dblclick="$event.preventDefault(); $event.stopImmediatePropagation()"
-                :style="`width: ${((config.width/config.height)*300)}px;`"
-                style="position: relative; height: 100%; height: 300px; margin-top: 10px;  border-radius: 5px; overflow: hidden!important; background-color: #F0F0F0; ">
+        <div :style="`width: ${((config.width/config.height)*300)}px;`" class="cropper-area">
 
-                <!-- Printing overlay!-->
+            <!-- Printing overlay!-->
 
-                <VuePictureCropper :key="config.width" v-if="image!=null"
-                    :style="(printerStatus===2||printerStatus===3||printerStatus===4)? 'opacity: .2; pointer-events: none':''"
-                    v-on:click="$event.preventDefault(); $event.stopImmediatePropagation()"
-                    v-on:dblclick="$event.preventDefault(); $event.stopImmediatePropagation()" ref="cropperObj" :boxStyle="{
-                        width: ((config.width/config.height)*300)+'px',
-                        height: '300px',
-                        backgroundColor: '#FFFFFF'
+            <VuePictureCropper :key="config.width" v-if="image!=null"
+                :style="(printerStatus===2||printerStatus===3||printerStatus===4)? 'opacity: .2; pointer-events: none':''"
+                ref="cropperObj" :boxStyle="cropperBox" class="cropper" :presetMode="cropperPreset" :img="image"
+                :options="cropperOptions" />
 
-                    }"
-                    style="transform: scale(1);border: 2px solid #EAEAEA; border-radius: 5px!important; overflow: hidden!important"
-                    :presetMode="{
-                        mode: 'fixedSize',
-                        width: config.width,
-                        height: config.width,
-                    }" :img="image" :options="{
-    viewMode: 0,
-    doubleClickToggle: false,
-    toggleDragModeOnDblclick: false,
-    autoCropArea: true,
-    dragMode: 'move',
-    aspectRatio: config.width/config.height,
-    cropBoxMovable: false,
-    cropBoxResizable: false
-}" />
+            <div v-else data-testid="drop-area" v-on:click="uploadImage"
+                class="drop-area d-flex flex-column align-center justify-center">
 
-                <div v-else v-on:click="uploadImage" v-on:drop="dropHandler"
-                    class="d-flex flex-column align-center justify-center" ref="dropArea"
-                    style="height: 100%; cursor: pointer; width: 100%; background-color: #EAEAEA; border: 2px dashed #A0A0A0; border-radius: 5px;"
-                    v-on:dragenter="focusDropArea()" v-on:dragleave="unfocusDropArea()"
-                    v-on:dragover="focusDropArea(); $event.preventDefault();">
+                <input data-testid="input-file" v-on:change="inputChanged($event)" type="file" name="" accept="image/*"
+                    id='upload' hidden>
 
-                    <input v-on:change="inputChanged" type="file" name="" accept="image/*" id='upload' hidden>
+                <div class="d-flex flex-column ma-0 mt-4 align-center">
 
-                    <div class="d-flex flex-row ma-0 mt-4 align-center">
-
-                        <v-icon color="#A0A0A0">mdi-image</v-icon><span
-                            style="color: #A0A0A0; text-transform: uppercase; letter-spacing: 1.05px; font-size: 15px"
-                            class=" ml-2">Upload image</span>
-                    </div>
+                    <v-icon color="grey-darken-2" size="40">mdi-image</v-icon>
+                    <span style="text-transform: uppercase; letter-spacing: 1.05px; font-size: 14px"
+                        class="text-grey-darken-2 ml-2 mt-2 font-weight-bold">Upload image</span>
                 </div>
-
             </div>
-            <div v-if="isEditable" style=" width: 100%; height: 95px; background-color: white;" :key="config.width">
-                <ColorSelector class="pt-4" v-on:color-change="setBackgroundColor" />
 
-                <div class="d-flex pt-5  flex-row align-center ma-0">
-
-
-
-                    <v-btn class="elevation-0 mr-2" v-on:click="cropper.rotate(1);" size="small" variant="tonal"
-                        :ripple="false" icon="mdi-rotate-right" color="black"></v-btn>
-                    <v-btn class="elevation-0 mr-4" v-on:click="cropper.rotate(-1);" size="small" variant="tonal"
-                        :ripple="false" icon="mdi-rotate-left" color="black"></v-btn>
-
-                    <v-btn class="elevation-0 ml-0 mr-0" v-on:click="cropper.rotate(-90);" size="small" variant="tonal"
-                        :ripple="false" icon="mdi-format-rotate-90"></v-btn>
-
-
-
-
-                    <v-spacer />
-                    <v-btn class="elevation-0 ml-0" v-on:click="image=null" variant="flat" color="#F0F0F0" :ripple="false"
-                        icon density="comfortable">
-                        <v-icon size="small" color="red">mdi-delete</v-icon></v-btn>
-                </div>
-
-            </div>
         </div>
+        <div v-if="isEditable" style=" width: 100%; height: 95px; background-color: white;" :key="config.width"
+            data-testid="color-selector-container">
+            <ColorSelector data-testid="color-selector" class="pt-4" v-on:color-change="setBackgroundColor" />
 
+            <div class="d-flex pt-5  flex-row align-center ma-0">
+
+
+
+                <v-btn class="elevation-0 mr-2" v-on:click="rotateImage(1)" size="small" variant="tonal" :ripple="false"
+                    icon="mdi-rotate-right" color="black"></v-btn>
+                <v-btn class="elevation-0 mr-4" v-on:click="rotateImage(-1);" size="small" variant="tonal" :ripple="false"
+                    icon="mdi-rotate-left" color="black"></v-btn>
+
+                <v-btn class="elevation-0 ml-0 mr-0" v-on:click="rotateImage(-90);" size="small" variant="tonal"
+                    :ripple="false" icon="mdi-format-rotate-90"></v-btn>
+
+
+
+
+                <v-spacer />
+                <v-btn class="elevation-0 ml-0" v-on:click="image=null" variant="flat" color="#F0F0F0" :ripple="false" icon
+                    density="comfortable">
+                    <v-icon size="small" color="red">mdi-delete</v-icon></v-btn>
+            </div>
+
+        </div>
     </div>
 </template>
 
@@ -89,7 +63,7 @@
 import { ref, watch } from 'vue';
 import VuePictureCropper, { cropper } from 'vue-picture-cropper'
 import ColorSelector from '@/components/polaroid/ColorSelector.vue'
-import { nextTick } from 'vue';
+
 import { computed } from 'vue';
 
 const emit=defineEmits(['save', 'cancelPrinting', 'connect', 'count', 'saveable'])
@@ -97,6 +71,7 @@ const props=defineProps<{
 
     config: any,
 
+    color: string,
     printerStatus: number
     save: boolean
 }>()
@@ -113,9 +88,7 @@ watch(() => props.save, () => {
 
 const cropperObj=ref(null);
 const backgroundColor=ref('#FFFFFF')
-const image=ref(null)
-
-const dropArea=ref(null);
+const image=ref<string|null>(null)
 
 
 const isEditable=computed(() => {
@@ -126,19 +99,48 @@ watch(isEditable, () => {
     emit('saveable', isEditable.value)
 })
 
-function unfocusDropArea(): void {
-    (dropArea.value as any).style.backgroundColor='#EAEAEA'
+
+function rotateImage(degrees: number): void {
+    (cropper as any).rotate(degrees);
 }
 
-function focusDropArea(): void {
-    (dropArea.value as any).style.backgroundColor='yellow'
-}
+const cropperPreset: any=computed(() => {
+    return {
+        mode: 'fixedSize',
+        width: props.config.width,
+        height: props.config.width,
+    }
+})
+
+
+const cropperOptions: any=computed(() => {
+    return {
+        viewMode: 0,
+        doubleClickToggle: false,
+        toggleDragModeOnDblclick: false,
+        autoCropArea: true,
+        dragMode: 'move',
+        aspectRatio: props.config.width/props.config.height,
+        cropBoxMovable: false,
+        cropBoxResizable: false
+    }
+})
+
+const cropperBox=computed(() => {
+    return {
+        width: ((props.config.width/props.config.height)*300)+'px',
+        height: '300px',
+        backgroundColor: '#FFFFFF'
+
+    }
+})
+
 
 function setBackgroundColor(color: string): void {
     backgroundColor.value=color;
     console.log(document.getElementsByClassName('cropper-view-box'))
     if (document.getElementsByClassName('cropper-view-box')!=null&&document.getElementsByClassName('cropper-view-box').length>0) {
-        (document.getElementsByClassName('cropper-view-box')[0].style.backgroundColor=backgroundColor.value);
+        ((document.getElementsByClassName('cropper-view-box')[0] as any).style.backgroundColor=backgroundColor.value);
     }
 }
 
@@ -147,20 +149,6 @@ function uploadImage(): void {
     document.getElementById('upload')?.click();
 }
 
-function dropHandler(ev: Event) {
-    unfocusDropArea();
-    console.log("File(s) dropped");
-
-    // Prevent default behavior (Prevent file from being opened)
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    if ((ev as any).dataTransfer.items) {
-        getFileData((ev as any).dataTransfer.items[0].getAsFile())
-    } else {
-        // Use DataTransfer interface to access the file(s)
-        getFileData((ev as any).dataTransfer.files[0].getAsFile())
-    }
-}
 
 function inputChanged(e: Event): void {
     e.preventDefault();
@@ -177,7 +165,7 @@ function getFileData(file: File): void {
     var reader=new FileReader();
     reader.readAsDataURL(file);
     reader.onload=async function () {
-        image.value=reader.result
+        image.value=reader.result as string;
         setBackgroundColor('#FFFFFF')
 
     };
@@ -186,11 +174,12 @@ function getFileData(file: File): void {
     };
 }
 
+
 async function saveImage(): Promise<void> {
 
-    const canvas=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false }).toDataURL();
-    console.log(canvas)
-    emit('save', canvas)
+    if (image.value==null) return emit('save', null);
+    const canvasUrl=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false }).toDataURL('image/jpeg');
+    emit('save', canvasUrl)
 
 }
 
@@ -233,7 +222,39 @@ img {
 }
 
 
-.area {
+.polaroid-area {
     position: relative;
+    height: 445px;
+    border: 15px solid white;
+    border-top: 20px solid white !important;
+    background-color: white;
+    border-radius: 8px;
+}
+
+
+.drop-area {
+    height: 100%;
+    cursor: pointer;
+    width: 100%;
+    background-color: #E0E0E0;
+    border: 2px dashed #C0C0C0;
+    border-radius: 5px;
+}
+
+.cropper {
+    transform: scale(1);
+    border: 2px solid #EAEAEA;
+    border-radius: 5px !important;
+    overflow: hidden !important
+}
+
+.cropper-area {
+    position: relative;
+    height: 100%;
+    height: 300px;
+    margin-top: 10px;
+    border-radius: 5px;
+    overflow: hidden !important;
+    background-color: #F0F0F0;
 }
 </style>
