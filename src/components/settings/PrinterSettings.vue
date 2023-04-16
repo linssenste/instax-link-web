@@ -125,9 +125,10 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
 
 
         response=await props.printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]);
-        deviceStatus.value.width=response.width||800;
-        deviceStatus.value.height=response.height||800;
+        deviceStatus.value.width=(response.width!=600&&response.width!=800&&response.width!=1240? 800:response.width);
+        deviceStatus.value.height=response.height!=800&&response.height!=840? 800:response.height;
 
+        console.log("WIDTH:", response)
         localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
 
 
