@@ -192,7 +192,7 @@ function getFileData(file: File): void {
 async function saveImage(): Promise<void> {
 
     if (image.value==null) return emit('save', null);
-    const canvas=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false });
+    const canvas=cropper!.getCroppedCanvas({ width: props.config.width||800, height: props.config.height||800, fillColor: backgroundColor.value, imageSmoothingEnabled: false });
 
 
 
@@ -211,17 +211,18 @@ async function saveImage(): Promise<void> {
 
         while (isCompressed==false) {
             const options={
-                maxWidth: parseInt(props.config.width as string|'800'),
-                maxHeight: parseInt(props.config.height as string|'800'),
-                minWidth: parseInt(props.config.width as string|'800'),
-                minHeight: parseInt(props.config.height as string|'800'),
+                maxWidth: props.config.width||800,
+                maxHeight: props.config.height||800,
+                minWidth: props.config.width||800,
+                minHeight: props.config.height||800,
                 quality: compressionQuality, // Adjust this value to control the image compression quality
             };
 
             compressedFile=await compressor.compress(file, options)
 
+            console.log(options)
             // Check if the compressed file size is smaller than 65kB
-            if (compressedFile.size>=40*1024) {
+            if (compressedFile.size>=60*1024) {
                 compressionQuality-=.1
                 continue;
             }
