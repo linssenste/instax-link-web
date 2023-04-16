@@ -1,9 +1,9 @@
 <template>
     <div oncontextmenu="return false" class="polaroid-area elevation-4" :style="``" data-testid="polaroid-area">
 
-        {{config}} {{((config.width/config.height)*(config.height-500))}}
-        <div class="cropper-area"
-            :style="`width: ${(((config.width/config.height)||1)*(config.height-500))}px!important; height: ${(config.height-500)}px!important`">
+        {{config}} {{(((config.width/config.height)||1)*((config.height-500)||300))}}
+        <div :key="String(config.width)" class="cropper-area"
+            :style="`width: ${(((config.width/config.height)||1)*(config.height-500||300))}px!important; height: ${(config.height-500)}px!important`">
 
 
             <!-- Printing overlay!-->
@@ -142,8 +142,8 @@ const cropperOptions: any=computed(() => {
 
 const cropperBox=computed(() => {
     return {
-        width: ((((props.config.width/props.config.height)||1))*(props.config.height-500))+'px',
-        height: (props.config.height-500)+'px',
+        width: ((((props.config.width/props.config.height)||1))*((props.config.height-500)||300))+'px',
+        height: ((props.config.height-500)||300)+'px',
         backgroundColor: '#FFFFFF'
 
     }
