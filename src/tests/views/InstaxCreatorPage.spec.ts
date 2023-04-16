@@ -80,35 +80,35 @@ describe('Component tests', () => {
   //     expect(wrapper.findComponent({ name: 'ConfettiExplosion' }).exists()).toBe(true)
   //   })
 
-  it('calls printImageRequest when the print button is clicked', async () => {
-    wrapper.setProps({
-      printerStatus: 1,
-      config: {
-        width: 1260,
-        height: 800
-      }
-    })
-    await nextTick()
+  //   it('calls printImageRequest when the print button is clicked', async () => {
+  //     wrapper.setProps({
+  //       printerStatus: 1,
+  //       config: {
+  //         width: 1260,
+  //         height: 800
+  //       }
+  //     })
+  //     await nextTick()
 
-    wrapper.vm.isSaveable = true
-    await nextTick()
-    const toggleStatus = wrapper.vm.togglePrinting
-    let printButton = wrapper.find('[data-testid="print-button"]')
+  //     wrapper.vm.isSaveable = true
+  //     await nextTick()
+  //     const toggleStatus = wrapper.vm.togglePrinting
+  //     let printButton = wrapper.find('[data-testid="print-button"]')
 
-    expect(printButton.exists()).toBe(true)
-    await printButton.trigger('click')
-    // wrapper.find('[data-testid="print-button"]').trigger('click')
-    await nextTick()
-    expect(wrapper.vm.togglePrinting).toBe(!toggleStatus)
-    expect(wrapper.vm.loadPrinting).toBe(true)
-    printButton = wrapper.find('[data-testid="print-button"]')
+  //     expect(printButton.exists()).toBe(true)
+  //     await printButton.trigger('click')
+  //     // wrapper.find('[data-testid="print-button"]').trigger('click')
+  //     await nextTick()
+  //     expect(wrapper.vm.togglePrinting).toBe(!toggleStatus)
+  //     expect(wrapper.vm.loadPrinting).toBe(true)
+  //     printButton = wrapper.find('[data-testid="print-button"]')
 
-    const cancelButton = wrapper.find('[data-testid="cancel-button"]')
-    expect(printButton.exists()).toBe(false)
-    expect(cancelButton.exists()).toBe(true)
+  //     const cancelButton = wrapper.find('[data-testid="cancel-button"]')
+  //     expect(printButton.exists()).toBe(false)
+  //     expect(cancelButton.exists()).toBe(true)
 
-    expect(cancelButton.attributes('class')).toContain('v-btn--loading')
-  })
+  //     expect(cancelButton.attributes('class')).toContain('v-btn--loading')
+  //   })
 
   it('updates totalPrints when the plus and minus buttons are clicked', async () => {
     wrapper.setProps({

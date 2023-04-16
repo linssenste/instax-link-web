@@ -101,8 +101,6 @@ watch(() => props.printerStatus, () => {
 async function informationGetter(): Promise<void> {
 
 
-    console.log("IG", props.printerStatus)
-
     if (timeoutHandle.value!=null) {
         clearInterval(timeoutHandle.value)
         await nextTick();
@@ -125,13 +123,13 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
     try {
         let response=null;
 
-        if (loadAll==true) {
-            response=await props.printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]);
-            deviceStatus.value.width=response.width||800;
-            deviceStatus.value.height=response.height||800;
 
-            localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
-        }
+        response=await props.printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]);
+        deviceStatus.value.width=response.width||800;
+        deviceStatus.value.height=response.height||800;
+
+        localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
+
 
 
         response=await props.printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]);
@@ -142,20 +140,17 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
         deviceStatus.value.imagesLeft=response.photosLeft;
 
 
-        if (loadAll==true) {
-
-            response=await props.printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [2]);
-            deviceStatus.value.serialNumber=response.serialNumber;
-
-
-            response=await props.printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [1]);
-            console.log(response)
+        response=await props.printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [2]);
+        deviceStatus.value.serialNumber=response.serialNumber;
 
 
 
 
-            localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
-        }
+
+
+
+        localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
+
 
         emit('update', deviceStatus.value)
         await nextTick();

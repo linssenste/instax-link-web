@@ -6,11 +6,6 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       alias: '/',
-      redirect: { name: 'instax-creator' }
-    },
-
-    {
-      path: '/creator',
       name: 'instax-creator',
       component: () =>
         import(/* webpackChunkName: "instax-creator" */ '@/views/InstaxCreatorPage.vue')
