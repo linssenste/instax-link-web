@@ -70,7 +70,8 @@ describe('PrinterCard component', () => {
     await wrapper.setProps({
       status: {
         ...wrapper.props().status,
-        width: 1260
+        width: 1260,
+        height: 840
       }
     })
     await nextTick()

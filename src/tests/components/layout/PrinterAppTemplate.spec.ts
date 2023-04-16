@@ -58,6 +58,4 @@ describe('PolaroidSizeSelector', () => {
     expect(wrapper.emitted('color-update')).toBeTruthy()
     expect(wrapper.emitted('color-update')[1]).toEqual([newColor])
   })
-
-  // ... add more tests for the component's behavior
 })

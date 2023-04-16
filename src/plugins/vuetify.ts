@@ -8,7 +8,7 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import { md3 } from 'vuetify/blueprints'
-const myCustomLightTheme = {
+const instaxTheme = {
   dark: false,
   options: {
     customProperties: true
@@ -65,7 +65,7 @@ export default createVuetify(
     },
     theme: {
       themes: {
-        myCustomLightTheme,
+        instaxTheme,
         light: {
           dark: false,
           colors: {
