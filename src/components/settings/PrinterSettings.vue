@@ -90,7 +90,7 @@ watch(() => props.printerStatus, () => {
 
         setTimeout(() => {
             informationGetter()
-        }, 1000);
+        }, 500);
 
     }
 })
@@ -104,9 +104,11 @@ async function informationGetter(): Promise<void> {
 
     if (timeoutHandle.value!=null) {
         clearInterval(timeoutHandle.value)
+        await nextTick();
+        timeoutHandle.value=null;
     }
 
-    if (props.printerStatus===0||props.printerStatus===1) {
+    if (!(timeoutHandle.value==null||props.printerStatus===-1||props.printerStatus===0||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4))) {
         await getDeviceInformation(true);
         timeoutHandle.value=setInterval(() => getDeviceInformation(), 2500);
     }
@@ -116,15 +118,15 @@ async function informationGetter(): Promise<void> {
 
 async function getDeviceInformation(loadAll=false): Promise<void> {
 
-    if (props.printerStatus===-1||(props.printerStatus==2||props.printerStatus==3)) return;
+    if (timeoutHandle.value==null||props.printerStatus===-1||props.printerStatus===0||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4)) return;
 
     try {
         let response=null;
 
         if (loadAll==true) {
             response=await props.printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]);
-            deviceStatus.value.width=response.width|800;
-            deviceStatus.value.height=response.height|800;
+            deviceStatus.value.width=response.width||800;
+            deviceStatus.value.height=response.height||800;
 
             localStorage.setItem('instax-printer', JSON.stringify(deviceStatus.value))
         }
@@ -142,6 +144,10 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
 
             response=await props.printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [2]);
             deviceStatus.value.serialNumber=response.serialNumber;
+
+
+            response=await props.printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [1]);
+            console.log(response)
 
 
 
@@ -166,8 +172,8 @@ async function getDeviceInformation(loadAll=false): Promise<void> {
 
 
     } catch (error) {
-        console.log(error)
-        if (loadAll==true) getDeviceInformation(true)
+
+        if (loadAll==true&&errorCounter.value==0) getDeviceInformation(true)
 
         errorCounter.value+=1
 

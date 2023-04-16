@@ -1,14 +1,25 @@
 <template>
     <div oncontextmenu="return false" class="polaroid-area elevation-4"
-        :style="`width: ${((config.width/config.height)*300)+30}px`" data-testid="polaroid-area">
+        :style="`width: ${((config.width/config.height)*(config.height-500))+30}px`" data-testid="polaroid-area">
 
 
-        <div :style="`width: ${((config.width/config.height)*300)}px;`" class="cropper-area">
+        <div class="cropper-area"
+            :style="`width: ${((config.width/config.height)*(config.height-500))}px; height: ${(config.height-500)}px`">
+
 
             <!-- Printing overlay!-->
 
+            <div v-if="(printerStatus===2||printerStatus===3||printerStatus===4)"
+                style="position: absolute; height: 100%; width: 100%; z-index: 50">
+                <div
+                    style="position: relative; height: 100%; width: 100%; background-color: rgba(240, 240, 240, .3); transition: all 150ms linear;">
+
+                    <slot name="overlay" />
+                </div>
+            </div>
+
             <VuePictureCropper :key="config.width" v-if="image!=null"
-                :style="(printerStatus===2||printerStatus===3||printerStatus===4)? 'opacity: .2; pointer-events: none':''"
+                :style="(printerStatus===2||printerStatus===3||printerStatus===4)? 'opacity: .15; pointer-events: none':''"
                 ref="cropperObj" :boxStyle="cropperBox" class="cropper" :presetMode="cropperPreset" :img="image"
                 :options="cropperOptions" />
 
@@ -44,13 +55,16 @@
                     :ripple="false" icon="mdi-format-rotate-90"></v-btn>
 
 
-
-
                 <v-spacer />
                 <v-btn class="elevation-0 ml-0" v-on:click="image=null" variant="flat" color="#F0F0F0" :ripple="false" icon
                     density="comfortable">
                     <v-icon size="small" color="red">mdi-delete</v-icon></v-btn>
             </div>
+
+        </div>
+        <div v-else class="d-flex flex-row align-center justify-center "
+            style=" width: 100%; height: 95px; background-color: white;">
+            <slot name="text-area" />
 
         </div>
     </div>
@@ -63,7 +77,7 @@
 import { ref, watch } from 'vue';
 import VuePictureCropper, { cropper } from 'vue-picture-cropper'
 import ColorSelector from '@/components/polaroid/ColorSelector.vue'
-
+import ImageCompressor from 'image-compressor.js';
 import { computed } from 'vue';
 
 const emit=defineEmits(['save', 'cancelPrinting', 'connect', 'count', 'saveable'])
@@ -128,8 +142,8 @@ const cropperOptions: any=computed(() => {
 
 const cropperBox=computed(() => {
     return {
-        width: ((props.config.width/props.config.height)*300)+'px',
-        height: '300px',
+        width: ((props.config.width/props.config.height)*(props.config.height-500))+'px',
+        height: (props.config.height-500)+'px',
         backgroundColor: '#FFFFFF'
 
     }
@@ -178,8 +192,53 @@ function getFileData(file: File): void {
 async function saveImage(): Promise<void> {
 
     if (image.value==null) return emit('save', null);
-    const canvasUrl=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false }).toDataURL('image/jpeg');
-    emit('save', canvasUrl)
+    const canvas=cropper!.getCroppedCanvas({ width: parseInt(props.config.width as string|'800'), height: parseInt(props.config.height as string|'800'), fillColor: backgroundColor.value, imageSmoothingEnabled: false });
+
+
+
+
+    // Convert canvas to a Blob
+    canvas.toBlob(async (blob) => {
+        // Create a File from the Blob
+        const file=new File([blob as Blob], "compressed-image.jpeg", { type: "image/jpeg" });
+
+        // Compress the file using ImageCompressor
+        const compressor=new ImageCompressor();
+
+        let isCompressed=false;
+        let compressionQuality=1;
+        let compressedFile=null;
+
+        while (isCompressed==false) {
+            const options={
+                maxWidth: parseInt(props.config.width as string|'800'),
+                maxHeight: parseInt(props.config.height as string|'800'),
+                minWidth: parseInt(props.config.width as string|'800'),
+                minHeight: parseInt(props.config.height as string|'800'),
+                quality: compressionQuality, // Adjust this value to control the image compression quality
+            };
+
+            compressedFile=await compressor.compress(file, options)
+
+            // Check if the compressed file size is smaller than 65kB
+            if (compressedFile.size>=30*1024) {
+                compressionQuality-=.1
+                continue;
+            }
+
+            isCompressed=true;
+        }
+
+
+        if (compressedFile==null) throw new Error();
+
+        const reader=new FileReader();
+        reader.onloadend=() => {
+            const base64=reader.result;
+            emit('save', base64);
+        };
+        reader.readAsDataURL(compressedFile);
+    }, "image/jpeg");
 
 }
 
@@ -224,7 +283,7 @@ img {
 
 .polaroid-area {
     position: relative;
-    height: 445px;
+    min-height: 380px;
     border: 15px solid white;
     border-top: 20px solid white !important;
     background-color: white;

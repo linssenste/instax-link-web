@@ -5,6 +5,7 @@ const router = createRouter({
   routes: [
     {
       path: '/:pathMatch(.*)*',
+      alias: '/',
       redirect: { name: 'instax-creator' }
     },
 

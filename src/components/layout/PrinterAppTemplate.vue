@@ -53,64 +53,73 @@ onMounted(() => {
 //     printed: number;
 //     transfered: number;
 // }
-async function print(imageUrl: string, numberImages: number, callback: (progress: any) => void, abortController: AbortController): Promise<void> {
+async function print(imageUrl: string, numberImages: any, callback: (progress: any) => void, abortController: AbortController): Promise<void> {
 
 
     await nextTick();
 
     let abortedPrinting=false;
 
-    try {
+    printerStatus.value=2; // STATUS SENDING DATA
 
-        await new Promise((r) => setTimeout(r, 500))
+    abortController.signal.addEventListener('abort', () => {
+        console.log("ABORT!!")
+        abortedPrinting=true;
+        if (printerStatus.value===2) {
+            setTimeout(() => {
+                printerStatus.value=1; // STATUS ABORTING
 
-        printerStatus.value=2; // STATUS SENDING DATA
-        await printer.value.sendImage(imageUrl, true, async (status: number) => {
+            }, 2000);
+        }
+
+        printerStatus.value=4; // STATUS ABORTING
+
+    })
+
+    await new Promise((r) => setTimeout(r, 1000))
 
 
-            callback({ status: printerStatus.value, printed: 0, transfered: status*100 })
-            if (status==-1) {
-                setTimeout(() => {
-                    printerStatus.value=4; // STATUS ABORTING
-                }, 250);
+    await printer.value.sendImage(imageUrl, true, async (status: number) => {
 
+        callback({ status: printerStatus.value, printed: 0, transfered: status })
+
+    }, abortController.signal);
+
+
+
+    if (abortedPrinting==false) {
+
+        printerStatus.value=3; // STATUS PRINTING
+        await nextTick();
+
+        console.log("GOIGN ", numberImages.value)
+        const totalPrints=Math.round(numberImages.value);
+        callback({ status: printerStatus.value, printed: 0, total: totalPrints, transfered: 100 })
+
+        await printer.value.printImage(totalPrints, (imageId: any) => {
+            // if (printingCount.value>=1) toggleConfetti.value=!toggleConfetti.value;
+
+            callback({ status: printerStatus.value, ...imageId, transfered: 100 })
+
+            if (abortedPrinting===true) {
+                printerStatus.value=1;
+                return;
             }
-        }, abortController.signal);
+        }, abortController.signal)
 
-
-
-        if (abortedPrinting==false) {
-
-            printerStatus.value=3; // STATUS PRINTING
-            await nextTick();
-
-            let printCount=0
-            await printer.value.printImage(numberImages, (imageId: number) => {
-                // if (printingCount.value>=1) toggleConfetti.value=!toggleConfetti.value;
-
-                printCount+=1
-                callback({ status: printerStatus.value, printed: printCount, transfered: status })
-
-            }, abortController.signal)
-
-            // if (abortedPrinting==false) {
-            //     toggleConfetti.value=!toggleConfetti.value;
-            // }
-
-        }
 
         await new Promise((r) => setTimeout(r, 500))
-        printerStatus.value=1; // STATUS STANDBY
+        await nextTick();
+        printerStatus.value=1; // STATUS ABORTING
 
-    } catch (err: any) {
-        if (err!=null&&err.name==='AbortError') {
-            console.log('Printing has been cancelled');
-        } else {
-            throw err;
-        }
-    } finally {
-        printerStatus.value=1; // STATUS STANDBY
     }
+
+
+
+
+
+
+
 }
 
 const themeColor=ref<string>('pink');
@@ -170,7 +179,7 @@ function resizePolaroidEvent(targetSize: PRINTER_CONFIG): void {
     width: 100%;
     overflow: hidden;
     overflow-x: hidden !important;
-    overflow-y: auto !important;
+    overflow-y: hidden !important;
 
     cursor: default !important;
     user-select: none;
