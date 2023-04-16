@@ -63,7 +63,7 @@ async function print(imageUrl: string, numberImages: any, callback: (progress: a
     printerStatus.value=2; // STATUS SENDING DATA
 
     abortController.signal.addEventListener('abort', () => {
-        console.log("ABORT!!")
+
         abortedPrinting=true;
         if (printerStatus.value===2) {
             setTimeout(() => {
@@ -92,7 +92,6 @@ async function print(imageUrl: string, numberImages: any, callback: (progress: a
         printerStatus.value=3; // STATUS PRINTING
         await nextTick();
 
-        console.log("GOIGN ", numberImages.value)
         const totalPrints=Math.round(numberImages.value);
         callback({ status: printerStatus.value, printed: 0, total: totalPrints, transfered: 100 })
 

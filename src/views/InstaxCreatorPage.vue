@@ -1,8 +1,11 @@
 <template>
     <div class="pt-12 pb-2">
         <div style="position: absolute; left: 50%; top: calc(50% - 200px); transform: translate(-50%, -50%);">
-            <ConfettiExplosion v-if="showExplosion" :particleCount="40" :force="0.5" />
+            <ConfettiExplosion v-if="showExplosion" :particleCount="40" :particleSize="4" :duration="2000" :wind="-100"
+                :gravity="50" :colors="['#ffbe0b', '#fb5607', '#ff006e', '#8338ec', '#3a86ff']"
+                :shouldDestroyAfterDone="true" />
         </div>
+
         <PolaroidEditor v-on:saveable="isSaveable=$event" v-on:save="savedImageEvent" :color="color" :config="config"
             :printerStatus="printerStatus" :save="togglePrinting">
             <template v-slot:overlay>
@@ -51,13 +54,12 @@
         <v-btn data-testid="download-button" class="mt-6 font-weight-bold" variant="tonal" :color="color" block
             :disabled="!isSaveable" v-on:click="downloadImageRequest()">
             <v-icon class="mr-2">mdi-download</v-icon>
-            donwload
+            DOWNLOAD
 
         </v-btn>
 
         <v-btn data-testid="print-button" v-if="printerStatus==1&&loadPrinting==false" class="mt-2 font-weight-bold"
-            variant="flat" :color="color" block :disabled="!isSaveable" v-on:click="printImageRequest()">
-
+            variant="flat" :color="color" block :disabled="!isSaveable||config.width!=800" v-on:click="printImageRequest()">
             Print image
             <v-icon class="ml-2">mdi-chevron-right</v-icon>
 
@@ -167,6 +169,7 @@ function savedImageEvent(imageUrl: string): void {
         a.download=`polaroid-${props.config.width}x${props.config.height}.jpg`;
         a.click(); // download
     } else {
+        console.log("PRINTIN")
         printImage(imageUrl)
     }
 
@@ -180,7 +183,7 @@ function downloadImageRequest(): void {
 
 }
 function printImageRequest(): void {
-    console.log("PRINT IMAGE")
+
     exportStatus.value=1;
     totalPrints.value=1;
     loadPrinting.value=true

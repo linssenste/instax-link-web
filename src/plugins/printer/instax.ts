@@ -26,8 +26,8 @@ export class InstaxPrinter extends InstaxBluetooth {
     // Encode the command into the Instax packet format
     const instaxCommandData: Uint8Array = this.encode(opCode, command)
 
-    // Log the command as a hex string for debugging purposes
-    console.log('>', this._printableHex(instaxCommandData))
+    // // Log the command as a hex string for debugging purposes
+    // console.log('>', this._printableHex(instaxCommandData))
 
     const response = await this.send(instaxCommandData, awaitResponse)
     return this._decode(response as Event)
@@ -73,6 +73,8 @@ export class InstaxPrinter extends InstaxBluetooth {
     })
 
     while (isSendingImage == true && abortedPrinting == false) {
+      await new Promise((r) => setTimeout(r, 500))
+
       try {
         const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_START, [
           0x02,
@@ -91,7 +93,6 @@ export class InstaxPrinter extends InstaxBluetooth {
             setTimeout(async () => {
               await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
 
-              console.log('CANCEL COMMAND')
               callback(-1)
             }, 1000)
 
@@ -108,7 +109,8 @@ export class InstaxPrinter extends InstaxBluetooth {
             const isPacketEnd = index > chunks[packetId].length - 182
 
             const splitChunk = chunk.slice(index, index + 182)
-            const response = await this.send(splitChunk, isPacketEnd)
+
+            await this.send(splitChunk, false)
 
             if (
               isPacketEnd == true &&
@@ -117,6 +119,7 @@ export class InstaxPrinter extends InstaxBluetooth {
             ) {
               throw new Error()
             }
+
             callback(
               (packetId * chunks[packetId].length + index) /
                 (chunks[packetId].length * chunks.length)
@@ -133,8 +136,6 @@ export class InstaxPrinter extends InstaxBluetooth {
             true
           )
 
-          console.log('finishResponse', finishResponse)
-
           if (print != true) {
             callback(-1)
           }
@@ -142,7 +143,8 @@ export class InstaxPrinter extends InstaxBluetooth {
 
         isSendingImage = false
       } catch (error) {
-        console.log(error)
+        await new Promise((r) => setTimeout(r, 100))
+
         printTimeout += 25
 
         await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
@@ -191,11 +193,12 @@ export class InstaxPrinter extends InstaxBluetooth {
 
   imageToChunks(imgData: Uint8Array): Uint8Array[] {
     const imgDataChunks = []
-    const chunkSize = 1808
+    const chunkSize = 900 //1808 (sqaure link)
 
     // Divide image data up into chunks of <chunkSize> bytes and pad the last chunk with zeroes if needed
     for (let i = 0; i < imgData.length; i += chunkSize) {
       const chunk = imgData.slice(i, i + chunkSize)
+
       imgDataChunks.push(chunk)
     }
 
@@ -235,7 +238,6 @@ export class InstaxPrinter extends InstaxBluetooth {
     const command = packet[7]
     const payload = packet.slice(8, packet.length - 1)
 
-    // console.log(status)
     // Return the decoded packet data
     return parse(opCode, command, payload, status)
   }

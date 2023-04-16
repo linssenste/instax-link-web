@@ -94,6 +94,7 @@ props.config;
 props.printerStatus;
 
 watch(() => props.save, () => {
+
     saveImage();
 })
 
@@ -152,7 +153,7 @@ const cropperBox=computed(() => {
 
 function setBackgroundColor(color: string): void {
     backgroundColor.value=color;
-    console.log(document.getElementsByClassName('cropper-view-box'))
+
     if (document.getElementsByClassName('cropper-view-box')!=null&&document.getElementsByClassName('cropper-view-box').length>0) {
         ((document.getElementsByClassName('cropper-view-box')[0] as any).style.backgroundColor=backgroundColor.value);
     }
@@ -175,7 +176,7 @@ function inputChanged(e: Event): void {
 }
 
 function getFileData(file: File): void {
-    console.log(file)
+
     var reader=new FileReader();
     reader.readAsDataURL(file);
     reader.onload=async function () {
@@ -221,7 +222,7 @@ async function saveImage(): Promise<void> {
             compressedFile=await compressor.compress(file, options)
 
             // Check if the compressed file size is smaller than 65kB
-            if (compressedFile.size>=30*1024) {
+            if (compressedFile.size>=10*1024&&compressionQuality>.1) {
                 compressionQuality-=.1
                 continue;
             }

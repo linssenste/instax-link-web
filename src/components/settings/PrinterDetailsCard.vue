@@ -30,7 +30,8 @@
                     :color="color" />
                 <span class="text-grey-darken-1 text-uppercase" style="font-size: 14px;">S.N.: </span>
                 <span class="ml-2 text-uppercase font-weight-bold" data-testid="serial-number"
-                    style="letter-spacing: .8px; font-family: monospace; user-select: all;">{{status.serialNumber}}</span>
+                    style="letter-spacing: .8px; font-family: monospace; user-select: all;">{{status.serialNumber||
+                        '-'}}</span>
             </div>
         </div>
         <v-btn :disabled="printerStatus==2||printerStatus==3" v-on:click="disconnectPrinter()" :color="color"
