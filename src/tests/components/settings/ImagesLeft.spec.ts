@@ -52,7 +52,6 @@ describe('ImagesLeft component', () => {
     })
     await nextTick()
 
-    console.log(wrapper.find('[data-testid="images-icon"]').attributes('class'))
     expect(wrapper.find('[data-testid="images-icon"]').attributes('class')).toContain(
       'text-red-lighten-1'
     )
