@@ -40,7 +40,7 @@ describe('ColorSelector', () => {
       const selector = wrapper.find(`[data-testid="${color.name}-color-selector-item"]`)
       await selector.trigger('click')
       await nextTick()
-      console.log(wrapper.emitted('color-change'), index)
+
       expect(wrapper.emitted('color-change')).toBeTruthy()
       expect(wrapper.emitted('color-change')[0][0]).toBe(color.hex)
     })
