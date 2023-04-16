@@ -3,7 +3,7 @@
 
         {{config}} {{((config.width/config.height)*(config.height-500))}}
         <div class="cropper-area"
-            :style="`width: ${((config.width/config.height)*(config.height-500))}px!important; height: ${(config.height-500)}px!important`">
+            :style="`width: ${(((config.width/config.height)||1)*(config.height-500))}px!important; height: ${(config.height-500)}px!important`">
 
 
             <!-- Printing overlay!-->
@@ -121,8 +121,8 @@ function rotateImage(degrees: number): void {
 const cropperPreset: any=computed(() => {
     return {
         mode: 'fixedSize',
-        width: props.config.width,
-        height: props.config.width,
+        width: props.config.width||800,
+        height: props.config.width||800,
     }
 })
 
@@ -134,7 +134,7 @@ const cropperOptions: any=computed(() => {
         toggleDragModeOnDblclick: false,
         autoCropArea: true,
         dragMode: 'move',
-        aspectRatio: props.config.width/props.config.height,
+        aspectRatio: (props.config.width/props.config.height)||1,
         cropBoxMovable: false,
         cropBoxResizable: false
     }
@@ -142,7 +142,7 @@ const cropperOptions: any=computed(() => {
 
 const cropperBox=computed(() => {
     return {
-        width: ((props.config.width/props.config.height)*(props.config.height-500))+'px',
+        width: ((((props.config.width/props.config.height)||1))*(props.config.height-500))+'px',
         height: (props.config.height-500)+'px',
         backgroundColor: '#FFFFFF'
 
