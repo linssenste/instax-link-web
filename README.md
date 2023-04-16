@@ -7,13 +7,13 @@
 ✨ TL;DR: [https://instax-link-web.vercel.app/](https://instax-link-web.vercel.app/)
 
 
-Welcome to ✨ **Instax Link Web** ✨, the rebellious lovechild of the 2450984 existing INSTAX apps for printers. With this open-source web application, you can use Fujifilm's INSTAX link printers ([https://instax.com/mini_link_2/en/](mini), square, and wide) directly from your browser, no strings attached! For now, **the square link printer is our star**, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, this app is compatible with the [https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility](cool kids' club of browsers) that embrace cutting-edge tech.
+Welcome to ✨ **Instax Link Web** ✨, the rebellious lovechild of the 2450984 existing INSTAX apps for printers. With this open-source web application, you can use Fujifilm's INSTAX link printers ([Mini Link](https://instax.com/mini_link_2/en/), [Square Link](https://instax.com/square_link/en/), and [Wide Link](https://instax.com/link_wide/en/)) directly from your browser, no strings attached! For now, **the square link printer is our star**, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, this app is compatible with the [cool kids' club of browsers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility) that embrace cutting-edge tech.
 
 Crafted with Vue 3 and Vite, and sprinkled with vitest for unit testing, this project is as whimsical as it is functional.
 
 **Disclaimer:** While I've tested this project and can confirm it won't blow up your printer, I can't take responsibility for any mishaps. But hey, resetting an Instax printer is usually as easy as 1-2-3!
 
-Big shoutout to Jasper, who didn't know their work on the Instax mini link would inspire this little gem.
+Big shoutout to Jasper (@javl), who didn't know his [work](https://github.com/javl/InstaxBLE) on the Instax mini link would inspire this little gem.
 
 ## Why on Earth did I build this?
 
@@ -23,7 +23,7 @@ In the future, I might toy around with more quirky projects, like a "Hub" functi
 
 ## What sorcery happens on the website?
 
-No magic here, folks. Just a simple image cropper that lets you edit and save Polaroid-sized pictures. When you save an image, the data gets compressed (albeit a bit crudely for now) because, well, it's meant for printing.
+No magic here. Just a simple image cropper that lets you edit and save Polaroid-sized pictures. When you save an image, the data gets compressed (albeit a bit crudely for now) because, well, it's meant for printing.
 
 Once you connect your printer via Bluetooth, the app fetches specific details like battery status, charging state, remaining prints, and allowed image dimensions (width and height). These updates roll in every 2.5 seconds.
 
@@ -56,9 +56,6 @@ To run unit tests using vitest:
 
 Contributions are welcome! If you'd like to help improve Instax Link Web or add support for additional printer models, please submit a pull request.
 
-## Acknowledgements
-
-@javl's work on the Instax mini link ([https://github.com/javl/InstaxBLE](Instax BLE repository)) , which was a great help in developing this project.
 
 ## License
 
