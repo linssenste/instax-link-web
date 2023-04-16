@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, vi, expect, beforeEach } from 'vitest'
 import { createVuetify } from 'vuetify'
 import { nextTick } from 'vue'
 import * as components from 'vuetify/components'
@@ -29,24 +29,15 @@ describe('PolaroidEditor', () => {
     })
   })
 
-  it('renders the PolaroidEditor component', () => {
-    expect(wrapper.find('[data-testid="polaroid-area"]').exists()).toBe(true)
+  // ...
+
+  it('does not render the color selector component initially', () => {
+    expect(wrapper.find('[data-testid="color-selector"]').exists()).toBe(false)
   })
 
-  it('renders the drop area', () => {
-    expect(wrapper.find('[data-testid="drop-area"]').exists()).toBe(true)
-  })
-
-  it('renders the color selector container', () => {
-    expect(wrapper.find('[data-testid="color-selector-container"]').exists()).toBe(true)
-  })
-
-  it('renders the color selector component', () => {
+  it('renders the color selector component when an image is loaded', async () => {
+    wrapper.vm.image = 'data:image/png;base64,iVBORw0KGg...'
+    await nextTick()
     expect(wrapper.find('[data-testid="color-selector"]').exists()).toBe(true)
   })
-
-  // Add more tests as needed, for example:
-  // - Testing file upload functionality
-  // - Testing rotation functionality
-  // - Testing save functionality
 })

@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { createVuetify } from 'vuetify'
 import { nextTick } from 'vue'
 import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
 
 import ImagesLeft from '@/components/settings/ImagesLeft.vue'
 
@@ -11,7 +10,7 @@ describe('ImagesLeft component', () => {
   let wrapper: any
 
   beforeEach(() => {
-    const vuetify = createVuetify({ components, directives })
+    const vuetify = createVuetify({ components })
 
     wrapper = mount(ImagesLeft, {
       global: {
@@ -25,11 +24,11 @@ describe('ImagesLeft component', () => {
     })
   })
 
-  it('renders the component', async () => {
+  it('renders the component', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('renders the images icon and text', async () => {
+  it('renders the images icon and text', () => {
     expect(wrapper.find('[data-testid="images-icon"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="images-text"]').exists()).toBe(true)
   })
@@ -53,7 +52,10 @@ describe('ImagesLeft component', () => {
     })
     await nextTick()
 
-    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red-lighten-1')).toBe(true)
+    console.log(wrapper.find('[data-testid="images-icon"]').attributes('class'))
+    expect(wrapper.find('[data-testid="images-icon"]').attributes('class')).toContain(
+      'text-red-lighten-1'
+    )
 
     await wrapper.setProps({
       status: {
@@ -62,7 +64,9 @@ describe('ImagesLeft component', () => {
     })
     await nextTick()
 
-    expect(wrapper.find('[data-testid="images-icon"]').classes('text-red-lighten-1')).toBe(false)
+    expect(wrapper.find('[data-testid="images-icon"]').attributes('class')).not.toContain(
+      'text-red-lighten-1'
+    )
   })
 
   it('displays the correct color for the images text based on imagesLeft', async () => {

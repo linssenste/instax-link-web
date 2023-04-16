@@ -35,22 +35,21 @@ export class InstaxPrinter extends InstaxBluetooth {
 
   async printImage(
     printCount: number = 1,
-    callback: (imageId: number) => void,
+    callback: (imageId: any) => void,
     signal: AbortSignal
   ): Promise<void> {
     await new Promise((r) => setTimeout(r, 500))
     let aborted = false
     signal.addEventListener('abort', () => {
       aborted = true
-      return
     })
 
     for (let index = 0; index < printCount; index++) {
-      callback(index)
-      if (aborted === true) return
-      //   await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true)
+      await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], false)
 
-      await new Promise((r) => setTimeout(r, 12500))
+      await new Promise((r) => setTimeout(r, 14000))
+      callback({ printed: index + 1, total: printCount })
+      if (aborted === true) return
     }
   }
 
@@ -65,16 +64,14 @@ export class InstaxPrinter extends InstaxBluetooth {
     const chunks = this.imageToChunks(imageData)
 
     let isSendingImage = true
-    let printTimeout = 0
+    let printTimeout = 25
     let abortedPrinting = false
 
     signal.addEventListener('abort', () => {
       isSendingImage = false
       abortedPrinting = true
-      console.log('EVENT!!!!!', isSendingImage)
     })
 
-    console.log('>>>> START PRINTING')
     while (isSendingImage == true && abortedPrinting == false) {
       try {
         const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_START, [

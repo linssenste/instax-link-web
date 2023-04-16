@@ -66,7 +66,7 @@ watch(() => props.config, () => {
 })
 
 watch(selectedWidth, () => {
-    emit('resize', { width: selectedWidth.value, height: 800 });
+    emit('resize', { width: selectedWidth.value, height: selectedWidth.value==1260? 840:800 });
 })
 
 

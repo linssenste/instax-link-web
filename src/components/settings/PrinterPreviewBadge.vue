@@ -55,7 +55,7 @@ props.printerStatus;
 <style scoped>
 .activator {
     position: relative;
-    width: 310px;
+    width: 330px;
     height: 80px;
     background-color: #FFFFFF99;
     transition: all 200ms linear;

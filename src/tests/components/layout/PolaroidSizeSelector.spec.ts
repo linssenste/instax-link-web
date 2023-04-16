@@ -86,7 +86,7 @@ describe('PolaroidSizeSelector', () => {
 
     await nextTick()
     expect(wrapper.emitted()).toHaveProperty('resize')
-    expect(wrapper.emitted().resize[2]).toEqual([{ width: 1260, height: 800 }])
+    expect(wrapper.emitted().resize[2]).toEqual([{ width: 1260, height: 840 }])
     expect(wrapper.vm.selectedWidth).toBe(1260)
 
     await nextTick()

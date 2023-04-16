@@ -8,6 +8,7 @@ export class InstaxBluetooth {
     write: null
   }
 
+  protected isBusy = false
   /**
    * manually disconnects the printer
    */
@@ -37,6 +38,8 @@ export class InstaxBluetooth {
   }
 
   protected async send(command: Uint8Array, response = true): Promise<Event | void> {
+    if (this.isBusy === true) return
+    this.isBusy = true
     let timeout: ReturnType<typeof setTimeout> | null = null
 
     let notificationHandle = null
@@ -50,6 +53,7 @@ export class InstaxBluetooth {
           'characteristicvaluechanged',
           (e: Event) => {
             if (timeout) clearTimeout(timeout)
+
             resolve(e)
           },
           { once: true }
@@ -65,6 +69,7 @@ export class InstaxBluetooth {
     }
 
     await this._characteristicRef.write!.writeValueWithoutResponse(command)
+    this.isBusy = false
     if (response != true) return
 
     try {

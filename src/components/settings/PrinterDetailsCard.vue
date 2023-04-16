@@ -33,8 +33,9 @@
                     style="letter-spacing: .8px; font-family: monospace; user-select: all;">{{status.serialNumber}}</span>
             </div>
         </div>
-        <v-btn :disabled="printerStatus==2||printerStatus==3" v-on:click="disconnectPrinter()" :color="color" variant="flat"
-            rounded="lg" :ripple="false" class="mt-8 font-weight-bold" block data-testid="disconnect-button">
+        <v-btn :disabled="printerStatus==2||printerStatus==3" v-on:click="disconnectPrinter()" :color="color"
+            variant="tonal" rounded="lg" :ripple="false" class="mt-8 font-weight-bold" block
+            data-testid="disconnect-button">
             <v-icon class="mr-2">mdi-bluetooth-off</v-icon>Disconnect
         </v-btn>
     </div>
