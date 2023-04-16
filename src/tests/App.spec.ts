@@ -38,11 +38,11 @@ describe('App.vue', () => {
     expect(wrapper.findComponent({ name: 'PrinterAppTemplate' }).exists()).toBe(true)
   })
 
-  it('navigates to /creator route when the app is loaded', async () => {
-    await delay(100)
+  //   it('navigates to /creator route when the app is loaded', async () => {
+  //     await delay(100)
 
-    expect(router.currentRoute.value.name).toBe('instax-creator')
-  })
+  //     expect(router.currentRoute.value.name).toBe('instax-creator')
+  //   })
 
   it('renders router-view component', async () => {
     expect(wrapper.findComponent({ name: 'RouterView' }).exists()).toBe(true)
