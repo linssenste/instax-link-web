@@ -17,12 +17,11 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     coverage: {
-      all: true,
+      all: false,
       provider: 'c8',
       reporter: ['json', 'text', 'lcov', 'html'],
       exclude: [
         '**/*.spec.ts',
-        'src/config/**',
         'src/router.ts',
         'main.cjs',
         'preview.cjs',
@@ -34,7 +33,8 @@ export default defineConfig({
         'src/main.ts',
         'src/vite-env.d.ts',
         'src/App.vue',
-        'vite.config.ts'
+        'vite.config.ts',
+        'vitest.config.ts'
       ]
     },
     setupFiles: './vuetify.config.ts',
