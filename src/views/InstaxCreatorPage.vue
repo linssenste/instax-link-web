@@ -59,7 +59,7 @@
         </v-btn>
 
         <v-btn data-testid="print-button" v-if="printerStatus==1&&loadPrinting==false" class="mt-2 font-weight-bold"
-            variant="flat" :color="color" block :disabled="!isSaveable||config.width!=800" v-on:click="printImageRequest()">
+            variant="flat" :color="color" block :disabled="!isSaveable" v-on:click="printImageRequest()">
             Print image
             <v-icon class="ml-2">mdi-chevron-right</v-icon>
 
