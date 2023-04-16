@@ -42,7 +42,7 @@ export class InstaxBluetooth {
     this.isBusy = true
     let timeout: ReturnType<typeof setTimeout> | null = null
 
-    console.log('SEND', Array.from(command))
+    // console.log('SEND', Array.from(command))
     let notificationHandle = null
     let notificationPromise = null
     let timeoutPromise = null
