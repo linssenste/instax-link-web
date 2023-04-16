@@ -14,7 +14,6 @@ Crafted with Vue 3 and Vite, and sprinkled with vitest for unit testing, this pr
 **Disclaimer:** While I've tested this project and can confirm it won't blow up your printer, I can't take responsibility for any mishaps. But hey, resetting an Instax printer is usually as easy as 1-2-3!
 
 Big shoutout to Jasper (@javl) for his inspiring [work](https://github.com/javl/InstaxBLE) on the Instax mini link! Another high-paw to my dog Jasper, the photogenic furball who kept me smiling during this project:
-![ksks](https://github.com/linssenste/instax-link-web/raw/d936206bfc90a0274d64bcb6cb9106d4cb7472b0/public/IMG_4106_small.mp4)
 ![IMG_4D1B5DC83F55-1](https://user-images.githubusercontent.com/13923365/232333543-868db58e-7537-4260-88fa-5c3a7c601268.jpeg)
 
 ## Why on Earth did I build this?
