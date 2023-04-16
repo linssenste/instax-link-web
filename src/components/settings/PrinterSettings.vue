@@ -101,6 +101,7 @@ watch(() => props.printerStatus, () => {
 async function informationGetter(): Promise<void> {
 
 
+    console.log("IG", props.printerStatus)
 
     if (timeoutHandle.value!=null) {
         clearInterval(timeoutHandle.value)
@@ -108,7 +109,8 @@ async function informationGetter(): Promise<void> {
         timeoutHandle.value=null;
     }
 
-    if (!(timeoutHandle.value==null||props.printerStatus===-1||props.printerStatus===0||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4))) {
+    if (!(props.printerStatus===-1||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4))) {
+
         await getDeviceInformation(true);
         timeoutHandle.value=setInterval(() => getDeviceInformation(), 2500);
     }
@@ -118,7 +120,7 @@ async function informationGetter(): Promise<void> {
 
 async function getDeviceInformation(loadAll=false): Promise<void> {
 
-    if (timeoutHandle.value==null||props.printerStatus===-1||props.printerStatus===0||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4)) return;
+    if (timeoutHandle.value==null||props.printerStatus===-1||(props.printerStatus==2||props.printerStatus==3||props.printerStatus==4)) return;
 
     try {
         let response=null;
