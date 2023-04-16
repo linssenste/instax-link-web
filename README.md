@@ -1,60 +1,46 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
+# Instax Link Web
 
-=======
-# linssenste
+Instax Link Web is an open-source web application that allows you to use Fujifilm's INSTAX link printers (mini, square, and wide) directly from your browser. The project currently supports the square link printer, with support for mini and wide printers in progress. Leveraging the Web Bluetooth API, the application is compatible with select browsers that support this technology. Built using Vue 3 and Vite, the project also includes vitest for unit testing.
 
-This template should help get you started developing with Vue 3 in Vite.
+**Disclaimer:** This project interacts with hardware, and while it has been tested, the developers are not responsible for any issues that may arise. That said, resetting an Instax printer is usually a straightforward process.
 
-## Recommended IDE Setup
+A special thanks to Jasper, whose work on the Instax mini link was instrumental in getting this project off the ground.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+## Prerequisites
 
-## Type Support for `.vue` Imports in TS
+- Node.js (v14+ recommended)
+- A compatible browser that supports the Web Bluetooth API (e.g., Google Chrome, Microsoft Edge)
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
+## Installation
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
+To set up the project locally, follow these steps:
 
-1. Disable the built-in TypeScript Extension
-    1) Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-    2) Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
+1. Clone the repository
+2. Install the dependencies (`npm i`)
 
-## Customize configuration
+## Usage
 
-See [Vite Configuration Reference](https://vitejs.dev/config/).
+To run the project locally:
+`npm run dev`
 
-## Project Setup
+The application will be available at [http://localhost:5173](http://localhost:5173).
 
-```sh
-npm install
+## Testing
+
+To run unit tests using vitest:
+
+```npm run test:unit
+
 ```
 
-### Compile and Hot-Reload for Development
+## Contributing
 
-```sh
-npm run dev
-```
+Contributions are welcome! If you'd like to help improve Instax Link Web or add support for additional printer models, please submit a pull request.
 
-### Type-Check, Compile and Minify for Production
+## Acknowledgements
 
-```sh
-npm run build
-```
+@javl's work on the Instax mini link ([https://github.com/javl/InstaxBLE](Instax BLE repository)) , which was a great help in developing this project.
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## License
 
-```sh
-npm run test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
->>>>>>> 2f5d60b (first commit)
-=======
-
->>>>>>> a5345cb (Create README.md)
+This project is licensed under the [MIT License](LICENSE).
