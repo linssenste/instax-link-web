@@ -1,4 +1,4 @@
-# Instax Link Web: A Fun and Slightly Useful Project
+# Instax Link Web: a fun & slightly useful Project
 
 [![codecov](https://codecov.io/gh/linssenste/instax-link-web/branch/production/graph/badge.svg?token=ZU5AONZOVE)](https://codecov.io/gh/linssenste/instax-link-web)
 
