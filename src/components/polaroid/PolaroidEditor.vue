@@ -2,7 +2,7 @@
     <div oncontextmenu="return false" class="polaroid-area elevation-4"
         :style="`width: ${((config.width/config.height)*(config.height-500))+30}px`" data-testid="polaroid-area">
 
-
+        {{config}}
         <div class="cropper-area"
             :style="`width: ${((config.width/config.height)*(config.height-500))}px; height: ${(config.height-500)}px`">
 
