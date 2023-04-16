@@ -23,3 +23,13 @@ jobs:
 
       - name: Run tests
         run: npm run test:unit
+
+      - name: Run coverage reporter
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
