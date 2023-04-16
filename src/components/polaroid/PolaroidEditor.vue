@@ -1,10 +1,9 @@
 <template>
-    <div oncontextmenu="return false" class="polaroid-area elevation-4"
-        :style="`width: ${((config.width/config.height)*(config.height-500))}px`" data-testid="polaroid-area">
+    <div oncontextmenu="return false" class="polaroid-area elevation-4" :style="``" data-testid="polaroid-area">
 
-        {{config}}
+        {{config}} {{((config.width/config.height)*(config.height-500))}}
         <div class="cropper-area"
-            :style="`width: ${((config.width/config.height)*(config.height-500))}px; height: ${(config.height-500)}px`">
+            :style="`width: ${((config.width/config.height)*(config.height-500))}px!important; height: ${(config.height-500)}px!important`">
 
 
             <!-- Printing overlay!-->
@@ -287,6 +286,7 @@ img {
 .polaroid-area {
     position: relative;
     min-height: 380px;
+    min-width: 200px;
     border: 15px solid white;
     border-top: 20px solid white !important;
     background-color: white;
