@@ -222,7 +222,7 @@ async function saveImage(): Promise<void> {
             compressedFile=await compressor.compress(file, options)
 
             // Check if the compressed file size is smaller than 65kB
-            if (compressedFile.size>=10*1024&&compressionQuality>.1) {
+            if (compressedFile.size>=40*1024) {
                 compressionQuality-=.1
                 continue;
             }
