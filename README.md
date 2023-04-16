@@ -7,7 +7,7 @@
 ✨ TL;DR: [https://instax-link-web.vercel.app/](https://instax-link-web.vercel.app/)
 
 
-Welcome to Instax Link Web, the rebellious lovechild of the 2,450,984 existing INSTAX apps for printers. With our open-source web application, you can use Fujifilm's INSTAX link printers (mini, square, and wide) directly from your browser, no strings attached! For now, the square link printer is our star, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, our app is compatible with the cool kids' club of browsers that embrace cutting-edge tech.
+Welcome to ✨ **Instax Link Web** ✨, the rebellious lovechild of the 2450984 existing INSTAX apps for printers. With this open-source web application, you can use Fujifilm's INSTAX link printers ([https://instax.com/mini_link_2/en/](mini), square, and wide) directly from your browser, no strings attached! For now, **the square link printer is our star**, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, this app is compatible with the [https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility](cool kids' club of browsers) that embrace cutting-edge tech.
 
 Crafted with Vue 3 and Vite, and sprinkled with vitest for unit testing, this project is as whimsical as it is functional.
 
