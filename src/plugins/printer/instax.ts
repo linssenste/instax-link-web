@@ -193,7 +193,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 
   imageToChunks(imgData: Uint8Array): Uint8Array[] {
     const imgDataChunks = []
-    const chunkSize = 900 //1808 (sqaure link)
+    const chunkSize = 1808 //1808 (sqaure link)
 
     // Divide image data up into chunks of <chunkSize> bytes and pad the last chunk with zeroes if needed
     for (let i = 0; i < imgData.length; i += chunkSize) {
