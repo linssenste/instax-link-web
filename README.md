@@ -2,6 +2,9 @@
 
 [![codecov](https://codecov.io/gh/linssenste/instax-link-web/branch/production/graph/badge.svg?token=ZU5AONZOVE)](https://codecov.io/gh/linssenste/instax-link-web)
 
+![Tests](https://img.shields.io/github/workflow/status/linssenste/instax-link-web/Testing/production)
+
+
 
 Welcome to Instax Link Web, the rebellious lovechild of the 2,450,984 existing INSTAX apps for printers. With our open-source web application, you can use Fujifilm's INSTAX link printers (mini, square, and wide) directly from your browser, no strings attached! For now, the square link printer is our star, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, our app is compatible with the cool kids' club of browsers that embrace cutting-edge tech.
 
