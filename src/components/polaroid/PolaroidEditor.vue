@@ -18,7 +18,7 @@
                 </div>
             </div>
 
-            <VuePictureCropper :key="config.width" v-if="image!=null"
+            <VuePictureCropper v-if="image!=null"
                 :style="(printerStatus===2||printerStatus===3||printerStatus===4)? 'opacity: .15; pointer-events: none':''"
                 ref="cropperObj" :boxStyle="cropperBox" class="cropper" :presetMode="cropperPreset" :img="image"
                 :options="cropperOptions" />
@@ -38,7 +38,7 @@
             </div>
 
         </div>
-        <div v-if="isEditable" style=" width: 100%; height: 95px; background-color: white;" :key="config.width"
+        <div v-if="isEditable" style=" width: 100%; height: 95px; background-color: white;"
             data-testid="color-selector-container">
             <ColorSelector data-testid="color-selector" class="pt-4" v-on:color-change="setBackgroundColor" />
 
@@ -243,7 +243,9 @@ async function saveImage(): Promise<void> {
 
 }
 
-
+props.config;
+props.color;
+props.printerStatus;
 </script>
 
 <style >
