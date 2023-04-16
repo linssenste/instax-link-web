@@ -14,13 +14,13 @@ Crafted with Vue 3 and Vite, and sprinkled with vitest for unit testing, this pr
 
 Big shoutout to Jasper, who didn't know their work on the Instax mini link would inspire this little gem.
 
-## Why on Earth Did We Build This?
+## Why on Earth did I build this?
 
 Well, I had enough of the countless INSTAX apps and thought I could create something that _just_ lets you print photos with your Instax printer. That's it. Plus, I wanted to see if I could reverse engineer the printer, learn something new, and use the Web Bluetooth API. Spoiler alert: it works!
 
 In the future, I might toy around with more quirky projects, like a "Hub" functionality. Picture this: multiple people sending photos to the printer without needing a direct connection. Instead, they'd send the images to a queue on the Hub (like a computer), which would print them one by one. Why? Because I've been frustrated with the INSTAX app, that's why!
 
-## What Sorcery Happens on the Website?
+## What sorcery happens on the website?
 
 No magic here, folks. Just a simple image cropper that lets you edit and save Polaroid-sized pictures. When you save an image, the data gets compressed (albeit a bit crudely for now) because, well, it's meant for printing.
 
