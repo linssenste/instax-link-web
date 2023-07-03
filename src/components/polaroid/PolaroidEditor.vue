@@ -1,6 +1,5 @@
 <template>
     <div oncontextmenu="return false" class="polaroid-area elevation-4" :style="``" data-testid="polaroid-area">
-
         <!-- {{config}} {{(((config.width/config.height)||1)*((config.height-500)||300))}} -->
         <div :key="String(config.width)" class="cropper-area"
             :style="`width: ${(((config.width/config.height)||1)*(config.height-500||300))}px!important; height: ${(config.height-500)}px!important`">
@@ -37,10 +36,44 @@
             </div>
 
         </div>
-        <div v-if="isEditable" style=" width: 100%; height: 95px; background-color: white;"
+        <div v-if="isEditable" style=" width: 100%; background-color: white;"
             data-testid="color-selector-container">
             <ColorSelector data-testid="color-selector" class="pt-4" v-on:color-change="setBackgroundColor" />
 
+            <div class="d-flex pt-5  flex-row align-center ma-0">
+                <v-btn v-on:click="alignVerticalCenter()"
+                       class="elevation-0 mr-2" 
+                       icon="mdi-format-vertical-align-center"
+                       variant="tonal"
+                       size="small"
+                       :ripple="false"
+                       color="black">
+                </v-btn>
+                <v-btn v-on:click="alignHorizontalCenter()"
+                       class="elevation-0 mr-4"
+                       icon="mdi-format-horizontal-align-center"
+                       variant="tonal"
+                       size="small"
+                       :ripple="false"
+                       color="black">
+                </v-btn>
+                <v-btn v-on:click="fitVertical()"
+                       class="elevation-0 mr-2"
+                       icon="mdi-arrow-expand-vertical"
+                       variant="tonal"
+                       size="small"
+                       :ripple="false"
+                       color="black">
+                </v-btn>
+                <v-btn v-on:click="fitHorizontal()"
+                       class="elevation-0"
+                       icon="mdi-arrow-expand-horizontal"
+                       variant="tonal"
+                       size="small"
+                       :ripple="false"
+                       color="black">
+                </v-btn>
+            </div>
             <div class="d-flex pt-5  flex-row align-center ma-0">
 
 
@@ -81,12 +114,10 @@ import { computed } from 'vue';
 
 const emit=defineEmits(['save', 'cancelPrinting', 'connect', 'count', 'saveable'])
 const props=defineProps<{
-
     config: any,
-
     color: string,
-    printerStatus: number
-    save: boolean
+    printerStatus: number,
+    save: boolean,
 }>()
 
 props.config;
@@ -116,6 +147,53 @@ watch(isEditable, () => {
 
 function rotateImage(degrees: number): void {
     (cropper as any).rotate(degrees);
+}
+
+interface CanvasData {
+    left: number,
+    top: number,
+    height: number,
+    width: number,
+    naturalWidth: number,
+    naturalHeight: number,
+}
+
+function getImageSize(): CanvasData {
+    return (cropper as any).getCanvasData();
+}
+
+function getCropperSize(): {width: number, height: number} {
+    return (cropper as any).getContainerData();
+}
+
+function alignVerticalCenter(): void {
+    const imageSize = getImageSize();
+    const cropperSize = getCropperSize();
+    const top = (cropperSize.height - imageSize.height)/2;
+    (cropper as any).moveTo(imageSize.left, top);
+}
+
+function alignHorizontalCenter(): void {
+    const imageSize = getImageSize();
+    const cropperSize = getCropperSize();
+    const left = (cropperSize.width - imageSize.width)/2;
+    (cropper as any).moveTo(left, imageSize.top);
+}
+
+function fit(ratio: number): void {
+    const cropperSize = getCropperSize();
+    const pivot = {x: cropperSize.width/2, y: cropperSize.height/2};
+    (cropper as any).zoomTo(ratio, pivot);
+    alignVerticalCenter();
+    alignHorizontalCenter();
+}
+
+function fitVertical(): void {
+    fit(getCropperSize().height / getImageSize().naturalHeight);
+}
+
+function fitHorizontal(): void {
+    fit(getCropperSize().width / getImageSize().naturalWidth);
 }
 
 const cropperPreset: any=computed(() => {
