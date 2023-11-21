@@ -1,47 +1,31 @@
 <template>
-    <div class="ml-0 d-flex flex-row align-center">
-        <a style="text-decoration: none!important;" href="https://github.com/linssenste/instax-link-web" target="_blank">
-            <v-btn class="mr-6" color="black" icon variant="tonal" density="comfortable"><v-icon size="large"
-                    color="black">mdi-github</v-icon></v-btn>
-        </a>
+    <div class="selector-row">
 
-
-        <div v-on:click="selectedColor='pink'" :class="selectedColor==='pink'? 'color-selector-item-selected':''"
-            data-testid="pink-color-selector-item" class="color-selector-item bg-pink rounded-pill ">
-        </div>
-        <div v-on:click="selectedColor='red'" :class="selectedColor==='red'? 'color-selector-item-selected':''"
-            data-testid="red-color-selector-item" class="color-selector-item bg-red rounded-pill "></div>
-        <div v-on:click="selectedColor='orange'" :class="selectedColor==='orange'? 'color-selector-item-selected':''"
-            data-testid="orange-color-selector-item" class="color-selector-item bg-orange rounded-pill "></div>
-
-
-        <div v-on:click="selectedColor='purple'" :class="selectedColor==='purple'? 'color-selector-item-selected':''"
-            data-testid="purple-color-selector-item" class="color-selector-item bg-purple rounded-pill "></div>
-
-
-
+		<div v-for="color in colors" v-on:click="changeThemeColor(color)"  :class="selectedColor==color? 'color-selected' : ''"
+            data-testid="pink-color-selector-item" :style="colorStyling(color)" class="color-item"/>
 
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { ref, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const selectedColor=ref('white')
+const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'pink'];
+const selectedColor=ref((localStorage.getItem('background')||'red'))
 const emit=defineEmits(['color-change'])
 
+function colorStyling(name: string) {
+	return {
+		backgroundColor: `var(--${name}-color)`
+	}
+}
 
 onMounted(() => {
-    selectedColor.value=localStorage.getItem('background')||'pink'
+	changeThemeColor(selectedColor.value); 
 })
+function changeThemeColor(color: string): void {
 
-watch(selectedColor, () => {
-    emitColor();
-})
-
-function emitColor(): void {
-
+	selectedColor.value = color; 
     localStorage.setItem('background', selectedColor.value)
     emit('color-change', selectedColor.value)
 
@@ -49,22 +33,31 @@ function emitColor(): void {
 </script>
 
 <style scoped>
-.color-selector-item {
+
+.selector-row {
+	
+	display: flex; 
+	flex-direction: row;
+	align-items: center;
+}
+
+.color-item {
     width: 20px;
     cursor: pointer;
     height: 20px;
     transition: all 50ms linear;
-    margin-right: 14px !important;
+    margin-right: 10px !important;
+
+	border-radius: 50%;
 }
 
-.color-selector-item:hover {
+.color-item:hover {
     transform: scale(1.3);
     transition: all 50ms linear;
 
 }
 
-.color-selector-item-selected {
-    pointer-events: none;
+.color-selected {
     transform: scale(1.3);
     border-radius: 4px !important;
 
