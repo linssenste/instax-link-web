@@ -1,0 +1,15 @@
+
+:root {
+	--blue-color: #4183FF; 
+	--pink-color: #F870FF; 
+	--orange-color: #FE9C00; 
+	--yellow-color: #FEEA00; 
+	--green-color: #009C34; 
+	--red-color: #FF5A5A; 
+  }
+
+html, body {
+	font-family: 'Geist Regular', serif;
+	position: relative;
+	margin: 0px;
+}
