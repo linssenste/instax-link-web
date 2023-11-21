@@ -1,19 +1,20 @@
 <template>
-    <v-app theme="instaxTheme">
+
+	<div>MOIN</div>
+    <!-- <v-app theme="instaxTheme">
         <v-main class="app">
             <PrinterAppTemplate v-on:color-update="themeColor=$event" v-on:config-update="config=$event">
                 <template v-slot:default="{ printerStatus, print, color }">
                     <router-view :color="color" :config="config" :printerStatus="printerStatus" :print="print" />
                 </template>
-
             </PrinterAppTemplate>
         </v-main>
-    </v-app>
+    </v-app> -->
 </template>
 
 <script setup lang="ts">
 
-import PrinterAppTemplate from '@/components/layout/PrinterAppTemplate.vue'
+// import PrinterAppTemplate from '@/components/layout/PrinterAppTemplate.vue'
 import { ref } from 'vue';
 
 const config=ref({
