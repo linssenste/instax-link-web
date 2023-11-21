@@ -45,21 +45,19 @@ function changeThemeColor(color: string): void {
     width: 20px;
     cursor: pointer;
     height: 20px;
-    transition: all 50ms linear;
-    margin-right: 10px !important;
+    transition: all 100ms linear;
+    margin-right: 5px !important;
 
-	border-radius: 50%;
+	border-radius: 3px;
 }
 
 .color-item:hover {
-    transform: scale(1.3);
-    transition: all 50ms linear;
+    transform: scale(1.1);
+    transition: all 100ms linear;
 
 }
 
 .color-selected {
-    transform: scale(1.3);
-    border-radius: 4px !important;
-
+    border-radius: 50% !important;
 }
 </style>
