@@ -1,8 +1,8 @@
 <template>
-    <div class="selector-row">
+    <div oncontextmenu="return false" class="selector-row">
 
 		<div v-for="color in colors" v-on:click="changeThemeColor(color)"  :class="selectedColor==color? 'color-selected' : ''"
-            data-testid="pink-color-selector-item" :style="colorStyling(color)" class="color-item"/>
+            :data-testid="`${color}-color-item`" :style="colorStyling(color)" class="color-item"/>
 
     </div>
 </template>
@@ -10,9 +10,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'pink'];
-const selectedColor=ref((localStorage.getItem('background')||'red'))
 const emit=defineEmits(['color-change'])
+
+const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'pink']; // #pride
+
+
+const selectedColor=ref((localStorage.getItem('background')||'red')); 
+
 
 function colorStyling(name: string) {
 	return {
@@ -23,12 +27,12 @@ function colorStyling(name: string) {
 onMounted(() => {
 	changeThemeColor(selectedColor.value); 
 })
-function changeThemeColor(color: string): void {
 
+
+function changeThemeColor(color: string): void {
 	selectedColor.value = color; 
     localStorage.setItem('background', selectedColor.value)
     emit('color-change', selectedColor.value)
-
 }
 </script>
 
@@ -45,15 +49,14 @@ function changeThemeColor(color: string): void {
     width: 20px;
     cursor: pointer;
     height: 20px;
-    transition: all 100ms linear;
+    transition: all 50ms linear;
     margin-right: 5px !important;
-
 	border-radius: 3px;
 }
 
 .color-item:hover {
     transform: scale(1.1);
-    transition: all 100ms linear;
+    transition: all 50ms linear;
 
 }
 

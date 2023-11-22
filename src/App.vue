@@ -2,8 +2,13 @@
 
 	<div class="app-area">
 		<div class="background" :style="themeStyling"/>
-		sdjklfm
-		<ThemeColorSelector v-on:color-change="themeColor = $event"/>
+		<PolaroidSizeSelector :color="themeColor" :isConnected="false" :config="config" v-on:resize="config = $event"/>
+		<ThemeColorSelector class="theme-selector" v-on:color-change="themeColor = $event"/>
+
+		<a oncontextmenu="return false" href="https://google.com" class="github-link" target="_blank">
+		<img  alt="link to github page of this project" draggable="false" src="@/assets/icons/github-icon.webp" width="30" height="30"/>
+
+</a>
 	</div>
 </template>
 
@@ -11,6 +16,7 @@
 import ThemeColorSelector from '@/components/layout/ThemeColorSelector.vue'
 // import PrinterAppTemplate from '@/components/layout/PrinterAppTemplate.vue'
 import { computed, ref } from 'vue';
+import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 
 const config=ref({
     width: 800,
@@ -32,6 +38,18 @@ const themeStyling = computed(() => {
 
 
 <style lang="scss">
+.github-link {
+	position: absolute;
+	right: 15px; 
+	bottom: 12px;
+	cursor: pointer;
+	transition: all 150ms ease-in-out;
+	user-select: none;
+
+}
+.github-link:hover {
+	transform: scale(1.1);
+}
 .app-area {
 	width: 100%; 
 	height: 100vh; 
@@ -47,6 +65,12 @@ const themeStyling = computed(() => {
 	left: 0px;
 	height: 100%; 
 	width: 100%;
+}
+
+.theme-selector {
+	position: absolute;
+	bottom: 20px;
+	left: 25px
 }
 
 

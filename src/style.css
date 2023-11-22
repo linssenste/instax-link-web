@@ -6,7 +6,8 @@
 	--yellow-color: #FEEA00; 
 	--green-color: #009C34; 
 	--red-color: #FF5A5A; 
-	--grey-color: #505050
+	--grey-color: #505050; 
+	--light-grey-color: #a0a0a0
   }
 
 html, body {
