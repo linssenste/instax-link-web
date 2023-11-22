@@ -1,13 +1,13 @@
 <template>
-	<div style="position: relative; padding: 20px; display: flex; flex-direction: row; gap: 8px">
+	<div oncontextmenu="return false" style="position: relative; padding: 20px; display: flex; flex-direction: row; gap: 8px">
 	  <div v-for="width in [600, 800, 1260]" :key="width" :style="polaroidClass(width)" @click="selectedWidth = width" class="polaroid">
-		<div class="inner-polaroid" :style="selectedPolaroid(width)"></div>
+		<div class="inner-polaroid" :style="width === selectedWidth ? selectedImage : ''"></div>
 	  </div>
 	</div>
   </template>
   
   <script setup lang="ts">
-  import { ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
   
   const selectedWidth = ref(800);
   
@@ -29,18 +29,29 @@
   watch(selectedWidth, () => {
 	emit('resize', { width: selectedWidth.value, height: selectedWidth.value === 1260 ? 840 : 800 });
   });
+
+
   
-  function selectedPolaroid(width: number) {
+
+  const selectedImage = computed(() => {
+	selectedWidth.value;
+
 	return {
-	  backgroundImage: width === selectedWidth.value ? `url("/polaroid-placeholder/placeholder-${Math.trunc(Math.random() * 10)}.webp")` : 'none',
+	  backgroundImage: `url("/polaroid-placeholder/placeholder-${Math.trunc(Math.random() * 85)}.webp")`
 	};
-  }
+
+  })
+
   
   function polaroidClass(width: number) {
 	return {
-	  backgroundColor: `var(--${selectedWidth.value === width ? props.color : 'grey'}-color)`,
+		opacity: props.isConnected && selectedWidth.value != width ? '.25' : '',
+	  backgroundColor: `var(--${selectedWidth.value === width ? props.color : 'light-grey'}-color)`,
 	  width: width === 600 ? '20px' : width === 800 ? '30px' : '45px',
-	};
+	  boxShadow: `0px 0px 5px rgba(0, 0, 0, ${width === selectedWidth.value ? '.5' : '0'})`, 
+	  pointerEvents:  props.isConnected  ? 'none' : 'all',
+
+	} as any;
   }
   </script>
 
@@ -61,8 +72,9 @@
 	width: 100%;
 	
 
-	height: 30px;
+	height: 32px;
 	background-size: cover;
+	background-position: center;
 	border-radius: 0;
 }
 
@@ -70,10 +82,4 @@
 	transform: scale(1.1);
 }
 
-
-
-.disabled {
-	opacity: .3;
-	pointer-events: none;
-}
 </style>
