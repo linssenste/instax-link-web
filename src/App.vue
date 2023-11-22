@@ -5,7 +5,7 @@
 		<PolaroidSizeSelector :color="themeColor" :isConnected="false" :config="config" v-on:resize="config = $event"/>
 		<ThemeColorSelector class="theme-selector" v-on:color-change="themeColor = $event"/>
 
-		<a oncontextmenu="return false" href="https://google.com" class="github-link" target="_blank">
+		<a oncontextmenu="return false" href="https://github.com/linssenste/instax-link-web" class="github-link" target="_blank">
 		<img  alt="link to github page of this project" draggable="false" src="@/assets/icons/github-icon.webp" width="30" height="30"/>
 
 </a>
