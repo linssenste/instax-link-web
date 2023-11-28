@@ -2,6 +2,7 @@
 
 	<div class="app-area">
 		<div class="background" :style="themeStyling"/>
+
 		<PolaroidSizeSelector  :isConnected="false" :config="config" v-on:resize="config = $event"/>
 		<ThemeColorSelector class="theme-selector" v-on:color-change="config.theme = $event"/>
 
@@ -21,7 +22,7 @@ import { computed, ref } from 'vue';
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 
-const config=ref({
+const config = ref<any>({
     width: 800,
     height: 800, 
 	theme: 'pink'
@@ -33,6 +34,9 @@ const themeStyling = computed(() => {
 		backgroundColor: `var(--${config.value.theme}-color)`
 	}
 })
+
+
+
 
 </script>
 
@@ -54,6 +58,9 @@ const themeStyling = computed(() => {
 	transform: scale(1.1);
 }
 .app-area {
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
 	width: 100vw; 
 	height: 100vh; 
 	overflow: hidden;
