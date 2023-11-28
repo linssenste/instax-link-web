@@ -12,11 +12,12 @@
   const selectedWidth = ref(800);
   
   const props = defineProps<{
-	color: string;
+
 	isConnected: boolean;
 	config: {
 	  width: number;
 	  height: number;
+	  theme: string
 	};
   }>();
   
@@ -27,7 +28,7 @@
   });
   
   watch(selectedWidth, () => {
-	emit('resize', { width: selectedWidth.value, height: selectedWidth.value === 1260 ? 840 : 800 });
+	emit('resize', {...props.config,  width: selectedWidth.value, height: selectedWidth.value === 1260 ? 840 : 800 });
   });
 
 
@@ -46,7 +47,7 @@
   function polaroidClass(width: number) {
 	return {
 		opacity: props.isConnected && selectedWidth.value != width ? '.25' : '',
-	  backgroundColor: `var(--${selectedWidth.value === width ? props.color : 'light-grey'}-color)`,
+	  backgroundColor: `var(--${selectedWidth.value === width ? props.config.theme : 'light-grey'}-color)`,
 	  width: width === 600 ? '20px' : width === 800 ? '30px' : '45px',
 	  boxShadow: `0px 0px 5px rgba(0, 0, 0, ${width === selectedWidth.value ? '.5' : '0'})`, 
 	  pointerEvents:  props.isConnected  ? 'none' : 'all',

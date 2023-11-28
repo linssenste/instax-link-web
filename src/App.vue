@@ -2,8 +2,10 @@
 
 	<div class="app-area">
 		<div class="background" :style="themeStyling"/>
-		<PolaroidSizeSelector :color="themeColor" :isConnected="false" :config="config" v-on:resize="config = $event"/>
-		<ThemeColorSelector class="theme-selector" v-on:color-change="themeColor = $event"/>
+		<PolaroidSizeSelector  :isConnected="false" :config="config" v-on:resize="config = $event"/>
+		<ThemeColorSelector class="theme-selector" v-on:color-change="config.theme = $event"/>
+
+		<PolaroidEditor :config="config"/>
 
 		<a oncontextmenu="return false" href="https://github.com/linssenste/instax-link-web" class="github-link" target="_blank">
 		<img  alt="link to github page of this project" draggable="false" src="@/assets/icons/github-icon.webp" width="30" height="30"/>
@@ -17,17 +19,18 @@ import ThemeColorSelector from '@/components/layout/ThemeColorSelector.vue'
 // import PrinterAppTemplate from '@/components/layout/PrinterAppTemplate.vue'
 import { computed, ref } from 'vue';
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
+import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 
 const config=ref({
     width: 800,
-    height: 800
+    height: 800, 
+	theme: 'pink'
 })
 
-const themeColor=ref<string>('pink');
 
 const themeStyling = computed(() => {
 	return {
-		backgroundColor: `var(--${themeColor.value}-color)`
+		backgroundColor: `var(--${config.value.theme}-color)`
 	}
 })
 
@@ -51,7 +54,7 @@ const themeStyling = computed(() => {
 	transform: scale(1.1);
 }
 .app-area {
-	width: 100%; 
+	width: 100vw; 
 	height: 100vh; 
 	overflow: hidden;
 }
@@ -70,7 +73,8 @@ const themeStyling = computed(() => {
 .theme-selector {
 	position: absolute;
 	bottom: 20px;
-	left: 25px
+	left: 25px;
+	z-index: 10;
 }
 
 
