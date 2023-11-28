@@ -10,7 +10,7 @@
 
 					<CropperArea v-if="image" :config="config" :image="image" />
 
-					<SelectUpload v-else :config="config" v-on:selected="getFileData($event)"/>
+					<SelectUpload v-else :theme="config.theme" v-on:selected="getFileData($event)"/>
 					
 
 				</template>
@@ -24,19 +24,14 @@
 <script setup lang="ts">
 import PolaroidFrame from './PolaroidFrame.vue';
 
-import { ref, computed, onUnmounted, onMounted } from 'vue'
-import ImageCompressor from 'image-compressor.js';
+import { ref } from 'vue'
 import CropperArea from './CropperArea.vue';
-import DropUpload from '../layout/DropUpload.vue';
-import SelectUpload from '../layout/SelectUpload.vue';
+import DropUpload from '../upload/DropUpload.vue';
+import SelectUpload from '../upload/SelectUpload.vue';
 
 
 const props = defineProps<{
-	config: {
-		width: number,
-		height: number, 
-		theme: string
-	}
+	config: any
 }>()
 
 
