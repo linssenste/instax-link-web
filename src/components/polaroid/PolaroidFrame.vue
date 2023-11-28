@@ -36,11 +36,11 @@ const props = defineProps<{
 
 const polaroidImageSource = computed(() => {
 	if (props.config.width === 600) {
-		return '/polaroids/mini.webp';
+		return '/polaroids/mini.png';
 	} else if (props.config.width === 800) {
 		return '/polaroids/square.webp';
 	} else {
-		return '/polaroids/large.webp';
+		return '/polaroids/large.png';
 	}
 });
 
@@ -75,6 +75,7 @@ const polaroidImageSource = computed(() => {
 .inner {
 	height: 300px;
 	background-color: white;
+	z-index: 2000000;
 }
 
 .inner-600 {
