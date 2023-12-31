@@ -1,88 +1,99 @@
 <template>
+	<div class="app-area"> 
 
-	<div class="app-area">
-		<div class="background" :style="themeStyling"/>
+		<!-- bottom-left corner: color selector -->
+		<ThemeColorSelector class="theme-color-selector" v-on:color-change="config.theme = $event" />
 
-		<PolaroidSizeSelector  :isConnected="false" :config="config" v-on:resize="config = $event"/>
-		<ThemeColorSelector class="theme-selector" v-on:color-change="config.theme = $event"/>
+		<!-- bottom-right corner: project related links/information -->
+		<ProjectLinks class="project-links-section"/>
 
-		<PolaroidEditor :config="config"/>
+		<!-- top-left corner: polaroid size selector (if no connection) -->
+		<PolaroidSizeSelector class="polaroid-size-selection" :config="config" v-on:resize="config = $event" />
+		
 
-		<a oncontextmenu="return false" href="https://github.com/linssenste/instax-link-web" class="github-link" target="_blank">
-		<img  alt="link to github page of this project" draggable="false" src="@/assets/icons/github-icon.webp" width="30" height="30"/>
+		<PolaroidEditor v-on:image="printingQueue.push($event)" v-on:connect="connectPrinterEvent" :config="config" />
 
-</a>
 	</div>
 </template>
 
 <script setup lang="ts">
-import ThemeColorSelector from '@/components/layout/ThemeColorSelector.vue'
-// import PrinterAppTemplate from '@/components/layout/PrinterAppTemplate.vue'
-import { computed, ref } from 'vue';
+
+import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
+import ProjectLinks from './components/layout/ProjectLinks.vue';
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 
-const config = ref<any>({
-    width: 800,
-    height: 800, 
-	theme: 'pink'
+import { ref, watchEffect } from 'vue';
+
+export interface THEME_STATE_CONFIG {
+  width: number; 
+  height: number; 
+  theme: string;
+  connection: boolean
+}
+
+const config = ref<THEME_STATE_CONFIG>({
+	width: 800,
+	height: 800,
+	theme: 'pink',
+	connection: false
 })
 
+// set background theme color
+watchEffect(() => {
+    document.documentElement.style.setProperty('--dynamic-bg-color', `var(--${config.value.theme}-color)`);
+});
 
-const themeStyling = computed(() => {
-	return {
-		backgroundColor: `var(--${config.value.theme}-color)`
-	}
-})
 
+function connectPrinterEvent(): void {
+	console.log("CONNECT")
+}
+
+const printingQueue: any = ref([])
 
 
 
 </script>
 
-
-
-
-
-<style lang="scss">
-.github-link {
-	position: absolute;
-	right: 15px; 
-	bottom: 12px;
-	cursor: pointer;
-	transition: all 150ms ease-in-out;
-	user-select: none;
-
-}
-.github-link:hover {
-	transform: scale(1.1);
-}
+<style scoped lang="scss" >
 .app-area {
-	user-select: none;
-	-moz-user-select: none;
-	-webkit-user-select: none;
-	width: 100vw; 
-	height: 100vh; 
-	overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    user-select: none;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--dynamic-bg-color);
+        opacity: 0.15;
+        z-index: -1; 
+    }
 }
 
-.background {
-	background-color: var(--green-color);
-	opacity: .1;
-	position: absolute;
-	top: 0px;
-	z-index: -1;
-	left: 0px;
-	height: 100%; 
-	width: 100%;
-}
 
-.theme-selector {
+
+.polaroid-size-selection {
 	position: absolute;
-	bottom: 20px;
+	top: 25px; 
 	left: 25px;
-	z-index: 10;
+}
+.project-links-section {
+	position: absolute;
+	bottom: 18px; 
+	right: 25px;
+	z-index: 10!important;
 }
 
-
+.theme-color-selector {
+	position: absolute;
+	bottom: 25px;
+	left: 25px;
+	z-index: 10!important;
+}
 </style>
