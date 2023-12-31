@@ -37,9 +37,5 @@ export default defineConfig({
         'vitest.config.ts'
       ]
     },
-    setupFiles: './vuetify.config.ts',
-    deps: {
-      inline: ['vuetify']
-    }
   }
 })

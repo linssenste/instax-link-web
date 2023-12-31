@@ -1,83 +1,77 @@
-import { mount } from '@vue/test-utils'
+import { mount, shallowMount } from '@vue/test-utils'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { createVuetify } from 'vuetify'
 import { nextTick } from 'vue'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
 
 import ThemeColorSelector from '@/components/layout/ThemeColorSelector.vue'
 
-describe('PolaroidSizeSelector', () => {
-  let wrapper: any
+describe('ThemeColorSelector', () => {
+  let wrapper
 
   beforeEach(() => {
-    const vuetify = createVuetify({ components, directives })
+    wrapper = mount(ThemeColorSelector)
+	
+  })
 
-    wrapper = mount(ThemeColorSelector, {
-      global: {
-        plugins: [vuetify]
-      }
+
+
+  it('renders all color options and the component itself', () => {
+    expect(wrapper.exists()).toBe(true)
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'pink']
+    colors.forEach(color => {
+      expect(wrapper.find(`[data-testid="${color}-color-item"]`).exists()).toBe(true)
     })
   })
 
-  it('renders the component', () => {
-    expect(wrapper.exists()).toBe(true)
-  })
+  it('ensures only one color is selected at a time', async () => {
+    const firstColor = 'red'
+    const secondColor = 'blue'
 
-  it('emits the selected color when clicked', async () => {
-    const pinkSelector = wrapper.find('[data-testid="pink-color-selector-item"]')
-    await pinkSelector.trigger('click')
+    await wrapper.find(`[data-testid="${firstColor}-color-item"]`).trigger('click')
     await nextTick()
-    expect(wrapper.emitted('color-change')).toBeTruthy()
-    expect(wrapper.emitted('color-change')[0][0]).toBe('pink')
-  })
-
-  it('displays the selected color when clicked', async () => {
-    const pinkSelector = wrapper.find('[data-testid="pink-color-selector-item"]')
-    await pinkSelector.trigger('click')
+    await wrapper.find(`[data-testid="${secondColor}-color-item"]`).trigger('click')
     await nextTick()
-    expect(pinkSelector.classes()).toContain('color-selector-item-selected')
+
+    expect(wrapper.find(`[data-testid="${firstColor}-color-item"]`).classes()).not.toContain('color-selected')
+    expect(wrapper.find(`[data-testid="${secondColor}-color-item"]`).classes()).toContain('color-selected')
   })
 
-  it('stores the selected color in local storage', async () => {
-    const orangeSelector = wrapper.find('[data-testid="orange-color-selector-item"]')
-    await orangeSelector.trigger('click')
-    await nextTick()
-    expect(localStorage.getItem('background')).toBe('orange')
+  
+  describe('Color button interactions', () => {
+    it.each(['red', 'orange', 'yellow', 'green', 'blue', 'pink'])(
+      'emits "color-change", applies class, and stores "%s" in local storage when clicked',
+      async (color) => {
+        const selector = wrapper.find(`[data-testid="${color}-color-item"]`)
+        await selector.trigger('click')
+        await nextTick()
+
+        // Check emission of 'color-change'
+		expect(wrapper.emitted('color-change')).toBeTruthy()
+        expect(wrapper.emitted('color-change').slice(-1)[0][0]).toBe(color)
+
+		expect(selector.classes()).toContain('color-selected')
+
+		expect(localStorage.getItem('theme-color')).toBe(color)
+      }
+    )
   })
 
-  it('changes the selected color and updates the local storage when clicked', async () => {
-    const redSelector = wrapper.find('[data-testid="red-color-selector-item"]')
-    await redSelector.trigger('click')
-    await nextTick()
-    expect(wrapper.vm.selectedColor).toBe('red')
-    expect(localStorage.getItem('background')).toBe('red')
-
-    const orangeSelector = wrapper.find('[data-testid="orange-color-selector-item"]')
-    await orangeSelector.trigger('click')
-    await nextTick()
-    expect(wrapper.vm.selectedColor).toBe('orange')
-    expect(localStorage.getItem('background')).toBe('orange')
+  describe('Setting default color on load', () => {
+	it('defaults to red if no color is set in local storage', async () => {
+	  localStorage.removeItem('theme-color') // Ensure no color is set
+	  const wrapper = shallowMount(ThemeColorSelector)
+	  await nextTick()
+	  const redSelector = wrapper.find('[data-testid="red-color-item"]')
+	  expect(redSelector.classes()).toContain('color-selected')
+	})
+  
+	it('uses color from local storage if available', async () => {
+	  localStorage.setItem('theme-color', 'green')
+	  const wrapper = shallowMount(ThemeColorSelector);
+	  await nextTick()
+	  const greenSelector = wrapper.find('[data-testid="green-color-item"]')
+	  expect(greenSelector.classes()).toContain('color-selected')
+	})
+  
   })
 
-  it('applies the selected color class to only one color selector item at a time', async () => {
-    const orangeSelector = wrapper.find('[data-testid="orange-color-selector-item"]')
-    const pinkSelector = wrapper.find('[data-testid="pink-color-selector-item"]')
-    await orangeSelector.trigger('click')
-    await nextTick()
-    expect(orangeSelector.classes()).toContain('color-selector-item-selected')
-    expect(pinkSelector.classes()).not.toContain('color-selector-item-selected')
-  })
-
-  it('displays all available color selector items', () => {
-    const pinkSelector = wrapper.find('[data-testid="pink-color-selector-item"]')
-    const redSelector = wrapper.find('[data-testid="red-color-selector-item"]')
-    const orangeSelector = wrapper.find('[data-testid="orange-color-selector-item"]')
-    const purpleSelector = wrapper.find('[data-testid="purple-color-selector-item"]')
-
-    expect(pinkSelector.exists()).toBe(true)
-    expect(redSelector.exists()).toBe(true)
-    expect(orangeSelector.exists()).toBe(true)
-    expect(purpleSelector.exists()).toBe(true)
-  })
 })

@@ -1,4 +1,5 @@
 <template>
+	<div style="height: 100%; width: 100%; position: relative;" >
 	<div data-testid="drop-area" v-on:click="uploadImage()" class="drop-area ">
 
 		<div class="area-background" :style="backgroundColorStyling" />
@@ -13,6 +14,12 @@
 			<span style="">or drag and drop a file </span>
 		</div>
 
+
+		
+	</div>
+	<button v-if="!config.connection" v-on:click="connectPrinterEvent" :style="backgroundColorStyling" style="z-index: 10000; width: 130px; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);  "><span style="color: white">
+		
+		<i class="fa-brands fa-bluetooth-b" style="margin-right: 8px; font-size: 15px;"/>Connect</span></button>
 	</div>
 </template>
 
@@ -21,21 +28,18 @@ import { computed } from 'vue';
 
 
 const props = defineProps<{
-	theme: string
+
+	config: {
+		theme: string,
+		connection: boolean
+	}
 }>();
 const emit = defineEmits(['selected']);
 
 
-
-const backgroundColorStyling = computed(() => {
-	return `background-color:  var(--${props.theme}-color);`
-})
-
-const colorStyling = computed(() => {
-	return `color:  var(--${props.theme}-color);`
-})
-
-
+function connectPrinterEvent(): void {
+	console.log("connectPrinterEvent")
+}
 function inputChanged(e: Event): void {
 	e.preventDefault();
 	e.stopImmediatePropagation();
@@ -45,6 +49,15 @@ function inputChanged(e: Event): void {
 	emit('selected', file)
 
 }
+const backgroundColorStyling = computed(() => {
+	return `background-color:  var(--${props.config.theme}-color);`
+})
+
+const colorStyling = computed(() => {
+	return `color:  var(--${props.config.theme}-color);`
+})
+
+
 
 function uploadImage(): void {
 	document.getElementById('upload')?.click();
@@ -89,7 +102,7 @@ function uploadImage(): void {
 	width: 100%;
 	height: 100%;
 	position: absolute;
-	opacity: .3
+	opacity: .5
 }
 
 
