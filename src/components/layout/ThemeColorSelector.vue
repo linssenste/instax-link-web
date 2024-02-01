@@ -2,10 +2,10 @@
     <div oncontextmenu="return false" class="selector-row">
 
 		<div v-for="color in colors" v-on:click="changeThemeColor(color)"  :class="selectedClass(color)"
-            :data-testid="`${color}-color-item`" :aria-label="`theme color selection button for ${color}`" :title="`theme color ${color}`" :style="colorStyling(color)" class="color-item"/>
+            :data-testid="`${color}-color-item`" :title="`Theme color '${color}''`" :style="colorStyling(color)" class="color-item"/>
 
-    </div>
-</template>
+    </div> 
+</template> 
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -27,11 +27,13 @@ onMounted(() => {
 	changeThemeColor(selectedColor.value); 
 })
 
+
 // emit event when color is changed
 function changeThemeColor(color: string): void {
 	selectedColor.value = color; 
-	localStorage.setItem('theme-color', color) // make styling persistent
+	localStorage.setItem('theme-color', color) 
     emit('color-change', selectedColor.value)
+
 }
 
 </script>
@@ -49,9 +51,10 @@ function changeThemeColor(color: string): void {
     width: 20px;
     cursor: pointer;
     height: 20px;
-    transition: all 100ms linear;
+  
 	-moz-transition: all 100ms linear;
 	-webkit-transition: all 100ms linear;
+	transition: all 100ms linear;
     margin-right: 5px !important;
 	border-radius: 3px;
 }

@@ -1,9 +1,9 @@
 <template>
-	<div oncontextmenu="return false" style="position: relative;  display: flex; flex-direction: row; gap: 8px">
+	<div oncontextmenu="return false" class="size-selector">
 
-		<div v-for="width in [600, 800, 1260]" :title="polaroidTitle(width)" :key="width" :style="polaroidClass(width)" @click="selectedWidth = width"
-			 class="polaroid">
-			<div class="inner-polaroid" :style="width === selectedWidth ? selectedImage : ''"></div>
+		<div v-for="width in [600, 800, 1240]" :title="polaroidTitle(width)" :key="width" :style="polaroidClass(width)"
+			 @click="selectedWidth = width" class="polaroid" :data-testid="`polaroid-selector-${width}`">
+			<div class="inner-polaroid"></div>
 		</div>
 
 	</div>
@@ -11,57 +11,43 @@
   
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import type {STATE_CONFIG} from '../../types/config.types'; 
 
 const selectedWidth = ref(800);
 
-const props = defineProps<{
-
-	config: {
-		width: number;
-		height: number;
-		theme: string; 
-		connection: boolean
-	};
-}>();
-
 const emit = defineEmits<{
-  (e: 'resize', config: any): void;
+	(e: 'resize', config: STATE_CONFIG): void;
 }>();
 
-watch(() => props.config, () => {
-	if (props.config.connection) selectedWidth.value = props.config.width;
-});
+const props = defineProps<{
+	config: STATE_CONFIG
+}>();
+
+
+
 
 const polaroidTitle = (size: number) => {
 	switch (size) {
 		case 600: return "Instax Mini (600x800)"
 		case 800: return "Instax Square (800x800)"
-		case 1260: return "Instax Large (1260x840)"
+		case 1240: return "Instax Large (1240x840)"
 		default: break;
 	}
 }
 
 watch(selectedWidth, () => {
-	emit('resize', { ...props.config, width: selectedWidth.value, height: selectedWidth.value === 1260 ? 840 : 800 });
+	emit('resize', { ...props.config, width: selectedWidth.value, height: (selectedWidth.value === 1260 ? 840 : 800) });
 });
 
 
 
 
-const selectedImage = computed(() => {
-	return {
-		backgroundImage: `url("/polaroid-placeholder/placeholder-${Math.trunc(Math.random() * 85)}.webp")`
-	};
-})
-
 function polaroidClass(width: number) {
-    return {
-        opacity: props.config.connection && selectedWidth.value != width ? '0.25' : undefined,
-        backgroundColor: `var(--${selectedWidth.value === width ? props.config.theme : 'light-grey'}-color)`,
-        width: `${width/30}px`, 
-        boxShadow: `0px 0px 5px rgba(0, 0, 0, ${width === selectedWidth.value ? .5 : 0})`,
-        pointerEvents: props.config.connection ? 'none' : 'auto',
-    } as any
+	return {
+		backgroundColor: `var(--${selectedWidth.value === width ? props.config.theme : 'grey'}-color)`,
+		width: `${width / 30}px`,
+		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${width === selectedWidth.value ? .5 : 0})`,
+	}
 }
 
 </script>
@@ -73,7 +59,7 @@ function polaroidClass(width: number) {
 	height: 35px;
 	border-radius: 2px;
 	cursor: pointer;
-	transition: transform 0.3s;
+	transition: all 150ms;
 	z-index: 1;
 }
 
@@ -90,6 +76,17 @@ function polaroidClass(width: number) {
 }
 
 .polaroid:hover {
-	transform: scale(1.05);
+	transform: scale(1.02);
+	box-shadow: 0px 0px 5px rgba(0, 0, 0, .1) 
+}
+
+
+.size-selector {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
+	width: 130px;
+	justify-content: center;
 }
 </style>

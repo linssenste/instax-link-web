@@ -65,7 +65,7 @@ export class InstaxBluetooth {
         timeout = setTimeout(() => {
           notificationHandle.removeEventListener('characteristicvaluechanged', () => {})
           reject(new Error('Notification timeout'))
-        }, 500)
+        }, 200)
       })
     }
 

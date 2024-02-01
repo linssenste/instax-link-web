@@ -1,52 +1,53 @@
 <template>
 	<div class="settings-container">
+
+		<!-- caption input; only visible if no printer is connected -->
+		<input id="caption-input" spellcheck="false" class="caption-input" placeholder="Image caption" :maxlength="captionLength" v-model="settings.text" />
+
 		<div class="align-span-buttons">
 
 			<!-- rotation control + input -->
 			<div class="rotation-controls">
 
 				<!-- rotate left icon button -->
-				<button oncontextmenu="return false" v-on:click="updateRotation(-1)" class="icon-button ">
-					<img draggable="false" src="@/assets/icons/controls/rotate_left.webp" width="16" />
+				<button oncontextmenu="return false" title="rotate image clockwise"  v-on:click="updateRotation(-1)" class="icon-button ">
+					<img draggable="false" title="rotate image clockwise" src="@/assets/icons/controls/rotate-left.svg" width="16" />
 				</button>
 
 
 				<!-- input; values are handled in updateRotation function -->
 				<div class="rotation-input">
-					<input v-model="settings.rotation" v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*"
+					<input id="rotation-input" title="image roation degree input form" v-model="settings.rotation" v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*"
 						   min="0" max="360">
-					<span style="color: #00000055; position: absolute; right: 4px; top: 8px;">°</span>
+					<span class="rotation-degree">°</span>
 				</div>
+
 				<!-- rotate right icon button -->
-				<button oncontextmenu="return false" v-on:click="updateRotation(1)" class="icon-button">
-					<img draggable="false" src="@/assets/icons/controls/rotate_right.webp" width="16" />
+				<button oncontextmenu="return false" title="rotate image counter-clockwise" v-on:click="updateRotation(1)" class="icon-button">
+					<img draggable="false" title="rotate image counter-clockwise" src="@/assets/icons/controls/rotate-right.svg" width="16" />
 				</button>
 
 
 				<div>
 
 					<!-- color selector -->
-					<input type="color" class="color-selector" v-model="settings.color" />
+					<input title="select background color" type="color" class="color-selector" v-model="settings.color" />
 				</div>
 			</div>
 
 
+
 			<div class="alignment-buttons">
+
 				<!-- Horizontal Scale Button -->
-		
-				<button v-if="config.width >= 800" oncontextmenu="return false" v-on:click="setAlignment('scale', false)" class="icon-button">
-					<img draggable="false" src="@/assets/icons/controls/scale_horizontal.webp" width="16" />
-				</button>
-
-				<!-- Vertical Scale Button -->
-				<button oncontextmenu="return false" v-on:click="setAlignment('scale', true)" class="icon-button">
-					<img draggable="false" src="@/assets/icons/controls/scale_vertical.webp" width="16" />
+				<button oncontextmenu="return false" title="align image horizontally" v-on:click="setAlignment('scale', false)" class="icon-button">
+					<img draggable="false" title="align image horizontally"  src="@/assets/icons/controls/align-horizontal.svg" width="16" />
 				</button>
 
 
 				<!-- Vertical Scale Button -->
-				<button oncontextmenu="return false" v-on:click="removeImage" class="icon-button">
-					<i class="fa-solid fa-xmark" style="font-size: 18px; color: red; " />
+				<button oncontextmenu="return false" title="align image vertically" v-on:click="setAlignment('scale', true)" class="icon-button">
+					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg" width="16" />
 				</button>
 
 			</div>
@@ -54,14 +55,11 @@
 
 
 
-
-		<button v-on:click="save" :style="backgroundColorStyling" style="width: 100%;color: white; margin-top: 10px">
+		<button v-on:click="save" :style="backgroundColorStyling" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
 			<span v-if="config.connection">
-				Print image
+				Print Image
 			</span>
-			<span v-else>
-				Save image
-			</span>
+			<span v-else>Download</span>
 		</button>
 
 
@@ -69,8 +67,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
-const emit = defineEmits(['change', 'remove-image', 'scale']);
+import { computed, onMounted, ref, watch } from 'vue';
+const emit = defineEmits(['change', 'scale']);
 
 const props = defineProps<{
 	config: {
@@ -80,6 +78,7 @@ const props = defineProps<{
 		connection: boolean,
 
 	},
+	
 	save: any
 }>();
 props.config;
@@ -87,18 +86,18 @@ props.save;
 
 const settings = ref({
 	rotation: 0,
-	color: '#FFFFFF'
+	color: '#FFFFFF',
+	text: ''
 });
 
+
+const captionLength = computed(() => {
+	return (props.config.width == 600 ? 15 : (props.config.width == 800 ? 25 : 40))
+})
 
 const backgroundColorStyling = computed(() => {
 	return `background-color:  var(--${props.config.theme}-color);`
 })
-
-function removeImage(): void {
-	emit("remove-image")
-}
-
 
 async function setAlignment(type: 'scale', horizontal: boolean): Promise<void> {
 	emit(type, horizontal ? 'horizontal' : 'vertical')
@@ -135,9 +134,6 @@ function inputEnterEvent() {
 	align-items: center;
 
 	padding-top: 4px;
-
-
-
 	padding-bottom: 10px;
 	position: relative;
 }
@@ -167,6 +163,7 @@ function inputEnterEvent() {
 	border: none;
 	background-color: #ffffffaa;
 	cursor: pointer;
+	padding: 0;
 	transition: all 100ms ease-in-out;
 }
 
@@ -174,6 +171,7 @@ function inputEnterEvent() {
 
 .icon-button img {
 	position: absolute;
+	opacity: .95;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
@@ -188,15 +186,23 @@ function inputEnterEvent() {
 
 	background-color: #FFFFFFAA;
 
-	font-weight: 500;
-	font-size: 16px!important;
+	font-weight: 400!important;
+	font-size: 16px !important;
+}
+
+.rotation-degree {
+	color: #00000055;
+	position: absolute;
+	right: 0px;
+	top: 8px;
 }
 
 .rotation-input input {
-	height:40px;
+	height: 40px;
 	outline: none;
 	border: none;
 	text-align: center;
+	font-weight: 400!important;
 	padding-right: 2px;
 	padding-left: 10px;
 	background-color: transparent;
@@ -209,6 +215,18 @@ function inputEnterEvent() {
 		/* transform: scale(1.05); */
 		z-index: 10;
 		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
+	}
+
+	.icon-button:hover img {
+		opacity: 1;
+	}
+
+	.caption-input:hover {
+		background-color: #ffffffee;
+		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
+
+
+
 	}
 
 }
@@ -249,17 +267,18 @@ input::-webkit-inner-spin-button {
 	margin: 0;
 }
 
-input[type=number] {
-	-moz-appearance: textfield;
-}
-
 .color-selector {
 	background-color: transparent;
 
 	outline: none !important;
 	border: none;
 	-webkit-user-drag: none;
+
+
+	-moz-user-select: none;
+	-webkit-user-select: none;
 	user-select: none;
+	
 	cursor: pointer;
 	width: 35px !important;
 	border-radius: 10px !important;
@@ -269,5 +288,45 @@ input[type=number] {
 	margin: 0px;
 	margin-top: 3px;
 	outline-color: transparent;
+}
+
+.caption-input {
+	width: 100%;
+	height: 40px;
+	font-size: 24px!important;
+	letter-spacing: 2px;
+	padding-top: 5px;
+
+	padding-bottom: 5px;
+	margin-top: 5px;
+	margin-bottom: 10px;
+	text-align: center;
+	outline: none;
+	background-color: #ffffffaa;
+	border: none;
+	border-radius: 15px;
+	transition: all 100ms ease-in-out;
+	font-family: "biro_script_standardregular"!important;
+	caret-color: #00000033;
+}
+
+
+.caption-input::placeholder {
+	color: #00000033;
+	opacity: 1;
+}
+
+
+.caption-input::-ms-input-placeholder {
+	color: #00000033;
+}
+
+
+.action-button {
+	width: 100%;
+	color: white;
+	margin-top: 10px;
+
+
 }
 </style>

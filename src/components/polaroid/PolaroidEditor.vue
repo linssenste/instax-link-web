@@ -1,36 +1,44 @@
 <template>
 	<div>
 
-		<DropUpload v-on:dropped="getFileData($event)" :theme="config.theme" />
+		<DropImageUpload v-on:dropped="getFileData($event)" :theme="config.theme" />
 
 		<div class="polaroid-editor">
+
 
 			<PolaroidFrame :config="config" style="z-index: 5">
 				<template v-slot:polaroid-area>
 
+					<CropperArea v-if="image" class="cropper-area" :key="config.width || image" ref="cropperAreaRef"
+								 :config="config" :image="image" :loading="loading" v-on:remove-image="image = null"
+								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
-					<CropperArea v-if="image" :key="config.width || image" ref="cropperAreaRef" :config="config"
-								 :image="image" :settings="imageSettings" v-on:save="savePolaroidCanvas" />
-
-					<SelectUpload v-else :config="config" v-on:selected="getFileData($event)" />
+					<SelectImageUpload v-else :config="config" v-on:selected="getFileData($event)" />
+					<div v-if="loading" class="loading-overlay"></div>
 
 				</template>
 
 				<template v-slot:polaroid-text>
-					<button class="expand-button" v-if="image"
-							:title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`" v-on:click="expandContract"
-							:style="settingsExpansion ? 'transform: rotate(-180deg)' : 'transform: rotate(0deg)'"><i
-						   class="fa-solid fa-chevron-down" />
-						</button>
+					<div v-if="!image" class="upload-image-caption">
+						<span>Choose an image!</span>
+					</div>
+
+					<button  v-else class="expand-button"
+							v-on:click="expandContract"   :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
+							:style="settingsExpansion ? 'transform: rotate(-180deg)' : 'transform: rotate(0deg)'">
+						<img width="20" height="20" :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`" src="@/assets/icons/controls/chevron-down.svg" />
+					</button>
+
 				</template>
 			</PolaroidFrame>
 
 			<div id="expand-container">
-				<div id="expand-contract" class="collapsed">
+				<div id="expand-contract" :style="expansion" class="collapsed">
 					<ImageSettings :config="config" :save="saveImage" v-on:change="imageSettings = $event"
 								   v-on:scale="fitImageEvent" v-on:remove-image="image = null" />
 
 				</div>
+
 			</div>
 
 
@@ -40,35 +48,35 @@
 
 <script setup lang="ts">
 
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import PolaroidFrame from './PolaroidFrame.vue';
-
 import CropperArea from './CropperArea.vue';
-import SelectUpload from '../upload/SelectUpload.vue';
 import ImageSettings from './ImageSettings.vue';
-import DropUpload from '../upload/DropUpload.vue';
+
+import DropImageUpload from '../upload/DropImageUpload.vue';
+import SelectImageUpload from '../upload/SelectImageUpload.vue';
+import type { STATE_CONFIG } from '@/types/config.types';
 
 const emit = defineEmits(['image'])
 
 const props = defineProps<{
-	config: {
-		width: number,
-		height: number,
-		theme: string,
-		connection: boolean
-	},
+	config: STATE_CONFIG,
 }>()
 
+
+
 const cropperAreaRef: any = ref(null);
-
-
 props.config;
 
 
-
+const loading = ref(false)
 const imageSettings = ref({
 	rotation: 0,
 	color: '#FFFFFF'
+})
+
+const expansion = computed(() => {
+	return `margin-top: ${(!settingsExpansion.value || !image) ? (-120 - 51) : (props.config.connection ? -55 : 10)}px; pointer-events: ${settingsExpansion.value ? 'inherit' : 'none'}`
 })
 
 const settingsExpansion = ref(false)
@@ -81,7 +89,6 @@ watch(image, (newVal, prevVal) => {
 		expandContract();
 
 		setTimeout(() => {
-			imageSettings.value.color = '#FFFFFF'
 			imageSettings.value.rotation = 0;
 		}, 750);
 
@@ -90,23 +97,22 @@ watch(image, (newVal, prevVal) => {
 
 async function saveImage(): Promise<void> {
 
-	const imageUrl = await cropperAreaRef.value?.saveCanvasImage();
-	emit("image", imageUrl)
+	loading.value = true;
+
+	expandContract();
+	setTimeout(async () => {
+		const imageUrl = await cropperAreaRef.value?.saveCanvasImage(props.config.connection);
+		emit("image", imageUrl)
+
+	loading.value = false
+	}, 510);
 
 }
 
 function expandContract() {
-	const el = document.getElementById("expand-contract");
-
-	if (el) {
-		el.classList.toggle('expanded');
-		el.classList.toggle('collapsed');
-		settingsExpansion.value = !settingsExpansion.value
-	}
+	if (!image.value) settingsExpansion.value = false;
+	else settingsExpansion.value = !settingsExpansion.value
 }
-
-
-
 
 
 function fitImageEvent(type: string): void {
@@ -136,6 +142,20 @@ props.config;
 
 
 <style scoped>
+.loading-overlay {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+
+	background: rgba(0, 0, 0, .5);
+	-webkit-backdrop-filter: blur(8px);
+    -moz-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	
+}
+
 .polaroid-editor {
 	position: absolute;
 	left: 50%;
@@ -156,12 +176,17 @@ props.config;
 }
 
 #expand-contract {
-	margin-top: -110px;
-	transition: all 550ms;
+
+	transition: all 500ms ease-in-out;
 }
 
 #expand-contract.expanded {
 	margin-top: 10px;
+}
+
+
+.cropper-area {
+	transition: all 250ms ease-in-out;
 }
 
 .expand-button {
@@ -172,14 +197,17 @@ props.config;
 	color: #000000 !important;
 	opacity: .3;
 	padding: 5px;
-	font-size: 18px;
-	transition: all 100ms;
+	margin-top: 0px;
+	transition: all 250ms;
 	cursor: pointer;
 }
 
-
-
 .expand-button:hover {
 	opacity: .75;
+}
+
+
+.upload-image-caption {
+	font-size: 25px; padding-top: 3px; width: 100%; font-family: 'biro_script_standardregular'; text-transform: uppercase;
 }
 </style>

@@ -1,12 +1,15 @@
 <template>
 	<div id="cropper-area">
+		<canvas hidden id="myCanvas" width="800" height="200" style="background: transparent;">
+		</canvas>
 		<div ref="container" class="container"></div>
+		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon" src="@/assets/icons/controls/xmark.svg" width="12" height="12"/></div>
 
-		<div class="center-cross">
+		<div class="center-cross" v-if="!loading">
 			<!-- :style="`background-color: var(--${config.theme}-color);`" -->
 			<div class="cross-element">
 			</div>
-			<div  class="cross-element">
+			<div class="cross-element">
 			</div>
 		</div>
 	</div>
@@ -16,10 +19,15 @@
 import Konva from 'konva';
 import ImageCompressor from 'image-compressor.js';
 import { onMounted, ref, watch } from 'vue';
+import mergeImages from 'merge-images';
 
-const emit = defineEmits(['save'])
+
+
+const emit = defineEmits(['save', 'remove-image']);
+
 const props = defineProps<{
 	image: string,
+	loading: boolean;
 	config: {
 		width: number,
 		height: number,
@@ -27,49 +35,62 @@ const props = defineProps<{
 	},
 	settings: {
 		rotation: number,
-		color: string
+		color: string,
+		text?: string;
 	}
 }>();
 
-const backgroundRect: any = ref(null)
-let container: any = null
-let stage, layer: any = null;
+let container: Konva.StageConfig | null = null;
+let stage: Konva.Stage | null = null;
+let layer: Konva.Layer | null = null;
+let image: Konva.Image | null = null;
+let backgroundRect: Konva.Rect | null = null;
 
-let image: any = null;
+const initStage = async () => {
 
-const initStage = () => {
 	const containerDoc = document.getElementById('cropper-area')
 	const containerRect = containerDoc?.getBoundingClientRect();
+
 	if (containerRect == null) return;
 
+
 	Konva.hitOnDragEnabled = true;
+
+	// create stage
 	stage = new Konva.Stage({
-		container: container,
+		container: container as any,
 		width: containerRect.width,
 		height: containerRect.height,
 		draggable: true
 	});
 
 	layer = new Konva.Layer();
-	backgroundRect.value = new Konva.Rect({
-		x: 0,
-		y: 0,
-		width: stage.width(),
-		height: stage.height(),
-		fill: props.settings.color,
-		listening: false,
-	});
-	layer.add(backgroundRect.value);
 	stage.add(layer);
 
+	// load polaroid
 	loadCanvasImage();
 	addCanvasListeners();
 
 
-	stage.getContainer().style.backgroundColor = props.settings.color ?? 'white';
 
-	
 };
+
+
+
+const loadCanvasImage = () => {
+	const konvaImage = new window.Image();
+
+	konvaImage.onload = () => {
+		fitImage(konvaImage);
+		if (layer && image) layer.add(image as Konva.Image);
+
+	};
+	konvaImage.src = props.image;
+
+
+};
+
+// Function to calculate the rotated bounding box dimensions
 
 const getRotatedBoundingBox = (konvaImage) => {
 	const radians = props.settings.rotation * Math.PI / 180;
@@ -81,57 +102,48 @@ const getRotatedBoundingBox = (konvaImage) => {
 	};
 };
 
-const loadCanvasImage = () => {
-	const konvaImage = new window.Image();
 
-	konvaImage.onload = () => {
-		fitImage(konvaImage);
-		layer.add(image);
-	
-	};
-	konvaImage.src = props.image;
-
-
-};
-
-
-
-
-
-const fitImage = (konvaImage) => {
+// Function to fit the image within the stage
+const fitImage = (konvaImage: Konva.Image): void => {
+	if (!stage) return;
 
 	const rotatedBoundingBox = getRotatedBoundingBox(konvaImage);
 
 	const containerAspectRatio = stage.width() / stage.height();
 	const imageAspectRatio = rotatedBoundingBox.width / rotatedBoundingBox.height;
 
-	if ((imageAspectRatio < containerAspectRatio)) {
+	if (imageAspectRatio < containerAspectRatio) {
 		fitImageHorizontally(konvaImage, rotatedBoundingBox);
 	} else {
 		fitImageVertically(konvaImage, rotatedBoundingBox);
 	}
 };
 
-const fitImageHorizontally = (konvaImage, boundingBox) => {
+const fitImageHorizontally = (konvaImage: Konva.Image, boundingBox?: { width: number, height: number }): void => {
+	if (!stage) return;
 
-	const scale = stage.width() / (boundingBox ?? konvaImage).width;
-	updateStageAndImage(konvaImage, scale);
+	const scale = stage.width() / (boundingBox?.width ?? konvaImage.width());
+	updateStageImage(konvaImage, scale);
 };
 
-const fitImageVertically = (konvaImage, boundingBox) => {
-	const scale = stage.height() / (boundingBox ?? konvaImage).height;
-	updateStageAndImage(konvaImage, scale);
+const fitImageVertically = (konvaImage: Konva.Image, boundingBox?: { width: number, height: number }): void => {
+	if (!stage) return;
+
+	const scale = stage.height() / (boundingBox?.height ?? konvaImage.height());
+	updateStageImage(konvaImage, scale);
 };
 
 
+const updateStageImage = (konvaImage, scale) => {
+	if (!stage || !layer) return;
 
-const updateStageAndImage = (konvaImage, scale) => {
-	if (image) {
-		layer.removeChildren(); // Clear existing image
-	}
+	layer.removeChildren(); // Clear existing image
+
 
 	stage.scale({ x: 1, y: 1 }); // Update stage scale
 	stage.position({ x: 0, y: 0 }); // Reset stage position
+
+
 
 	image = new Konva.Image({
 		x: stage.width() / 2,
@@ -140,105 +152,199 @@ const updateStageAndImage = (konvaImage, scale) => {
 		scaleX: scale,
 		scaleY: scale,
 		draggable: false,
-		rotation: props.settings.rotation ?? 0
+		rotation: props.settings.rotation || 0,
 	});
+
 
 	image.offsetX(konvaImage.width / 2);
 	image.offsetY(konvaImage.height / 2);
 
+	backgroundRect = new Konva.Rect({
+		x: 0,
+		y: 0,
+		width: stage.width(),
+		height: stage.height(),
+		fill: props.settings.color || '#FFFFFF',
+		listening: false,
+	});
 
-
-
-
-
-
+	layer.add(backgroundRect);
 	layer.add(image);
+
+	// Redraw the layer to apply the filters
+	layer.batchDraw();
 };
 
 
 const fitVertically = () => {
-	const rotatedBoundingBox = getRotatedBoundingBox(image.attrs.image);
+	const rotatedBoundingBox = getRotatedBoundingBox((image as Konva.Image).attrs.image);
 
 
 
-	if (image) {
+	if (image && layer) {
 		fitImageVertically(image.attrs.image, rotatedBoundingBox);
 		layer.draw();
 	}
 };
 
 const fitHorizontally = () => {
-	const rotatedBoundingBox = getRotatedBoundingBox(image.attrs.image);
+	const rotatedBoundingBox = getRotatedBoundingBox((image as Konva.Image).attrs.image);
 
-	if (image) {
+	if (image && layer) {
 		fitImageHorizontally(image.attrs.image, rotatedBoundingBox);
 		layer.draw();
 	}
 };
 
-async function saveCanvasImage(): Promise<string> {
+async function saveCanvasImage(printable = true): Promise<string> {
 	return new Promise<string>((resolve, reject) => {
-		const canvasUrl = stage.toDataURL();
+		if (!stage || !image || !backgroundRect) reject(null)
+		else {
+	if (!printable) {
+			const filterList = [
+				Konva.Filters.Contrast,
+				Konva.Filters.HSL,
+				Konva.Filters.Brighten,
+				Konva.Filters.Noise
+			]
+			// Apply filters
+			image.filters(filterList);
+			image.contrast(-1)
+			image.saturation(-0.2)
+			image.brightness(.05)
+			image.noise(.1)
+			image.cache();
 
-		fetch(canvasUrl)
-			.then((res) => res.blob())
-			.then((blob) => {
-				const file = new File([blob], "compressed-image.jpeg", { type: "image/jpeg" });
-				const compressor = new ImageCompressor();
 
-				let isCompressed = false;
-				let minQuality = 0;
-				let maxQuality = 1;
-				let compressedFile: Blob | null = null;
-				let redoCounter = 0;
+			backgroundRect.filters(filterList)
 
-				const compressNext = async () => {
-					const midQuality = (minQuality + maxQuality) / 2;
+			backgroundRect.contrast(-1)
+			backgroundRect.saturation(-0.2)
+			backgroundRect.brightness(.05)
+			backgroundRect.noise(.1)
+			backgroundRect.cache();
+	}
 
-					const options = {
-						maxWidth: props.config.width || 800,
-						maxHeight: props.config.height || 800,
-						minWidth: props.config.width || 800,
-						minHeight: props.config.height || 800,
-						quality: midQuality,
-					};
+			const canvasUrl = stage.toDataURL({ pixelRatio: !printable ? 2.4:  1 });
 
-					compressedFile = await compressor.compress(file, options);
+			console.log(canvasUrl)
+			image.clearCache();
+			image.filters([]);
 
-					redoCounter += 1;
+			backgroundRect.filters([]);
+			backgroundRect.clearCache();
 
-					if (compressedFile.size > 60 * 1024) {
-						maxQuality = midQuality;
-					} else {
-						minQuality = midQuality;
-					}
+	
+			if (!printable) {
 
-					if (maxQuality - minQuality < 0.01) {
-						isCompressed = true;
-					}
+				function drawHelloWorld(canvas) {
 
-					if (!isCompressed && redoCounter < 50) {
-						compressNext();
-					} else {
-						if (compressedFile === null) {
-							reject(new Error("Compression failed"));
-						} else {
-							const reader = new FileReader();
-							reader.onloadend = () => {
-								const base64 = reader.result as string;
-								resolve(base64);
+					const ctx = canvas.getContext("2d");
+
+					// Clear the canvas (optional, if you want to clear previous drawings)
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+					// Draw the transparent background
+					ctx.fillStyle = "rgba(255, 150, 100, 0)"; // Transparent white background
+					ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+					// Draw the text
+					const text = props.settings.text ?? '';
+					ctx.font = `${(Math.random() * 2) + 60}px biro_script_standardregular`;
+					ctx.fillStyle = "rgba(0, 15, 85, .8)";
+
+					// Calculate text width
+					const textWidth = ctx.measureText(text).width;
+
+
+					const x = (canvas.width - textWidth) / 2;
+					const y = canvas.height / 2;
+					const rotationAngle = (Math.random() * 2) - 1;
+
+					ctx.save();
+					ctx.translate(x + textWidth / 2, y);
+					ctx.rotate((rotationAngle * Math.PI) / 180);
+
+
+					ctx.fillText(text, -textWidth / 2, 0);
+					ctx.restore();
+				}
+
+				const canvas = document.getElementById('myCanvas');
+				if (!canvas) reject(null)
+				drawHelloWorld(canvas);
+
+				mergeImages([
+					{ src: canvasUrl, x: props.config.width == 800 ? 28 : props.config.width == 600 ? 22 : 22, y: 40 },
+					{ src: `/polaroids/export/${props.config.width == 800 ? 'square' : props.config.width == 600 ? 'mini' : 'large'}_scale.png`, x: 0, y: 0 },
+					{ src: (canvas as HTMLCanvasElement).toDataURL('image/png'), x: 20, y: (Math.random() * 10) + 835 }
+				])
+					.then(b64 => resolve(b64));
+
+			} else {
+
+				fetch(canvasUrl)
+					.then((res) => res.blob())
+					.then((blob) => {
+						const file = new File([blob], "compressed-image.jpeg", { type: "image/jpeg" });
+						const compressor = new ImageCompressor();
+
+						let isCompressed = false;
+						let minQuality = 0;
+						let maxQuality = 1;
+						let compressedFile: Blob | null = null;
+						let redoCounter = 0;
+
+						const compressNext = async () => {
+							const midQuality = (minQuality + maxQuality) / 2;
+
+							const options = {
+								maxWidth: props.config.width || 800,
+								maxHeight: props.config.height || 800,
+								minWidth: props.config.width || 800,
+								minHeight: props.config.height || 800,
+								quality: midQuality,
 							};
-							reader.readAsDataURL(compressedFile);
-						}
-					}
-				};
 
-				compressNext();
-			})
-			.catch((error) => {
-				reject(error);
-			});
+							compressedFile = await compressor.compress(file, options);
+
+							redoCounter += 1;
+
+							if (compressedFile.size > 60 * 1024) {
+								maxQuality = midQuality;
+							} else {
+								minQuality = midQuality;
+							}
+
+							if (maxQuality - minQuality < 0.01) {
+								isCompressed = true;
+							}
+
+							if (!isCompressed && redoCounter < 50) {
+								compressNext();
+							} else {
+								if (compressedFile === null) {
+									reject(new Error("Compression failed"));
+								} else {
+									const reader = new FileReader();
+									reader.onloadend = () => {
+										const base64 = reader.result as string;
+										resolve(base64);
+									};
+									reader.readAsDataURL(compressedFile);
+								}
+							}
+						};
+
+						compressNext();
+					})
+					.catch((error) => {
+						reject(error);
+					});
+			}
+		}
 	});
+
 }
 
 
@@ -246,10 +352,10 @@ async function saveCanvasImage(): Promise<string> {
 defineExpose({ fitVertically, saveCanvasImage, fitHorizontally });
 
 const resetBackgroundRect = () => {
-	if (backgroundRect.value == null) return;
-	backgroundRect.value.absolutePosition({ x: 0, y: 0 });
-	backgroundRect.value.scaleX(1 / stage.scaleX());
-	backgroundRect.value.scaleY(1 / stage.scaleY());
+	if (backgroundRect == null) return;
+	backgroundRect.absolutePosition({ x: 0, y: 0 });
+	backgroundRect.scaleX(1 / stage.scaleX());
+	backgroundRect.scaleY(1 / stage.scaleY());
 }
 
 const addCanvasListeners = () => {
@@ -370,12 +476,29 @@ const getCenter = (p1, p2) => {
 };
 
 
+function removeImage(): void {
+	emit('remove-image')
+}
+
 watch(() => props.settings.color, () => {
-	const color = props.settings.color ?? '#FFFFFF';
-	stage.getContainer().style.backgroundColor = color;
-	backgroundRect.value.fill(color)
+	setBackgroundColor()
 });
 
+
+watch(() => props.image, () => {
+	setBackgroundColor();
+})
+function setBackgroundColor(): void {
+	const color = props.settings.color ?? '#FFFFFF';
+
+	stage.getContainer().style.backgroundColor = color;
+	backgroundRect.fill(color)
+
+
+	let doc = document.getElementById("polaroid-frame");
+	if (!doc) return;
+	doc.style.backgroundColor = color;
+}
 watch(() => props.settings.rotation, (newVal, oldVal) => {
 	image.rotate((newVal - oldVal))
 })
@@ -423,4 +546,38 @@ onMounted(initStage);
 	opacity: .75;
 	z-index: 10
 }
-</style>
+
+.remove-button {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	background-color: #e0e0e0cc;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	cursor: pointer;
+	transition: background-color 150ms linear;
+}
+
+.remove-button:hover {
+	background-color: #e0e0e0;
+
+}
+
+.remove-button:hover img {
+	opacity: 1;
+}
+
+.remove-button img {
+	opacity: .75;
+
+
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+
+	-moz-user-select: none;
+	-webkit-user-select: none;
+	user-select: none;
+}</style>
