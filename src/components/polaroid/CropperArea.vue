@@ -3,7 +3,7 @@
 		<canvas hidden id="myCanvas" width="800" height="200" style="background: transparent;">
 		</canvas>
 		<div ref="container" class="container"></div>
-		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon" src="@/assets/icons/controls/xmark.svg" width="12" height="12"/></div>
+		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon" src="@/assets/icons/controls/xmark.svg" width="16" height="16"/></div>
 
 		<div class="center-cross" v-if="!loading">
 			<div class="cross-element">
@@ -19,7 +19,7 @@ import Konva from 'konva';
 import ImageCompressor from 'image-compressor.js';
 import { onMounted, ref, watch } from 'vue';
 import mergeImages from 'merge-images';
-import { FilmSize, type STATE_CONFIG } from '../../types/config.types';
+import { InstaxFilmType, type STATE_CONFIG } from '../../types/config.types';
 
 
 
@@ -271,7 +271,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 				drawHelloWorld(canvas);
 
 				mergeImages([
-					{ src: canvasUrl, x: props.config.type == FilmSize.SQUARE ? 28 : props.config.type == FilmSize.MINI ? 22 : 22, y: 40 },
+					{ src: canvasUrl, x: props.config.type == InstaxFilmType.SQUARE ? 28 : props.config.type == InstaxFilmType.MINI ? 22 : 22, y: 40 },
 					{ src: `/polaroids/export/${props.config.type}_scale.png`, x: 0, y: 0 },
 					{ src: (canvas as HTMLCanvasElement).toDataURL('image/png'), x: 20, y: (Math.random() * 10) + 835 }
 				])
@@ -294,8 +294,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 						const compressNext = async () => {
 							const midQuality = (minQuality + maxQuality) / 2;
 
-							const width = ((props.config.type == FilmSize.MINI ? 600 : (props.config.type == FilmSize.SQUARE ? 800 : 1240)) || 800)
-							const height = ((props.config.type == FilmSize.MINI ? 800 : (props.config.type == FilmSize.SQUARE ? 800 : 840)) || 800)
+							const width = ((props.config.type == InstaxFilmType.MINI ? 600 : (props.config.type == InstaxFilmType.SQUARE ? 800 : 1240)) || 800)
+							const height = ((props.config.type == InstaxFilmType.MINI ? 800 : (props.config.type == InstaxFilmType.SQUARE ? 800 : 840)) || 800)
 							const options = {
 								maxWidth: width,
 								maxHeight: height,
@@ -475,7 +475,10 @@ const getCenter = (p1, p2) => {
 
 
 function removeImage(): void {
-	emit('remove-image')
+	emit('remove-image'); 
+	setTimeout(() => {
+		props.settings.text = ""
+	}, 500);
 }
 
 watch(() => props.settings.color, () => {

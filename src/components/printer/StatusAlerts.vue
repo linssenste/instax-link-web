@@ -1,5 +1,5 @@
 <template>
-	<div v-if="status.polaroidCount != null && status.battery.level != null"  style="position: relative">
+	<div v-if="status.polaroidCount != null && status.battery.level != null"  style="position: relative; ">
 		
 		<!-- alert #1: no polaroids left -->
 		<div v-if="status.polaroidCount <= 0" class="error-card">

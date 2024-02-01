@@ -1,15 +1,14 @@
 <template>
-	<div>
+	<div id="printer-settings">
 
 		<div v-if="!hasBluetoothAccess">NO ACCESS</div>
 
-		<button v-else-if="!config.connection" v-on:click="config.connect" class="connect-button"
-				>
+		<button v-else-if="!config.connection" v-on:click="config.connect" class="connect-button">
 			<img width="18" height="18" alt="bluetooth icon to connect" src="@/assets/icons/printer/bluetooth.svg" />
 			<span>Connect</span>
 		</button>
 
-		<div v-else>
+		<div v-else style="position: relative;">
 			<div class="connection-box">
 				<div
 					 style="position: relative; display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
@@ -17,11 +16,10 @@
 					<!-- Printer type in instax-font -->
 					<div class="printer-name">
 						<div></div>
-						<span >instax</span> <span style="font-size: 20px">{{ printerType }}</span>
+						<span>instax</span> <span style="font-size: 20px">{{ printerType }}</span>
 
 					</div>
-					<button v-on:click="config.disconnect" title="Disconnect INSTAX Printer" class="disconnect-button"
-							>
+					<button v-on:click="config.disconnect" title="Disconnect INSTAX Printer" class="disconnect-button">
 						<img width="18" alt="bluetooth icon to disconnect" draggable="false"
 							 src="@/assets/icons/printer/bluetooth-disconnect.svg" />
 						<!-- <span>Disconnect</span> -->
@@ -31,19 +29,19 @@
 
 				<div class="printer-status-info">
 
-					<div v-if="status.polaroidCount != null && status.battery.level != null"
+					<div v-if="config.status != null && config.status.polaroidCount != null && config.status.battery.level != null"
 						 class="printer-status-polaroids">
 
 						<img :title="`${remainingPolaroids} Polaroids left`" draggable="false"
 							 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" />
-						<span style="letter-spacing: 2px">{{ status.polaroidCount }}/10</span>
+						<span style="letter-spacing: 2px">{{ config.status.polaroidCount }}/10</span>
 					</div>
 
-					<div v-if="status.battery.level != null && status.polaroidCount != null"
-						 class="printer-status-battery">
-						<img v-if="status.battery.charging" draggable="false" width="25"
+					<div v-if="config.status != null && config.status.battery.level != null && config.status.polaroidCount != null" class="printer-status-battery">
+						<img v-if="config.status.battery.charging" draggable="false" width="25"
 							 src="@/assets/icons/battery/battery-charging.svg" />
-						<img v-else-if="batteryIcon == 0" draggable="false" width="25" src="@/assets/icons/battery/battery-0.svg" />
+						<img v-else-if="batteryIcon == 0" draggable="false" width="25"
+							 src="@/assets/icons/battery/battery-0.svg" />
 						<img v-else-if="batteryIcon == 25" draggable="false" width="25"
 							 src="@/assets/icons/battery/battery-25.svg" />
 						<img v-else-if="batteryIcon == 50" draggable="false" width="25"
@@ -53,23 +51,25 @@
 						<img v-else-if="batteryIcon == 100" draggable="false" width="25"
 							 src="@/assets/icons/battery/battery-100.svg" />
 
-						<span v-if="status.battery.charging" style="color: var(--orange-color); letter-spacing: 1px">POWER</span>
+						<span v-if="config.status.battery.charging"
+							  style="color: var(--orange-color); letter-spacing: 1px">POWER</span>
 						<span v-else>
-							{{ status.battery.level }}%</span>
+							{{ config.status.battery.level }}%</span>
 					</div>
 
-					<div v-else style="text-transform: uppercase; letter-spacing: 1.5px; font-weight: 400px; color: var(--grey-color)">
+					<div v-else
+						 style="text-transform: uppercase; letter-spacing: 1.5px; font-weight: 400px; color: var(--grey-color)">
 						Connecting....
 					</div>
 				</div>
 
 			</div>
 
-		
-		<StatusAlerts :status="status" />
 
-			<PrintingStatus :stack="status.polaroidCount" :queue="queue" />
-			
+			<StatusAlerts v-if="config.status != null" :status="config.status" />
+
+			<PrintingStatus  v-if="config.status != null" :stack="config.status.polaroidCount" :queue="queue" />
+
 
 		</div>
 
@@ -87,33 +87,33 @@ import type { PRINTER_STATUS, STATE_CONFIG } from '../../types/config.types';
 
 const props = defineProps<{
 	config: STATE_CONFIG;
-	status: PRINTER_STATUS,
 	queue: any,
-	hasBluetoothAccess: boolean
 }>();
 
-// display leave dialog if connected to printer
+const hasBluetoothAccess = ref(false);
+
 onMounted(() => {
-	window.addEventListener("beforeunload", (event) => {
-		if (props.config.connection == true && props.queue.length > 0) event.returnValue = true;
+
+	// check bluetooth access
+	(navigator as any).bluetooth.getAvailability().then(available => {
+		if (available) hasBluetoothAccess.value = true
 	});
+	
 })
 let remainingPolaroids = ref(10)
 
 props.config;
-props.status;
-props.hasBluetoothAccess;
 
 const printerType = computed(() => {
-	if (!(props.status.battery.level != null && props.status.polaroidCount != null)) return ''
-	else return props.status.type
+	if (props.config.status == null || props.config.status?.battery.level == null || props.config.status?.polaroidCount == null) return ''
+	else return props.config.status?.type
 })
 const batteryIcon = computed(() => {
-	if (props.status.battery.level == null || props.status.battery.level <= 10) return 0;
-	else if (props.status.battery.level <= 35) return 25;
-	else if (props.status.battery.level <= 60) return 50;
-	else if (props.status.battery.level <= 90) return 75;
-	else if (props.status.battery.level >= 90) return 100;
+	if (props.config.status?.battery.level == null || props.config.status?.battery.level <= 10) return 0;
+	else if (props.config.status?.battery.level <= 35) return 25;
+	else if (props.config.status?.battery.level <= 60) return 50;
+	else if (props.config.status?.battery.level <= 90) return 75;
+	else if (props.config.status?.battery.level >= 90) return 100;
 })
 
 
@@ -122,7 +122,6 @@ const batteryIcon = computed(() => {
 
 
 <style scoped>
-
 .connection-box {
 	position: relative;
 	background-color: rgba(255, 255, 255, .75);
@@ -149,7 +148,7 @@ const batteryIcon = computed(() => {
 
 .printer-name span {
 	margin-left: 8px;
-	color: var(--dynamic-bg-color); 
+	color: var(--dynamic-bg-color);
 
 }
 
@@ -183,7 +182,7 @@ const batteryIcon = computed(() => {
 
 .printer-status-info {
 	font-weight: 400;
-	font-size: 16px!important;
+	font-size: 16px !important;
 	position: relative;
 	display: flex;
 	flex-direction: row;
@@ -223,7 +222,7 @@ const batteryIcon = computed(() => {
 	height: 35px;
 	width: 35px;
 	border-radius: 50%;
-	
+
 	position: relative;
 
 

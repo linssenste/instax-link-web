@@ -1,5 +1,5 @@
 <template>
-	<div >
+	<div style="position: relative; width: 100%; height: calc(100vh - 130px); overflow: scroll; ">
 
 
 		<div v-for="(element, index) in queue" class="status-card">
@@ -81,17 +81,17 @@
 
 
 <script lang="ts" setup>
-import { ref, watch, onMounted } from 'vue';
-
-
+import { ref, watch } from 'vue';
 
 
 interface QUEUE_ELEMENT {
 	quantity: number,
 	base64: string,
 	state: 0 | 1 | 2,
-	progress: number
+	progress: number, 
+	abortController?: null | AbortController
 }
+
 
 const props = defineProps<{
 
@@ -102,7 +102,6 @@ props.queue;
 
 
 const isCanceling = ref(false)
-
 
 watch(isCanceling, () => {
 	if (isCanceling.value) {
@@ -136,6 +135,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 	}
 }, { deep: true })
 
+
 </script>
 
 
@@ -162,6 +162,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 
 .progress-print {
 	transition: all 15s linear;
+	background-color: var(--dynamic-bg-color)!important; 
 }
 
 

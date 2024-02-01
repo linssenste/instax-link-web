@@ -1,25 +1,25 @@
 
-enum FilmSize {
+enum InstaxFilmType {
     MINI = "MINI",
     SQUARE = "SQUARE",
     LARGE = "LARGE",
 }
 
-interface FilmSizeDimensions {
-    [FilmSize.MINI]: { width: number; height: number };
-    [FilmSize.SQUARE]: { width: number; height: number };
-    [FilmSize.LARGE]: { width: number; height: number };
+interface InstaxFilmTypeDimensions {
+    [InstaxFilmType.MINI]: { width: number; height: number };
+    [InstaxFilmType.SQUARE]: { width: number; height: number };
+    [InstaxFilmType.LARGE]: { width: number; height: number };
 }
 
-const filmSizes: FilmSizeDimensions = {
-    [FilmSize.MINI]: { width: 600, height: 800 },
-    [FilmSize.SQUARE]: { width: 800, height: 800 },
-    [FilmSize.LARGE]: { width: 840, height: 1240 },
+const InstaxFilmTypes: InstaxFilmTypeDimensions = {
+    [InstaxFilmType.MINI]: { width: 600, height: 800 },
+    [InstaxFilmType.SQUARE]: { width: 800, height: 800 },
+    [InstaxFilmType.LARGE]: { width: 840, height: 1240 },
 };
 
 export interface AppConfig {
 
-	type: FilmSize, 
+	type: InstaxFilmType, 
 
 	theme: string;
 
