@@ -1,6 +1,6 @@
 <template>
 	<div class="editor" >
-		<div class="inner" id="polaroid-frame" :class="`inner-${config.width}`">
+		<div class="inner" id="polaroid-frame" :class="`inner-${config.type}`">
 			<slot  name="polaroid-area" />
 
 		</div>
@@ -15,7 +15,7 @@
 				alt="polaroid frame"
 				draggable="false"
 				preload
-				:width="config.width == 800 ? 368 : (config.width == 600 ? 282 : 528)"
+				:width="polaroidImageWidth"
 				height="440"
 				
 				class="polaroid-frame"
@@ -31,26 +31,23 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
+import { type STATE_CONFIG, FilmSize } from '../../types/config.types';
 
 const loadError = ref(false)
 const frameLoaded = ref(false);
 
 
 const props = defineProps<{
-	config: {
-		width: number;
-		height: number;
-	};
+	config: STATE_CONFIG
 }>();
 
+
+const polaroidImageWidth  = computed(() => {
+	return props.config.type == FilmSize.SQUARE ? 368 : (props.config.type == FilmSize.MINI ? 282 : 522)
+});
+
 const polaroidImageSource = computed(() => {
-	if (props.config.width === 600) {
-		return '/polaroids/mini.webp';
-	} else if (props.config.width === 800) {
-		return '/polaroids/square.webp';
-	} else {
-		return '/polaroids/large.webp';
-	}
+	return `/polaroids/${props.config.type}.webp`
 });
 
 
@@ -92,19 +89,19 @@ const polaroidImageSource = computed(() => {
 	z-index: 2000000;
 }
 
-.inner-600 {
+.inner-mini {
 	padding-top: 5px;
 	padding-left: 1px;
 	aspect-ratio: 600/800;
 }
 
-.inner-800 {
+.inner-square {
 	padding-left: 4px;
 	padding-top: 5px;
 	aspect-ratio: 800/800;
 }
 
-.inner-1240 {
+.inner-large {
 	padding-top: 5px;
 	padding-left: 2px;
 	aspect-ratio: 1240/840;

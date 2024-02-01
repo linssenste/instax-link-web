@@ -4,7 +4,7 @@
 		<div v-if="!hasBluetoothAccess">NO ACCESS</div>
 
 		<button v-else-if="!config.connection" v-on:click="config.connect" class="connect-button"
-				:style="`background-color: var(--${config.theme}-color); `">
+				>
 			<img width="18" height="18" alt="bluetooth icon to connect" src="@/assets/icons/printer/bluetooth.svg" />
 			<span>Connect</span>
 		</button>
@@ -17,11 +17,11 @@
 					<!-- Printer type in instax-font -->
 					<div class="printer-name">
 						<div></div>
-						<span >instax</span> <span  :style="colorStyling" style="font-size: 20px">{{ printerType }}</span>
+						<span >instax</span> <span style="font-size: 20px">{{ printerType }}</span>
 
 					</div>
 					<button v-on:click="config.disconnect" title="Disconnect INSTAX Printer" class="disconnect-button"
-							:style="`background-color: var(--${config.theme}-color); color: #FFFFFF`">
+							>
 						<img width="18" alt="bluetooth icon to disconnect" draggable="false"
 							 src="@/assets/icons/printer/bluetooth-disconnect.svg" />
 						<!-- <span>Disconnect</span> -->
@@ -31,15 +31,15 @@
 
 				<div class="printer-status-info">
 
-					<div v-if="status.polaroids.stack != null && status.battery.level != null"
+					<div v-if="status.polaroidCount != null && status.battery.level != null"
 						 class="printer-status-polaroids">
 
 						<img :title="`${remainingPolaroids} Polaroids left`" draggable="false"
-							 :src="`/polaroids/stack/icon_${config.width}.webp`" height="30" />
-						<span style="letter-spacing: 2px">{{ status.polaroids.stack }}/10</span>
+							 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" />
+						<span style="letter-spacing: 2px">{{ status.polaroidCount }}/10</span>
 					</div>
 
-					<div v-if="status.battery.level != null && status.polaroids.stack != null"
+					<div v-if="status.battery.level != null && status.polaroidCount != null"
 						 class="printer-status-battery">
 						<img v-if="status.battery.charging" draggable="false" width="25"
 							 src="@/assets/icons/battery/battery-charging.svg" />
@@ -66,9 +66,9 @@
 			</div>
 
 		
-		<StatusAlerts :status="status" :config="config"/>
+		<StatusAlerts :status="status" />
 
-			<PrintingStatus :stack="status.polaroids.stack" :queue="queue" :config="config" />
+			<PrintingStatus :stack="status.polaroidCount" :queue="queue" />
 			
 
 		</div>
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import PrintingStatus from '../printer/PrintingStatus.vue';
 import StatusAlerts from '../printer/StatusAlerts.vue'
@@ -92,6 +92,12 @@ const props = defineProps<{
 	hasBluetoothAccess: boolean
 }>();
 
+// display leave dialog if connected to printer
+onMounted(() => {
+	window.addEventListener("beforeunload", (event) => {
+		if (props.config.connection == true && props.queue.length > 0) event.returnValue = true;
+	});
+})
 let remainingPolaroids = ref(10)
 
 props.config;
@@ -99,10 +105,8 @@ props.status;
 props.hasBluetoothAccess;
 
 const printerType = computed(() => {
-	if (!(props.status.battery.level != null && props.status.polaroids.stack != null)) return ''
-	else if (props.status.polaroids.width == 600) return "MINI"; 
-	else if (props.status.polaroids.width == 800) return "SQUARE";
-	else return "LARGE"
+	if (!(props.status.battery.level != null && props.status.polaroidCount != null)) return ''
+	else return props.status.type
 })
 const batteryIcon = computed(() => {
 	if (props.status.battery.level == null || props.status.battery.level <= 10) return 0;
@@ -112,11 +116,10 @@ const batteryIcon = computed(() => {
 	else if (props.status.battery.level >= 90) return 100;
 })
 
-const colorStyling = computed(() => {
-	return `color:  var(--${props.config.theme}-color);`
-})
+
 
 </script>
+
 
 <style scoped>
 
@@ -146,6 +149,8 @@ const colorStyling = computed(() => {
 
 .printer-name span {
 	margin-left: 8px;
+	color: var(--dynamic-bg-color); 
+
 }
 
 .printer-name div {
@@ -218,8 +223,9 @@ const colorStyling = computed(() => {
 	height: 35px;
 	width: 35px;
 	border-radius: 50%;
-
+	
 	position: relative;
+
 
 
 }
@@ -233,6 +239,8 @@ const colorStyling = computed(() => {
 
 .connect-button {
 	color: #FFFFFF;
+
+
 	padding-left: 30px;
 	padding-right: 30px;
 }

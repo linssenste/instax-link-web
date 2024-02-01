@@ -55,7 +55,7 @@
 
 
 
-		<button v-on:click="save" :style="backgroundColorStyling" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
+		<button v-on:click="save" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
 			<span v-if="config.connection">
 				Print Image
 			</span>
@@ -67,17 +67,12 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { FilmSize, type STATE_CONFIG } from '../../types/config.types';
 const emit = defineEmits(['change', 'scale']);
 
 const props = defineProps<{
-	config: {
-		width: number,
-		height: number,
-		theme: string,
-		connection: boolean,
-
-	},
+	config: STATE_CONFIG
 	
 	save: any
 }>();
@@ -92,12 +87,10 @@ const settings = ref({
 
 
 const captionLength = computed(() => {
-	return (props.config.width == 600 ? 15 : (props.config.width == 800 ? 25 : 40))
+	return (props.config.type == FilmSize.MINI ? 15 : (props.config.type == FilmSize.LARGE ? 25 : 40))
 })
 
-const backgroundColorStyling = computed(() => {
-	return `background-color:  var(--${props.config.theme}-color);`
-})
+
 
 async function setAlignment(type: 'scale', horizontal: boolean): Promise<void> {
 	emit(type, horizontal ? 'horizontal' : 'vertical')

@@ -9,7 +9,7 @@
 
 		<!-- top-left corner: polaroid size selector (if no connection) -->
 		<div class="instax-variant-settings">
-			<PolaroidSizeSelector v-if="!config.connection" :config="config" v-on:resize="config = $event" />
+			<PolaroidSizeSelector v-if="!config.connection" v-on:resize="config.type = $event" />
 			<PrinterSettings :status="printerStatus" :queue="imageQueue" :hasBluetoothAccess="true" :config="config" />
 		</div>
 
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, watchEffect } from 'vue';
+import { ref, watch } from 'vue';
 
 import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
 import ProjectLinks from './components/layout/ProjectLinks.vue';
@@ -29,47 +29,46 @@ import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 import PrinterSettings from './components/printer/PrinterSettings.vue';
 
 import { InstaxPrinter } from './plugins/printer/instax';
-import { INSTAX_OPCODES } from './plugins/printer/events';
 
-import type { STATE_CONFIG, PRINTER_STATUS, PRINTING_IMAGE_QUEUE } from './types/config.types';
+import { type STATE_CONFIG, type PRINTER_STATUS, type PRINTING_IMAGE_QUEUE, FilmSize } from './types/config.types';
+
 
 const config = ref<STATE_CONFIG>({
-	width: 800,
-	height: 800,
+	type: FilmSize.SQUARE,
 
-	theme: 'pink',
 	connection: false,
 	connect: connectPrinterEvent,
 	disconnect: disconnectPrinter
 })
 
-function themeUpdateEvent(theme: string): void {
-	config.value.theme = theme;
 
-	if (!config.value.connection || !printer) return;
-	printer.setColor([getInvertedBGR(theme)], 1, 255)
+function getThemeColorHex(theme: string): string {
+	return getComputedStyle(document.documentElement).getPropertyValue(`--${theme}-color`) ?? '#FFFFFF'
 }
 
-// set background theme color
-watchEffect(() => {
-	document.documentElement.style.setProperty('--dynamic-bg-color', `var(--${config.value.theme}-color)`);
-});
+
+function themeUpdateEvent(theme: string = 'dynamic-bg'): void {
+	
+
+	if (!config.value.connection || !printer) return;
+
+
+	printer.setColor([getThemeColorHex(theme)], 1, 255);
+}
 
 
 
 
 let isPrinting = false;
 const initialPrinterStatus: PRINTER_STATUS = {
+
+	type: null,
 	battery: {
 		charging: false,
 		level: null
 	},
-	polaroids: {
-		width: 600,
-		height: 800,
-		stack: null,
-	},
-	serialNumber: '',
+
+	polaroidCount: null,
 }
 
 const printerStatus = ref(initialPrinterStatus)
@@ -98,15 +97,8 @@ async function connectPrinterEvent(): Promise<void> {
 			setTimeout(async () => {
 
 				loadMetaData();
-
-
-				// make blinking effect on printer
-				const themeArray = getInvertedBGR(config.value.theme);
-				(printer as any).setColor([themeArray, [0, 0, 0]], 25, 3)
-
-
 				setTimeout(async () => {
-					themeUpdateEvent(config.value.theme);
+					themeUpdateEvent();
 				}, 1500);
 			}, 250);
 
@@ -136,8 +128,8 @@ async function loadMetaData(): Promise<void> {
 	await getPrinterMeta();
 
 	if (timeoutHandle) clearInterval(timeoutHandle);
-
 	timeoutHandle = setInterval(() => getPrinterMeta(), 2000) as ReturnType<typeof setInterval>;
+
 }
 
 async function getPrinterMeta(): Promise<void> {
@@ -150,24 +142,9 @@ async function getPrinterMeta(): Promise<void> {
 
 	try {
 
-		let response = await printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
-		printerStatus.value.polaroids.width = 800//parseInt(String(response.width != 600 && response.width != 800 && response.width != 1240 ? 800 : response.width)) as (600 | 800 | 1240);
-		printerStatus.value.polaroids.height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);
+		printerStatus.value = await printer.getInformation(false)
 
-		config.value.width = printerStatus.value.polaroids.width; 
-		config.value.height = printerStatus.value.polaroids.height;
-
-		response = await printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]) as any;
-
-		printerStatus.value.battery.charging = response.isCharging > 5;
-		printerStatus.value.battery.level = (response.battery ?? printerStatus.value.battery.level);
-
-		response = await printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2]) as any;
-		printerStatus.value.polaroids.stack = (response.photosLeft ?? printerStatus.value.polaroids.stack);
-
-		response = await printer.sendCommand(INSTAX_OPCODES.DEVICE_INFO_SERVICE, [2]) as any;
-		printerStatus.value.serialNumber = response.serialNumber;
-
+		config.value.type = FilmSize.SQUARE; 
 
 	} catch (error) {
 		return
@@ -176,28 +153,10 @@ async function getPrinterMeta(): Promise<void> {
 }
 
 
-function getInvertedBGR(color: string): number[] {
-	switch (color) {
-		case 'blue':
-			return [255, 131, 65]; // BGR values for blue-color
-		case 'pink':
-			return [255, 112, 248]; // BGR values for pink-color
-		case 'orange':
-			return [0, 156, 254]; // BGR values for orange-color
-		case 'yellow':
-			return [0, 234, 254]; // BGR values for yellow-color
-		case 'green':
-			return [52, 156, 0]; // BGR values for green-color
-		case 'red':
-			return [90, 90, 255]; // BGR values for red-color
-		default:
-			return [0, 0, 0]; // Default to black if color is not found
-	}
-}
-
 const imageQueue = ref<PRINTING_IMAGE_QUEUE[]>([])
 
 function printPolaroid(imageData: string) {
+
 	if (config.value.connection != true) {
 		setTimeout(() => {
 			var a = document.createElement("a");
@@ -209,27 +168,25 @@ function printPolaroid(imageData: string) {
 	} else {
 		imageQueue.value.push({ base64: imageData, quantity: 1, state: 0, progress: 0, abortController: null })
 	}
+
 }
 
 watch(printerStatus, (newValue, oldValue) => {
 
-
-	if (oldValue.polaroids.stack == 0 && newValue.polaroids.stack == 10) {
-		console.log("NEW STACK!!!")
+	if (oldValue.polaroidCount == 0 && newValue.polaroidCount == 10) {
 		printPolaroidQueue()
 	}
+
 }, { deep: true })
 
 watch(imageQueue, async () => {
-	if (isPrinting) return;
-
-	printPolaroidQueue()
+	if (!isPrinting) printPolaroidQueue()
 }, { deep: true });
+
 
 async function printPolaroidQueue(): Promise<void> {
 
-
-	if ((printerStatus.value.polaroids.stack != null && printerStatus.value.polaroids.stack <= 0) || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
+	if ((printerStatus.value.polaroidCount != null && printerStatus.value.polaroidCount <= 0) || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
 	if (imageQueue.value[0].state == 0) {
 
 		try {
@@ -264,22 +221,17 @@ async function printPolaroidQueue(): Promise<void> {
 			imageQueue.value[0].progress = ((1) / quantity) * 100
 
 			await printImages(quantity, async (progress) => {
-			
+
 
 				if (progress < quantity) {
 					imageQueue.value[0].progress = ((progress + 1) / quantity) * 100
-				}  else return;
-
+				} else return;
 
 			}, imageQueue.value[0].abortController)
-
-		
 
 		} catch (error) {
 			console.log("S", error);
 		}
-
-
 
 		imageQueue.value.shift()
 
@@ -288,7 +240,10 @@ async function printPolaroidQueue(): Promise<void> {
 
 		loadMetaData();
 	}
+
 }
+
+
 
 async function sendImage(imageUrl: string, callback: (progress: any) => void, abortController: AbortController): Promise<void> {
 
@@ -300,6 +255,7 @@ async function sendImage(imageUrl: string, callback: (progress: any) => void, ab
 		callback(status)
 	}, abortController.signal);
 }
+
 
 
 async function printImages(quantity: number, callback: (progress: any) => void, abortController: AbortController): Promise<void> {

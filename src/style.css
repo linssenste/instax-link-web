@@ -27,6 +27,7 @@ font-weight: 500;
 font-size: 15px;
 }
 button {
+	
 	font-family: 'Rubik'!important;
 
 
@@ -50,6 +51,8 @@ button {
 	justify-content: center;
 	transition: all 100ms ease-in-out;
 	cursor: pointer;
+	background-color: var(--dynamic-bg-color); 
+
 }
 
 

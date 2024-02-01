@@ -32,7 +32,7 @@
 					<div v-if="element.state < 2" class="print-quantity">
 						
 						<!-- decrease input -->
-						<button :style="`background-color:  var(--${config.theme}-color);`"
+						<button
 								v-on:click="element.quantity -= 1" :class="element.quantity <= 1 ? 'disabled' : ''"
 								class="quantity-icon-button">
 							<img src="@/assets/icons/printer/minus.svg" draggable="false" width="12" />
@@ -44,7 +44,7 @@
 							   max="10" />
 
 						<!-- increase button -->
-						<button :style="`background-color:  var(--${config.theme}-color);`"
+						<button 
 								v-on:click="element.quantity += 1" :class="element.quantity >= 10 ? 'disabled' : ''"
 								class="quantity-icon-button">
 							<img src="@/assets/icons/printer/plus.svg" draggable="false" width="12" />
@@ -61,16 +61,16 @@
 
 				<div class="progress-bar">
 					<div v-if="element.state >= 1" class="progress"
-						 :style="`background-color:  var(--${config.theme}-color); width: ${element.state == 2 ? 100 : element.progress}%`" />
+						 :style="`width: ${element.state == 2 ? 100 : element.progress}%`" />
 				</div>
 
 
 				<div class="progress-step"
-					 :style="`background-color: var(--${element.state == 2 ? config.theme : 'light-grey'}-color`" />
+					 :style="element.state != 2 ? 'background-color: var(--light-grey-color)!important' : ''" />
 
 				<div class="progress-bar">
 					<div v-if="element.state == 2" id="printProgress" class="progress progress-print"
-						 :style="`background-color:  var(--${config.theme}-color); 	 min-width: 10px; width: ${element.progress}%`" />
+						 :style="`min-width: 10px; width: ${element.progress}%`" />
 				</div>
 			</div>
 
@@ -82,7 +82,6 @@
 
 <script lang="ts" setup>
 import { ref, watch, onMounted } from 'vue';
-import type { STATE_CONFIG } from '../../types/config.types';
 
 
 
@@ -95,21 +94,13 @@ interface QUEUE_ELEMENT {
 }
 
 const props = defineProps<{
-	config: STATE_CONFIG,
 
 	stack: number | null;
 	queue: QUEUE_ELEMENT[]
 }>();
 props.queue;
 
-props.config;
 
-// display leave dialog if connected to printer
-onMounted(() => {
-	window.addEventListener("beforeunload", (event) => {
-		if (props.config.connection == true && props.queue.length > 0) event.returnValue = true;
-	});
-})
 const isCanceling = ref(false)
 
 
@@ -165,6 +156,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 	height: 10px;
 	position: relative;
 	overflow: hidden;
+	background-color: var(--dynamic-bg-color); 
 
 }
 
@@ -174,6 +166,9 @@ watch(() => props.queue, (newValue, oldValue) => {
 
 
 .progress-step {
+
+	background-color: var(--dynamic-bg-color); 
+
 	width: 12px !important;
 	height: 10px !important;
 	margin-left: 5px;
@@ -191,7 +186,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background-color: var(--light-grey-color);
+	background-color: var(--dynamic-bg-color); 
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
 }

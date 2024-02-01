@@ -1,19 +1,46 @@
+
+
 export function encodeColor(
-  colorArray: number[][],
+  colorArray: string[],
   speed: number,
   repeat: number,
   when: number
 ): number[] {
-  const payloadSize = 4 + colorArray.length * 3
+	console.log(colorArray)
+	const colorsBGR = colorArray.map(color => convertHexColor(color));
+  const payloadSize = 4 + colorsBGR.length * 3
   const payload = new Uint8Array(payloadSize)
 
-  payload.set([when, colorArray.length, speed, repeat])
+  payload.set([when, colorsBGR.length, speed, repeat])
 
-  colorArray.flat().forEach((value, index) => {
+  colorsBGR.flat().forEach((value, index) => {
     payload[index + 4] = value
   })
 
   return Array.from(payload)
 }
 
-export function connectedAnimation(): Promise<void> {}
+function convertHexColor(hex: string): number[] | null {
+console.log(hex)
+
+	// Remove the '#' if present
+	hex = hex.replace(/^#/, '');
+  
+	// Convert shorthand hex to full hex
+	if (hex.length === 3) {
+	  hex = hex
+		.split('')
+		.map((char) => char.repeat(2))
+		.join('');
+	}
+  
+	// Parse hex to RGB
+	const rgb = parseInt(hex, 16);
+	const red = (rgb >> 16) & 255;
+	const green = (rgb >> 8) & 255;
+	const blue = rgb & 255;
+  
+	// Return BGR array
+	return [blue, green, red];
+  }
+  
