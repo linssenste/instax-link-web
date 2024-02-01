@@ -55,12 +55,26 @@
 
 
 
-		<button v-on:click="save" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
-			<span v-if="config.connection">
+		<div style="position: relative; 
+	margin-top: 10px; width: 100%; display: flex; flex-direction: row; align-items: center;">
+		<button v-if="config.connection"  style="background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; color: black;" v-on:click="savePolaroid(false)" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
+			<span >
 				Print Image
 			</span>
-			<span v-else>Download</span>
+			
 		</button>
+
+		<button v-else v-on:click="savePolaroid(true)" class="action-button" style="position: relative; display: flex; flex-direction: row; align-items: center;">
+				<img draggable="false" style="" title="download whole image" src="@/assets/icons/controls/download.svg" width="14" />
+
+				Download
+		</button>
+
+		<button v-if="config.connection"  v-on:click="savePolaroid(true, false)"  style="margin-left: 5px; width: 40px; position: relative;">
+			<img draggable="false" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" title="download whole image" src="@/assets/icons/controls/download.svg" width="14" />
+
+		</button>
+		</div>
 
 
 	</div>
@@ -68,16 +82,16 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import { FilmSize, type STATE_CONFIG } from '../../types/config.types';
+import { InstaxFilmType, type STATE_CONFIG } from '../../types/config.types';
 const emit = defineEmits(['change', 'scale']);
 
 const props = defineProps<{
 	config: STATE_CONFIG
 	
-	save: any
+	savePolaroid: any; 
 }>();
 props.config;
-props.save;
+props.savePolaroid;
 
 const settings = ref({
 	rotation: 0,
@@ -87,7 +101,7 @@ const settings = ref({
 
 
 const captionLength = computed(() => {
-	return (props.config.type == FilmSize.MINI ? 15 : (props.config.type == FilmSize.LARGE ? 25 : 40))
+	return (props.config.type == InstaxFilmType.MINI ? 15 : (props.config.type == InstaxFilmType.LARGE ? 25 : 40))
 })
 
 
@@ -318,7 +332,6 @@ input::-webkit-inner-spin-button {
 .action-button {
 	width: 100%;
 	color: white;
-	margin-top: 10px;
 
 
 }

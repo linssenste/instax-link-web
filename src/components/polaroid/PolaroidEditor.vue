@@ -3,6 +3,9 @@
 
 		<DropImageUpload v-on:dropped="getFileData($event)" />
 
+		<div v-if="!image" class="drop-image-text">
+		... or drop it here!</div>
+		
 		<div class="polaroid-editor">
 
 
@@ -14,7 +17,8 @@
 								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
-					<div v-if="loading" class="loading-overlay"></div>
+					<div v-if="loading" class="loading-overlay">
+					<div  style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;" >LOADING ...</div></div>
 
 				</template>
 
@@ -23,7 +27,7 @@
 						<span>Choose an image!</span>
 					</div>
 
-					<button  v-else class="expand-button"
+					<button  v-else-if="!loading" class="expand-button" 
 							v-on:click="expandContract"   :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
 							:style="settingsExpansion ? 'transform: rotate(-180deg)' : 'transform: rotate(0deg)'">
 						<img width="20" height="20" :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`" src="@/assets/icons/controls/chevron-down.svg" />
@@ -34,7 +38,7 @@
 
 			<div id="expand-container">
 				<div id="expand-contract" :style="expansion" class="collapsed">
-					<ImageSettings :config="config" :save="saveImage" v-on:change="imageSettings = $event"
+					<ImageSettings :config="config" :savePolaroid="saveEditorPolaroid" v-on:change="imageSettings = $event"
 								   v-on:scale="fitImageEvent" v-on:remove-image="image = null" />
 
 				</div>
@@ -95,17 +99,24 @@ watch(image, (newVal, prevVal) => {
 	}
 });
 
-async function saveImage(): Promise<void> {
 
+
+async function saveEditorPolaroid(download = false, collapse = true): Promise<void> {
+
+	console.log("SAVE", download, collapse)
 	loading.value = true;
 
-	expandContract();
-	setTimeout(async () => {
-		const imageUrl = await cropperAreaRef.value?.saveCanvasImage(props.config.connection);
-		emit("image", imageUrl)
+	
+	if (collapse) {
+		expandContract();
+		await new Promise((r) => setTimeout(r, 525)) // await animation 
+	}
+
+	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
+	emit("image", {src: imageUrl, download: download})
 
 	loading.value = false
-	}, 510);
+
 
 }
 
@@ -129,6 +140,7 @@ function getFileData(file: File): void {
 	var reader = new FileReader();
 	reader.readAsDataURL(file);
 	reader.onload = async function () {
+	
 		image.value = reader.result as string;
 	};
 	reader.onerror = function (error) {
@@ -149,7 +161,7 @@ props.config;
 	top: 0;
 	left: 0;
 
-	background: rgba(0, 0, 0, .5);
+	background: rgba(255, 255, 255, .75);
 	-webkit-backdrop-filter: blur(8px);
     -moz-backdrop-filter: blur(8px);
 	backdrop-filter: blur(8px);
@@ -177,7 +189,7 @@ props.config;
 
 #expand-contract {
 
-	transition: all 500ms ease-in-out;
+	transition: all 450ms ease-in-out;
 }
 
 #expand-contract.expanded {
@@ -209,5 +221,10 @@ props.config;
 
 .upload-image-caption {
 	font-size: 25px; padding-top: 3px; width: 100%; font-family: 'biro_script_standardregular'; text-transform: uppercase;
+}
+
+
+.drop-image-text {
+	position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); letter-spacing: 1.5px; font-size: 15px; opacity: .25;
 }
 </style>

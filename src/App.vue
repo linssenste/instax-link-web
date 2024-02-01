@@ -2,24 +2,25 @@
 	<div class="app-area">
 
 		<!-- bottom-left corner: color selector -->
-		<ThemeColorSelector class="theme-color-selector" v-on:color-change="themeUpdateEvent" />
+		<ThemeColorSelector class="theme-color-selector" v-on:color-change="themeChangeEvent" />
 
 		<!-- bottom-right corner: project related links/information -->
 		<ProjectLinks class="project-links-section" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) -->
 		<div class="instax-variant-settings">
-			<PolaroidSizeSelector v-if="!config.connection" v-on:resize="config.type = $event" />
-			<PrinterSettings :status="printerStatus" :queue="imageQueue" :hasBluetoothAccess="true" :config="config" />
+			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
+			<PrinterSettings :queue="imageQueue" :config="config" />
 		</div>
 
-		<PolaroidEditor v-on:image="printPolaroid" :config="config" />
+		<PolaroidEditor v-on:image="createdImageEvent" :config="config" />
+
 
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
 import ProjectLinks from './components/layout/ProjectLinks.vue';
@@ -30,83 +31,81 @@ import PrinterSettings from './components/printer/PrinterSettings.vue';
 
 import { InstaxPrinter } from './plugins/printer/instax';
 
-import { type STATE_CONFIG, type PRINTER_STATUS, type PRINTING_IMAGE_QUEUE, FilmSize } from './types/config.types';
+import { type STATE_CONFIG, type PRINTING_IMAGE_QUEUE, InstaxFilmType } from './types/config.types';
 
 
 const config = ref<STATE_CONFIG>({
-	type: FilmSize.SQUARE,
+	type: InstaxFilmType.SQUARE,
 
 	connection: false,
-	connect: connectPrinterEvent,
-	disconnect: disconnectPrinter
+	connect: connectBluetoothPrinter,
+	disconnect: disconnectBluetoothPrinter,
+	status: undefined
+
 })
 
-
+// get hex value of current color theme
 function getThemeColorHex(theme: string): string {
 	return getComputedStyle(document.documentElement).getPropertyValue(`--${theme}-color`) ?? '#FFFFFF'
 }
 
-
-function themeUpdateEvent(theme: string = 'dynamic-bg'): void {
-	
-
+// update theme onto printer if changed
+function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 	if (!config.value.connection || !printer) return;
-
-
 	printer.setColor([getThemeColorHex(theme)], 1, 255);
+}
+
+// update film type (only if not automatically with printer)
+function typeChangeEvent(filmType: InstaxFilmType): void {
+	if (!config.value.connection || !printer) config.value.type = filmType
 }
 
 
 
 
 let isPrinting = false;
-const initialPrinterStatus: PRINTER_STATUS = {
-
-	type: null,
-	battery: {
-		charging: false,
-		level: null
-	},
-
-	polaroidCount: null,
-}
-
-const printerStatus = ref(initialPrinterStatus)
-
 
 let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
+const imageQueue = ref<PRINTING_IMAGE_QUEUE[]>([])
 
-async function disconnectPrinter(): Promise<void> {
 
-	if (printer) {
-		await printer.disconnect();
-		printerStatus.value = initialPrinterStatus;
-	}
+onMounted(() => {
+
+	window.addEventListener("beforeunload", (event) => {
+		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
+	});
+
+})
+
+async function disconnectBluetoothPrinter(): Promise<void> {
+	if (!printer) return;
+
+	await printer.disconnect();
+
+
 }
-async function connectPrinterEvent(): Promise<void> {
+async function connectBluetoothPrinter(): Promise<void> {
 
 	try {
-
 		printer = new InstaxPrinter();
+
 		const device = await printer.connect();
+		if (!device) return; // cancelled connection
 
-		if (device) {
-			config.value.connection = true;
+		config.value.connection = true;
 
-			setTimeout(async () => {
-
-				loadMetaData();
-				setTimeout(async () => {
-					themeUpdateEvent();
-				}, 1500);
-			}, 250);
+		// listener on disconnect event
+		device.addEventListener('gattserverdisconnected', clearConnection);
 
 
+		await new Promise((r) => setTimeout(r, 150)) // await connection setup
 
-			//  on disconnect
-			device.addEventListener('gattserverdisconnected', clearConnection);
-		}
+		loadMetaData();
+
+		setTimeout(async () => {
+			themeChangeEvent();
+		}, 1500);
 
 	} catch (error) {
 		clearConnection()
@@ -117,34 +116,31 @@ async function connectPrinterEvent(): Promise<void> {
 function clearConnection(): void {
 	printer = null;
 	config.value.connection = false;
+	config.value.status = undefined;
 
 	if (timeoutHandle) clearInterval(timeoutHandle)
 }
 
 async function loadMetaData(): Promise<void> {
 
-	if (!config.value.connection || !printer) return;
-
-	await getPrinterMeta();
-
+	if (!config.value.connection || !printer || isPrinting) return;
 	if (timeoutHandle) clearInterval(timeoutHandle);
-	timeoutHandle = setInterval(() => getPrinterMeta(), 2000) as ReturnType<typeof setInterval>;
+
+
+	await getPrinterMeta(true);
+
+	timeoutHandle = setInterval(async () => {
+		await getPrinterMeta(); 
+		printPolaroidQueue()
+	}, 2000) as ReturnType<typeof setInterval>;
 
 }
 
-async function getPrinterMeta(): Promise<void> {
-	if (!printer || isPrinting) return;
-
-	if (timeoutHandle && (!printer || config.value.connection == false)) {
-		clearInterval(timeoutHandle);
-		return;
-	}
+async function getPrinterMeta(includeType = false): Promise<void> {
 
 	try {
-
-		printerStatus.value = await printer.getInformation(false)
-
-		config.value.type = FilmSize.SQUARE; 
+		config.value.status = await printer.getInformation(includeType)
+		config.value.type = InstaxFilmType.SQUARE; // TODO
 
 	} catch (error) {
 		return
@@ -152,41 +148,31 @@ async function getPrinterMeta(): Promise<void> {
 
 }
 
-
-const imageQueue = ref<PRINTING_IMAGE_QUEUE[]>([])
-
-function printPolaroid(imageData: string) {
-
-	if (config.value.connection != true) {
-		setTimeout(() => {
-			var a = document.createElement("a");
-			a.href = imageData
-			a.download = "Polaroid.png"; //File name Here
-			a.click(); //Downloaded file
-
-		}, 250);
-	} else {
-		imageQueue.value.push({ base64: imageData, quantity: 1, state: 0, progress: 0, abortController: null })
-	}
-
+interface ImageData {
+	src: string, 
+	download: boolean
 }
 
-watch(printerStatus, (newValue, oldValue) => {
+function createdImageEvent(imageData: ImageData) {
 
-	if (oldValue.polaroidCount == 0 && newValue.polaroidCount == 10) {
-		printPolaroidQueue()
-	}
+	// download image if no printer is connected (image + polaroid frame are exported)
+	if (config.value.connection == true && imageData.download != true) {
 
-}, { deep: true })
+		// add to image queue
+		imageQueue.value.push({ base64: imageData.src, quantity: 1, state: 0, progress: 0 })
+	} else  {
+		var a = document.createElement("a");
+		a.href = imageData.src
+		a.download = "Polaroid.png"; //File name Here
+		a.click(); //Downloaded file
+		
+	}  
+}
 
-watch(imageQueue, async () => {
-	if (!isPrinting) printPolaroidQueue()
-}, { deep: true });
+// process (send + print) first image in queue
+async function printPolaroidQueue(isRetry = false): Promise<void> {
 
-
-async function printPolaroidQueue(): Promise<void> {
-
-	if ((printerStatus.value.polaroidCount != null && printerStatus.value.polaroidCount <= 0) || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
+	if (config.value.status == null || config.value.status.polaroidCount == null || config.value.status.polaroidCount <= 0 || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
 	if (imageQueue.value[0].state == 0) {
 
 		try {
@@ -196,76 +182,57 @@ async function printPolaroidQueue(): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
-			await sendImage(imageQueue.value[0].base64, (progress) => {
+
+			await printer.sendImage(imageQueue.value[0].base64, true, async (progress: number) => {
 
 				if (imageQueue.value[0].abortController == null || imageQueue.value[0].abortController.signal.aborted == true && progress == -1) {
-
-					imageQueue.value.shift()
-					return;
-
+					throw new Error()
 				}
+
 				imageQueue.value[0].progress = progress * 100;
 
+			}, imageQueue.value[0].abortController.signal);
 
-
-			}, imageQueue.value[0].abortController)
-
-
+			
+			// finished sending --> starting print progress (now printed images are the progress)
 			imageQueue.value[0].state = 2;
 			imageQueue.value[0].progress = 0
 
-			await new Promise((r) => setTimeout(r, 500))
+			await new Promise((r) => setTimeout(r, 250));
 
-			const quantity = imageQueue.value[0].quantity ?? 1
+			await getPrinterMeta(); // update printer information once 
+			await new Promise((r) => setTimeout(r, 250));
 
-			imageQueue.value[0].progress = ((1) / quantity) * 100
+			const quantity = imageQueue.value[0].quantity ?? 1; // total images
+			imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
 
-			await printImages(quantity, async (progress) => {
 
+			// begin printing commands
+			await printer.printImage(quantity, (printedImages: number) => {
 
-				if (progress < quantity) {
-					imageQueue.value[0].progress = ((progress + 1) / quantity) * 100
+				if (printedImages < quantity) {
+					imageQueue.value[0].progress = (((printedImages + 1) / quantity) * 100)
 				} else return;
 
-			}, imageQueue.value[0].abortController)
+			}, imageQueue.value[0].abortController.signal)
+
 
 		} catch (error) {
-			console.log("S", error);
+			if (!isRetry) return printPolaroidQueue(true); 
 		}
 
-		imageQueue.value.shift()
 
-		isPrinting = false
+
+		await new Promise((r) => setTimeout(r, 500));
+
+		imageQueue.value.shift(); // remove element from queue
+
+		isPrinting = false;
 		if (timeoutHandle) clearInterval(timeoutHandle);
 
 		loadMetaData();
 	}
 
-}
-
-
-
-async function sendImage(imageUrl: string, callback: (progress: any) => void, abortController: AbortController): Promise<void> {
-
-	if (!printer) return;
-
-	await new Promise((r) => setTimeout(r, 500))
-
-	await printer.sendImage(imageUrl, true, async (status: number) => {
-		callback(status)
-	}, abortController.signal);
-}
-
-
-
-async function printImages(quantity: number, callback: (progress: any) => void, abortController: AbortController): Promise<void> {
-	if (!printer) return;
-
-	await new Promise((r) => setTimeout(r, 250))
-
-	await printer.printImage(quantity, (printed: number) => {
-		callback(printed)
-	}, abortController.signal)
 }
 
 
@@ -306,8 +273,8 @@ async function printImages(quantity: number, callback: (progress: any) => void, 
 
 .theme-color-selector {
 	position: absolute;
-	bottom: 25px;
-	left: 25px;
+	top: 25px;
+	right: 25px;
 	z-index: 10 !important;
 }
 

@@ -31,7 +31,7 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { type STATE_CONFIG, FilmSize } from '../../types/config.types';
+import { type STATE_CONFIG, InstaxFilmType } from '../../types/config.types';
 
 const loadError = ref(false)
 const frameLoaded = ref(false);
@@ -43,7 +43,7 @@ const props = defineProps<{
 
 
 const polaroidImageWidth  = computed(() => {
-	return props.config.type == FilmSize.SQUARE ? 368 : (props.config.type == FilmSize.MINI ? 282 : 522)
+	return props.config.type == InstaxFilmType.SQUARE ? 368 : (props.config.type == InstaxFilmType.MINI ? 282 : 522)
 });
 
 const polaroidImageSource = computed(() => {

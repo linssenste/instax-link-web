@@ -59,7 +59,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);	
 		
 			if (width == 800 && height == 800) {
-				printerStatus.type = FilmSize.SQUARE; 
+				printerStatus.type = InstaxFilmType.SQUARE; 
 			}
 		
 		}
@@ -90,8 +90,8 @@ console.log(printerStatus)
 
 		// console.log(printCount)
 		for (let index = 0; index < (printCount); index++) {
-			  await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], false)
-			console.log(index)
+			//   await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], false)
+			// console.log(index)
 			await new Promise((r) => setTimeout(r, 15000))
  
 			if (aborted === true) {
