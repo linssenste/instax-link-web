@@ -8,13 +8,16 @@
 		<ProjectLinks class="project-links-section" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) -->
-		<div class="instax-variant-settings">
+		<div v-if="!isPreview" class="instax-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
-			<PrinterSettings :queue="imageQueue" :config="config" />
+			<PrinterSettings  :queue="imageQueue" :config="config" />
+		</div>
+		<div v-else class="instax-variant-settings" style="height: 25px;">
+			<span style="font-family: 'Keedy Sans'; font-size: 30px; color: var(--dynamic-bg-color)">instax</span>
+			<span style="	font-family: 'biro_script_standardregular'!important; font-size: 35px; margin-top: 12px;">WEB</span>
 		</div>
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" />
-
 
 	</div>
 </template>
@@ -69,13 +72,19 @@ let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
 const imageQueue = ref<PRINTING_IMAGE_QUEUE[]>([])
 
-
+const isPreview = ref(true);
 onMounted(() => {
+
 
 	window.addEventListener("beforeunload", (event) => {
 		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
 	});
 
+	const params = new Proxy(new URLSearchParams(window.location.search), {
+  get: (searchParams: any, prop: any) => searchParams.get(prop),
+});
+// Get the value of "some_key" in eg "https://example.com/?some_key=some_value"
+isPreview.value = (params.preview === "true")?? false; // "some_value"
 })
 
 async function disconnectBluetoothPrinter(): Promise<void> {
@@ -86,6 +95,8 @@ async function disconnectBluetoothPrinter(): Promise<void> {
 
 }
 async function connectBluetoothPrinter(): Promise<void> {
+
+	if (isPreview) return; 
 
 	try {
 		printer = new InstaxPrinter();
@@ -315,6 +326,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 	align-items: center;
 	top: 25px;
 	left: 25px;
-	gap: 20px
+	gap: 15px;
+	
 }
 </style>
