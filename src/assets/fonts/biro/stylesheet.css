@@ -1,0 +1,12 @@
+
+
+
+@font-face {
+    font-family: 'biro_script_standardregular';
+    src: url('biro_script_standard.woff2') format('woff2'),
+         url('biro_script_standard.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap
+
+}

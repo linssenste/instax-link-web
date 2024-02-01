@@ -1,13 +1,12 @@
 <template>
-	<div class="editor">
-		<div class="inner" :class="`inner-${config.width}`">
+	<div class="editor" >
+		<div class="inner" id="polaroid-frame" :class="`inner-${config.width}`">
 			<slot  name="polaroid-area" />
 
-	
 		</div>
 	
 
-		<div class="polaroid" >
+		<div class="polaroid"  >
 			<img
 				v-show="loadError == false"
 				v-on:load="frameLoaded = true"
@@ -16,6 +15,9 @@
 				alt="polaroid frame"
 				draggable="false"
 				preload
+				:width="config.width == 800 ? 368 : (config.width == 600 ? 282 : 528)"
+				height="440"
+				
 				class="polaroid-frame"
 			/>
 			
@@ -43,11 +45,11 @@ const props = defineProps<{
 
 const polaroidImageSource = computed(() => {
 	if (props.config.width === 600) {
-		return '/polaroids/mini.png';
+		return '/polaroids/mini.webp';
 	} else if (props.config.width === 800) {
 		return '/polaroids/square.webp';
 	} else {
-		return '/polaroids/large.png';
+		return '/polaroids/large.webp';
 	}
 });
 
@@ -63,11 +65,10 @@ const polaroidImageSource = computed(() => {
 
 	position: relative;
 
-	background-color: blue;
 	z-index: 200!important;
 	border-radius: 10px;
 	margin-left: 18px;
-	margin-right: 9px;
+	margin-right: 18px;
 	margin-top: 0px;
 	margin-bottom: 68px;
 }
@@ -77,6 +78,10 @@ const polaroidImageSource = computed(() => {
 	top: -30px;
 	left: -18px;
 	-webkit-user-drag: none;
+
+
+	-moz-user-select: none;
+	-webkit-user-select: none;
 	user-select: none;
 	pointer-events: none;
 }
@@ -99,11 +104,12 @@ const polaroidImageSource = computed(() => {
 	aspect-ratio: 800/800;
 }
 
-.inner-1260 {
+.inner-1240 {
 	padding-top: 5px;
 	padding-left: 2px;
-	aspect-ratio: 1260/840;
+	aspect-ratio: 1240/840;
 }
+
 
 .polaroid-frame {
 	height: 440px;
@@ -116,9 +122,13 @@ const polaroidImageSource = computed(() => {
 
 .polaroid-text {
 	position: absolute;
-	bottom: -60px;
+	top: calc(100% + 22px);
 	z-index: 10000;
-	left: 50%; transform: translateX(-50%);
+	width: 100%;display: flex;
+	flex-direction: row;
+	align-items: center;
+	text-align: center;
+	justify-content: center;
 }
 </style>
   

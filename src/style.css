@@ -6,37 +6,56 @@
 	--green-color: #009C34;
 	--red-color: #FF5A5A;
 
-	--grey-color: #505050;
-	--light-grey-color: #c0c0c0;
+	--error-color: #FF5A5A;
+	--grey-color: #a0a0a0;
+	--light-grey-color: #dadada;
 	--white-color: #ffffff;
 	--black-color: #000
 }
 
 html,
 body {
-	font-family: 'Geist Regular', serif;
+	font-family: 'Rubik'!important;
+	font-weight: 400;
 	position: relative;
 	margin: 0px;
 }
 
-
+input {
+	font-family: 'Rubik'!important;
+font-weight: 500;
+font-size: 15px;
+}
 button {
-	font-size: 13px;
+	font-family: 'Rubik'!important;
+
+
+	font-size: 15px;
 	padding: 8px;
-	height: 35px;
+	height: 40px;
 	padding-left: 16px;
 	padding-right: 16px;
 	outline: none;
 	border: none;
 	border-radius: 8px;
+	font-weight: 400;
 	text-transform: uppercase;
-	letter-spacing: 1.5px;
+	letter-spacing: 2px;
 	opacity: .85;
 
+
+	display: flex; 
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
 	transition: all 100ms ease-in-out;
 	cursor: pointer;
 }
 
+
+button img {
+	margin-right: 8px;
+}
 @media (hover: hover) and (pointer: fine) {
 
 	button:hover {
@@ -45,4 +64,12 @@ button {
 		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
 
 	}
+
+	button:hover i {
+		opacity: 1;
+	}
 }
+
+
+
+
