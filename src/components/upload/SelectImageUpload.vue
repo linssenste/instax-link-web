@@ -2,7 +2,7 @@
 	<div class="upload-area" title="Upload or drop an image" v-on:click="uploadImage()">
 
 		<!-- opaque background color in theme color -->
-		<div class="area-background" :style="backgroundColorStyling" />
+		<div class="area-background" />
 
 		<input data-testid="input-file" v-on:change="inputChanged($event)" type="file" name="" accept="image/*" id='upload'
 			   hidden title="Upload image input" placeholder="">
@@ -13,15 +13,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
-import type { STATE_CONFIG } from '../../types/config.types';
-
-const props = defineProps<{
-	config: STATE_CONFIG
-}>();
-
 const emit = defineEmits(['selected']);
-
 
 function inputChanged(e: Event): void {
 	e.preventDefault();
@@ -37,10 +29,6 @@ function uploadImage(): void {
 	document.getElementById('upload')?.click();
 }
 
-
-const backgroundColorStyling = computed(() => {
-	return `background-color:  var(--${props.config.theme}-color);`
-})
 
 </script>
 
@@ -77,6 +65,7 @@ const backgroundColorStyling = computed(() => {
 	width: 100%;
 	height: 100%;
 	position: absolute;
-	opacity: .5
+	opacity: .5;
+	background-color: var(--dynamic-bg-color);
 }
 </style>

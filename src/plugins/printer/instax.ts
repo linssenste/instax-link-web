@@ -3,6 +3,9 @@ import { InstaxBluetooth } from './instax.bluetooth'
 import { parse } from './instax.parser'
 import { Buffer } from 'buffer'
 import { encodeColor } from './instax.color'
+
+
+
 export class InstaxPrinter extends InstaxBluetooth {
 	constructor() {
 		super()
@@ -13,7 +16,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		return Array.from(command, (byte) => byte.toString(16).padStart(2, '0')).join(' ')
 	}
 
-	public async setColor(colors: number[][], speed = 20, repeat = 0, when = 0): Promise<void> {
+	public async setColor(colors: string[], speed = 20, repeat = 0, when = 0): Promise<void> {
 		await this.sendCommand(
 			INSTAX_OPCODES.LED_PATTERN_SETTINGS,
 			encodeColor(colors, speed, repeat, when),
@@ -21,16 +24,57 @@ export class InstaxPrinter extends InstaxBluetooth {
 		)
 	}
 
+
+	
+
 	// Sends a command to the printer
 	async sendCommand(opCode: number, command: number[], awaitResponse = true): Promise<void> {
 		// Encode the command into the Instax packet format
-		const instaxCommandData: Uint8Array = this.encode(opCode, command)
+		const instaxCommandData: Uint8Array = this.encode(opCode, command);
 
 		// Log the command as a hex string for debugging purposes
 		// console.log('>', this._printableHex(instaxCommandData))
 
 		const response = await this.send(instaxCommandData, awaitResponse)
 		return this._decode(response as Event)
+	}
+
+
+
+	async getInformation(includeType = false) {
+	
+		let printerStatus = {
+			battery: {
+				charging: false, 
+				level: null
+			}, 
+			polaroidCount: null, 
+			type: null
+		}
+		let response = null;
+		if (includeType == true) {
+			 response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
+
+			 const width = 800//parseInt(String(response.width != 600 && response.width != 800 && response.width != 1240 ? 800 : response.width)) as (600 | 800 | 1240);
+			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);	
+		
+			if (width == 800 && height == 800) {
+				printerStatus.type = FilmSize.SQUARE; 
+			}
+		
+		}
+	
+	
+
+		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]) as any;
+
+		printerStatus.battery.charging = response.isCharging > 5;
+		printerStatus.battery.level = response.battery;
+
+		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2]) as any;
+		printerStatus.polaroidCount = response.photosLeft;
+console.log(printerStatus)
+		return printerStatus;
 	}
 
 	async printImage(

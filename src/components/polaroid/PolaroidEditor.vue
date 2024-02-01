@@ -1,7 +1,7 @@
 <template>
 	<div>
 
-		<DropImageUpload v-on:dropped="getFileData($event)" :theme="config.theme" />
+		<DropImageUpload v-on:dropped="getFileData($event)" />
 
 		<div class="polaroid-editor">
 
@@ -9,11 +9,11 @@
 			<PolaroidFrame :config="config" style="z-index: 5">
 				<template v-slot:polaroid-area>
 
-					<CropperArea v-if="image" class="cropper-area" :key="config.width || image" ref="cropperAreaRef"
+					<CropperArea v-if="image" class="cropper-area" :key="config.type || image" ref="cropperAreaRef"
 								 :config="config" :image="image" :loading="loading" v-on:remove-image="image = null"
 								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
-					<SelectImageUpload v-else :config="config" v-on:selected="getFileData($event)" />
+					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
 					<div v-if="loading" class="loading-overlay"></div>
 
 				</template>

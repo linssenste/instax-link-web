@@ -1,8 +1,8 @@
 <template>
 	<div oncontextmenu="return false" class="size-selector">
 
-		<div v-for="width in [600, 800, 1240]" :title="polaroidTitle(width)" :key="width" :style="polaroidClass(width)"
-			 @click="selectedWidth = width" class="polaroid" :data-testid="`polaroid-selector-${width}`">
+		<div v-for="polaroidType in [FilmSize.MINI, FilmSize.SQUARE, FilmSize.LARGE]" :title="polaroidTitle(polaroidType)" :style="polaroidClass(polaroidType)"
+			 @click="selectedType = polaroidType" class="polaroid" :data-testid="`polaroid-selector-${polaroidType}`">
 			<div class="inner-polaroid"></div>
 		</div>
 
@@ -10,43 +10,34 @@
 </template>
   
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import type {STATE_CONFIG} from '../../types/config.types'; 
+import { ref, watch } from 'vue';
+import { FilmSize } from '../../types/config.types';
 
-const selectedWidth = ref(800);
+const selectedType = ref<FilmSize>(FilmSize.SQUARE);
 
 const emit = defineEmits<{
-	(e: 'resize', config: STATE_CONFIG): void;
+	(e: 'resize', type: FilmSize): void;
 }>();
 
-const props = defineProps<{
-	config: STATE_CONFIG
-}>();
-
-
-
-
-const polaroidTitle = (size: number) => {
-	switch (size) {
-		case 600: return "Instax Mini (600x800)"
-		case 800: return "Instax Square (800x800)"
-		case 1240: return "Instax Large (1240x840)"
+const polaroidTitle = (polaroidType: FilmSize) => {
+	switch (polaroidType) {
+		case FilmSize.MINI: return "Instax Mini (600x800)"
+		case FilmSize.SQUARE: return "Instax Square (800x800)"
+		case FilmSize.LARGE: return "Instax Large (1240x840)"
 		default: break;
 	}
 }
 
-watch(selectedWidth, () => {
-	emit('resize', { ...props.config, width: selectedWidth.value, height: (selectedWidth.value === 1260 ? 840 : 800) });
+watch(selectedType, () => {
+	emit('resize', selectedType.value);
 });
 
 
-
-
-function polaroidClass(width: number) {
+function polaroidClass(polaroidType: FilmSize) {
 	return {
-		backgroundColor: `var(--${selectedWidth.value === width ? props.config.theme : 'grey'}-color)`,
-		width: `${width / 30}px`,
-		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${width === selectedWidth.value ? .5 : 0})`,
+		backgroundColor: selectedType.value === polaroidType ? 'var(--dynamic-bg-color)' : 'var(--grey-color)',
+		width: `${polaroidType == FilmSize.MINI ? 18 : (polaroidType == FilmSize.SQUARE ? 25 : 40)}px`,
+		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${polaroidType === selectedType.value ? .5 : 0})`,
 	}
 }
 

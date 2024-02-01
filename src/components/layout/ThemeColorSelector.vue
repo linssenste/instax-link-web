@@ -8,7 +8,7 @@
 </template> 
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watchEffect } from 'vue'
 
 // events
 const emit = defineEmits<{
@@ -27,6 +27,10 @@ onMounted(() => {
 	changeThemeColor(selectedColor.value); 
 })
 
+
+watchEffect(() => {
+	document.documentElement.style.setProperty('--dynamic-bg-color', `var(--${selectedColor.value}-color)`);
+});
 
 // emit event when color is changed
 function changeThemeColor(color: string): void {

@@ -1,8 +1,8 @@
 <template>
-	<div v-if="isDraggingOver" data-testid="drop-area"  class="drop-overlay" :class="colorStyling">
+	<div v-if="isDraggingOver" data-testid="drop-area"  class="drop-overlay">
 
 		<!-- opaque background color in theme color -->
-		<div data-testid="color-overlay" class="color-overlay" :style="colorStyling" />
+		<div data-testid="color-overlay" class="color-overlay" />
 
 		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image" src="@/assets/icons/printer/plus.svg" />
 
@@ -11,23 +11,16 @@
 	
 	
 <script setup lang="ts">
-import {watch,  computed, onMounted, onUnmounted, ref } from 'vue';
+import {watch, onMounted, onUnmounted, ref } from 'vue';
 
-const props = defineProps<{
-	theme: string
-}>();
 
 const emit = defineEmits(['dropped']);
 
 
-const colorStyling = computed(() => {
-	return `background-color: var(--${props.theme}-color);`
-})
+
 const isDraggingOver = ref(false);
 
-watch(isDraggingOver, () => {
-	console.log("CHAN", isDraggingOver.value)
-})
+
 onMounted(() => {
 	document.addEventListener('dragover', dragOver);
 	document.addEventListener('dragenter', dragEnter);
@@ -99,7 +92,6 @@ const onDrop = (e: DragEvent) => {
 	top: 0px;
 	left: 0px;
 	background: rgba(255, 255, 255, .5);
-
     -moz-backdrop-filter: blur(4px);
 	-webkit-backdrop-filter: blur(4px);
 
@@ -109,6 +101,7 @@ const onDrop = (e: DragEvent) => {
 .color-overlay {
 	position: absolute;
 	top: 0px;
+	background-color: var(--dynamic-bg-color);
 	left: 0px;
 	width: 100%;
 	height: 100%;

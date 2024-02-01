@@ -6,7 +6,6 @@
 		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon" src="@/assets/icons/controls/xmark.svg" width="12" height="12"/></div>
 
 		<div class="center-cross" v-if="!loading">
-			<!-- :style="`background-color: var(--${config.theme}-color);`" -->
 			<div class="cross-element">
 			</div>
 			<div class="cross-element">
@@ -20,6 +19,7 @@ import Konva from 'konva';
 import ImageCompressor from 'image-compressor.js';
 import { onMounted, ref, watch } from 'vue';
 import mergeImages from 'merge-images';
+import { FilmSize, type STATE_CONFIG } from '../../types/config.types';
 
 
 
@@ -28,11 +28,7 @@ const emit = defineEmits(['save', 'remove-image']);
 const props = defineProps<{
 	image: string,
 	loading: boolean;
-	config: {
-		width: number,
-		height: number,
-		theme: string
-	},
+	config: STATE_CONFIG
 	settings: {
 		rotation: number,
 		color: string,
@@ -275,8 +271,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 				drawHelloWorld(canvas);
 
 				mergeImages([
-					{ src: canvasUrl, x: props.config.width == 800 ? 28 : props.config.width == 600 ? 22 : 22, y: 40 },
-					{ src: `/polaroids/export/${props.config.width == 800 ? 'square' : props.config.width == 600 ? 'mini' : 'large'}_scale.png`, x: 0, y: 0 },
+					{ src: canvasUrl, x: props.config.type == FilmSize.SQUARE ? 28 : props.config.type == FilmSize.MINI ? 22 : 22, y: 40 },
+					{ src: `/polaroids/export/${props.config.type}_scale.png`, x: 0, y: 0 },
 					{ src: (canvas as HTMLCanvasElement).toDataURL('image/png'), x: 20, y: (Math.random() * 10) + 835 }
 				])
 					.then(b64 => resolve(b64));
@@ -298,11 +294,13 @@ async function saveCanvasImage(printable = true): Promise<string> {
 						const compressNext = async () => {
 							const midQuality = (minQuality + maxQuality) / 2;
 
+							const width = ((props.config.type == FilmSize.MINI ? 600 : (props.config.type == FilmSize.SQUARE ? 800 : 1240)) || 800)
+							const height = ((props.config.type == FilmSize.MINI ? 800 : (props.config.type == FilmSize.SQUARE ? 800 : 840)) || 800)
 							const options = {
-								maxWidth: props.config.width || 800,
-								maxHeight: props.config.height || 800,
-								minWidth: props.config.width || 800,
-								minHeight: props.config.height || 800,
+								maxWidth: width,
+								maxHeight: height,
+								minWidth: width,
+								minHeight: height,
 								quality: midQuality,
 							};
 

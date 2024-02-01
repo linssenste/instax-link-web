@@ -1,16 +1,15 @@
 <template>
-	<div v-if="status.polaroids.stack != null && status.battery.level != null"  style="position: relative">
+	<div v-if="status.polaroidCount != null && status.battery.level != null"  style="position: relative">
 		
 		<!-- alert #1: no polaroids left -->
-		<div v-if="status.polaroids.stack <= 0" class="error-card"
-			 :style="`background-color: var(--${config.theme}-color); color: #FFFFFF`">
+		<div v-if="status.polaroidCount <= 0" class="error-card">
 			<img src="@/assets/icons/printer/warning.svg" width="22" />
 			<span>Insert new Polaroids</span>
 		</div>
 
 		<!-- alert #2: recharge battery -->
 		<div v-if="(!status.battery.charging && status.battery.level <= 10)" class="error-card"
-			 :style="`background-color: var(--${config.theme}-color); color: #FFFFFF`">
+			>
 			<img src="@/assets/icons/battery/battery-warning.svg" width="22" />
 			<span> Recharge battery </span>
 		</div>
@@ -19,16 +18,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { PRINTER_STATUS, STATE_CONFIG } from '../../types/config.types';
-
-
+import type { PRINTER_STATUS } from '../../types/config.types';
 
 const props = defineProps<{
-	config: STATE_CONFIG;
 	status: PRINTER_STATUS;
 }>();
 
-props.config;
 props.status;
 </script>
 
@@ -43,6 +38,7 @@ props.status;
 	align-items: center;
 	justify-content: start;
 	gap: 10px;
+	background-color: var(--dynamic-bg-color); 
 
 	padding: 15px;
 	padding-left: 15px;
