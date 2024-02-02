@@ -3,6 +3,7 @@ import { InstaxBluetooth } from './instax.bluetooth'
 import { parse } from './instax.parser'
 import { Buffer } from 'buffer'
 import { encodeColor } from './instax.color'
+import { InstaxFilmVariant } from '../interfaces/PrinterStateConfig'
 
 
 
@@ -59,7 +60,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);	
 		
 			if (width == 800 && height == 800) {
-				printerStatus.type = InstaxFilmType.SQUARE; 
+				printerStatus.type = InstaxFilmVariant.SQUARE
 			}
 		
 		}

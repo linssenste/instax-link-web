@@ -21,10 +21,8 @@ export function encodeColor(
 }
 
 function convertHexColor(hex: string): number[] | null {
-console.log(hex)
 
-	// Remove the '#' if present
-	hex = hex.replace(/^#/, '');
+	hex = hex.replace(/^#/, ''); // Remove the '#' if present
   
 	// Convert shorthand hex to full hex
 	if (hex.length === 3) {

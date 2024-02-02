@@ -1,7 +1,7 @@
 <template>
 	<div oncontextmenu="return false" class="size-selector">
 
-		<div v-for="filmType in [InstaxFilmType.MINI, InstaxFilmType.SQUARE, InstaxFilmType.LARGE]" :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)"
+		<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.LARGE]" :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)"
 			 @click="selectedType = filmType" class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
 			<div class="inner-polaroid"></div>
 		</div>
@@ -11,19 +11,19 @@
   
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { InstaxFilmType } from '../../types/config.types';
+import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 
-const selectedType = ref<InstaxFilmType>(InstaxFilmType.SQUARE);
+const selectedType = ref<InstaxFilmVariant>(InstaxFilmVariant.SQUARE);
 
 const emit = defineEmits<{
-	(e: 'type-change', type: InstaxFilmType): void;
+	(e: 'type-change', type: InstaxFilmVariant): void;
 }>();
 
-const polaroidTitle = (filmType: InstaxFilmType) => {
+const polaroidTitle = (filmType: InstaxFilmVariant) => {
 	switch (filmType) {
-		case InstaxFilmType.MINI: return "Instax Mini (600x800)"
-		case InstaxFilmType.SQUARE: return "Instax Square (800x800)"
-		case InstaxFilmType.LARGE: return "Instax Large (1240x840)"
+		case InstaxFilmVariant.MINI: return "Instax Mini (600x800)"
+		case InstaxFilmVariant.SQUARE: return "Instax Square (800x800)"
+		case InstaxFilmVariant.LARGE: return "Instax Large (1240x840)"
 		default: break;
 	}
 }
@@ -33,11 +33,11 @@ watch(selectedType, () => {
 });
 
 
-function polaroidClass(filmType: InstaxFilmType) {
+function polaroidClass(filmType: InstaxFilmVariant) {
 	return {
 		backgroundColor: selectedType.value === filmType ? 'var(--dynamic-bg-color)' : 'var(--grey-color)',
-		width: `${filmType == InstaxFilmType.MINI ? 18 : (filmType == InstaxFilmType.SQUARE ? 25 : 40)}px`,
-		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .5 : 0})`,
+		width: `${filmType == InstaxFilmVariant.MINI ? 18 : (filmType == InstaxFilmVariant.SQUARE ? 25 : 40)}px`,
+		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .25 : 0})`,
 	}
 }
 

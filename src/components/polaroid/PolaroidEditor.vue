@@ -59,12 +59,12 @@ import ImageSettings from './ImageSettings.vue';
 
 import DropImageUpload from '../upload/DropImageUpload.vue';
 import SelectImageUpload from '../upload/SelectImageUpload.vue';
-import type { STATE_CONFIG } from '@/types/config.types';
+import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 const emit = defineEmits(['image'])
 
 const props = defineProps<{
-	config: STATE_CONFIG,
+	config: PrinterStateConfig,
 }>()
 
 

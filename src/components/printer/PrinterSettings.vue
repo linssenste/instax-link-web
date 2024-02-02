@@ -83,10 +83,10 @@ import { computed, onMounted, ref } from 'vue';
 
 import PrintingStatus from '../printer/PrintingStatus.vue';
 import StatusAlerts from '../printer/StatusAlerts.vue'
-import type { PRINTER_STATUS, STATE_CONFIG } from '../../types/config.types';
+import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 const props = defineProps<{
-	config: STATE_CONFIG;
+	config: PrinterStateConfig;
 	queue: any,
 }>();
 

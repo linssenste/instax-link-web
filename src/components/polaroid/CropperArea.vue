@@ -19,7 +19,7 @@ import Konva from 'konva';
 import ImageCompressor from 'image-compressor.js';
 import { onMounted, ref, watch } from 'vue';
 import mergeImages from 'merge-images';
-import { InstaxFilmType, type STATE_CONFIG } from '../../types/config.types';
+import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 
 
@@ -28,7 +28,7 @@ const emit = defineEmits(['save', 'remove-image']);
 const props = defineProps<{
 	image: string,
 	loading: boolean;
-	config: STATE_CONFIG
+	config: PrinterStateConfig
 	settings: {
 		rotation: number,
 		color: string,
@@ -271,7 +271,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 				drawHelloWorld(canvas);
 
 				mergeImages([
-					{ src: canvasUrl, x: props.config.type == InstaxFilmType.SQUARE ? 28 : props.config.type == InstaxFilmType.MINI ? 22 : 22, y: 40 },
+					{ src: canvasUrl, x: props.config.type == InstaxFilmVariant.SQUARE ? 28 : props.config.type == InstaxFilmVariant.MINI ? 22 : 22, y: 40 },
 					{ src: `/polaroids/export/${props.config.type}_scale.png`, x: 0, y: 0 },
 					{ src: (canvas as HTMLCanvasElement).toDataURL('image/png'), x: 20, y: (Math.random() * 10) + 835 }
 				])
@@ -294,8 +294,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 						const compressNext = async () => {
 							const midQuality = (minQuality + maxQuality) / 2;
 
-							const width = ((props.config.type == InstaxFilmType.MINI ? 600 : (props.config.type == InstaxFilmType.SQUARE ? 800 : 1240)) || 800)
-							const height = ((props.config.type == InstaxFilmType.MINI ? 800 : (props.config.type == InstaxFilmType.SQUARE ? 800 : 840)) || 800)
+							const width = ((props.config.type == InstaxFilmVariant.MINI ? 600 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 1240)) || 800)
+							const height = ((props.config.type == InstaxFilmVariant.MINI ? 800 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 840)) || 800)
 							const options = {
 								maxWidth: width,
 								maxHeight: height,
