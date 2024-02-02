@@ -7,18 +7,19 @@
 		<!-- bottom-right corner: project related links/information -->
 		<ProjectLinks class="project-links-section" />
 
-		<!-- top-left corner: polaroid size selector (if no connection) -->
+		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
 		<div v-if="!isPreview" class="instax-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
 			<PrinterSettings  :queue="imageQueue" :config="config" />
 		</div>
-		<div v-else class="instax-variant-settings" style="height: 25px;">
-			<span style="font-family: 'Keedy Sans'; font-size: 30px; color: var(--dynamic-bg-color)">instax</span>
-			<span style="	font-family: 'biro_script_standardregular'!important; font-size: 35px; margin-top: 12px;">WEB</span>
-		</div>
+
+		<!-- only display logo in preview mode -->
+		<ProjectLogo v-else class="instax-variant-settings"/>
+		
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" />
 
+		
 	</div>
 </template>
 
@@ -32,13 +33,15 @@ import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 import PrinterSettings from './components/printer/PrinterSettings.vue';
 
-import { InstaxPrinter } from './plugins/printer/instax';
+import { InstaxPrinter } from './api/instax';
 
-import { type STATE_CONFIG, type PRINTING_IMAGE_QUEUE, InstaxFilmType } from './types/config.types';
+import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
+import ProjectLogo from './components/layout/ProjectLogo.vue';
+import { QueueImage } from './interfaces/QueueImage';
 
 
-const config = ref<STATE_CONFIG>({
-	type: InstaxFilmType.SQUARE,
+const config = ref<PrinterStateConfig>({
+	type: InstaxFilmVariant.SQUARE,
 
 	connection: false,
 	connect: connectBluetoothPrinter,
@@ -59,7 +62,7 @@ function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 }
 
 // update film type (only if not automatically with printer)
-function typeChangeEvent(filmType: InstaxFilmType): void {
+function typeChangeEvent(filmType: InstaxFilmVariant): void {
 	if (!config.value.connection || !printer) config.value.type = filmType
 }
 
@@ -70,7 +73,7 @@ let isPrinting = false;
 
 let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
-const imageQueue = ref<PRINTING_IMAGE_QUEUE[]>([])
+const imageQueue = ref<QueueImage[]>([])
 
 const isPreview = ref(true);
 onMounted(() => {
@@ -151,7 +154,7 @@ async function getPrinterMeta(includeType = false): Promise<void> {
 
 	try {
 		config.value.status = await printer.getInformation(includeType)
-		config.value.type = InstaxFilmType.SQUARE; // TODO
+		config.value.type = InstaxFilmVariant.SQUARE; // TODO
 
 	} catch (error) {
 		return
@@ -329,4 +332,6 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 	gap: 15px;
 	
 }
-</style>
+
+
+</style>./api/instax
