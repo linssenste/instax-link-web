@@ -76,3 +76,12 @@ button img {
 
 
 
+h1 {
+	font-family: 'Keedy Sans';
+
+letter-spacing: 2px;
+color: var(--dynamic-bg-color);
+padding-top: 20px;
+font-size: 24px;
+}
+
