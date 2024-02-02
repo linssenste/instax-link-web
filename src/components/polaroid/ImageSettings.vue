@@ -82,11 +82,11 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import { InstaxFilmType, type STATE_CONFIG } from '../../types/config.types';
+import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 const emit = defineEmits(['change', 'scale']);
 
 const props = defineProps<{
-	config: STATE_CONFIG
+	config: PrinterStateConfig
 	
 	savePolaroid: any; 
 }>();
@@ -101,7 +101,7 @@ const settings = ref({
 
 
 const captionLength = computed(() => {
-	return (props.config.type == InstaxFilmType.MINI ? 15 : (props.config.type == InstaxFilmType.LARGE ? 25 : 40))
+	return (props.config.type == InstaxFilmVariant.MINI ? 15 : (props.config.type == InstaxFilmVariant.LARGE ? 25 : 40))
 })
 
 

@@ -31,19 +31,19 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { type STATE_CONFIG, InstaxFilmType } from '../../types/config.types';
+import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 const loadError = ref(false)
 const frameLoaded = ref(false);
 
 
 const props = defineProps<{
-	config: STATE_CONFIG
+	config: PrinterStateConfig
 }>();
 
 
 const polaroidImageWidth  = computed(() => {
-	return props.config.type == InstaxFilmType.SQUARE ? 368 : (props.config.type == InstaxFilmType.MINI ? 282 : 522)
+	return props.config.type == InstaxFilmVariant.SQUARE ? 368 : (props.config.type == InstaxFilmVariant.MINI ? 282 : 522)
 });
 
 const polaroidImageSource = computed(() => {

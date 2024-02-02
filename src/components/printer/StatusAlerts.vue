@@ -18,10 +18,10 @@
 </template>
 
 <script lang="ts" setup>
-import type { PRINTER_STATUS } from '../../types/config.types';
+import type { PrinterStatus } from '../../interfaces/PrinterStateConfig';
 
 const props = defineProps<{
-	status: PRINTER_STATUS;
+	status: PrinterStatus;
 }>();
 
 props.status;
