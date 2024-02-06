@@ -1,14 +1,10 @@
 <template>
 	<div v-if="showOverlay" class="info-overlay" id="info-overlay">
 
-		<div style="	overflow: scroll; width: 100%; 
-	display: flex;
-	flex-direction: column;
-	align-items: center; max-height: 100%; height: 100%; ">
+		<div class="container">
 
-			<div
-				 style="max-width: 560px; line-height: 22px; letter-spacing: .75px; text-align: justify; padding-bottom: 100px; padding-top: 0px;">
-				<h1>Print your Polaroids</h1>
+			<div class="info-center-column">
+				<h1>Create digital polaroids</h1>
 
 				Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et
 				dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet
@@ -16,12 +12,12 @@
 				consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat,
 				sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no
 				sea takimata sanctus est Lorem ipsum dolor sit amet.
-				<div
-					 style="position: relative; margin-top: 24px; display: flex; flex-direction: row; align-items: center;  justify-content: space-between;">
+				<div class="example-polaroids">
 					<img src="@/assets/example.png" draggable="false" width="272" />
 					<img src="@/assets/example.png" draggable="false" width="272" />
 				</div>
-				<h1>Print your Polaroids</h1>
+
+				<h1>...or just print them</h1>
 				Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et
 				dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet
 				clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet,
@@ -29,7 +25,7 @@
 				sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no
 				sea takimata sanctus est Lorem ipsum dolor sit amet.
 
-				<iframe width="560" style="border-radius: 8px;" height="315"
+				<iframe width="560" style="border-radius: 8px; margin-top: 30px;" height="315"
 						src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=1BMEH-6JO2bsI2R-" title="YouTube video player"
 						frameborder="0"
 						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -38,9 +34,10 @@
 
 		</div>
 
-		<ProjectLogo style="position: fixed; top: 25px; left: 25px" />
+		<ProjectLogo class="project-logo" />
 
-		<button style="position: fixed; top: 25px; right: 25px" @click="toggleOverlay()">Close</button>
+		<button class="close-button" data-testid="clos-overlay-button" title="Close info overlay"
+				@click="toggleOverlay()"><img src="@/assets/icons/controls/xmark.svg" width="16" /></button>
 
 	</div>
 
@@ -104,5 +101,61 @@ async function toggleOverlay(): Promise<void> {
 .info-overlay.fade-in {
 	opacity: 1;
 }
-</style>
+
+.container {
+	overflow: scroll;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-height: 100%;
+	height: 100%;
+}
+
+.info-center-column {
+	max-width: 560px;
+	line-height: 22px;
+	letter-spacing: .75px;
+	text-align: justify;
+	padding-bottom: 100px;
+	padding-top: 0px;
+}
+
+.example-polaroids {
+	position: relative;
+	margin-top: 24px;
+	margin-bottom: 20px;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.close-button {
+	position: fixed;
+	top: 25px;
+	right: 25px;
+	background-color: #ffffffaa;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+}
+
+.close-button:hover {
+	background-color: #ffffff;
+}
+
+.close-button img {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+
+.project-logo {
+	position: fixed;
+	top: 25px;
+	left: 25px
+}</style>
   

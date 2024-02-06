@@ -10,16 +10,16 @@
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
 		<div v-if="!isPreview" class="instax-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
-			<PrinterSettings  :queue="imageQueue" :config="config" />
+			<PrinterSettings :queue="imageQueue" :config="config" />
 		</div>
 
 		<!-- only display logo in preview mode -->
-		<ProjectLogo v-else class="instax-variant-settings"/>
-		
+		<ProjectLogo v-else class="instax-variant-settings" />
 
-		<PolaroidEditor v-on:image="createdImageEvent" :config="config" />
 
-		
+		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
+
+
 	</div>
 </template>
 
@@ -78,16 +78,15 @@ const imageQueue = ref<QueueImage[]>([])
 const isPreview = ref(true);
 onMounted(() => {
 
-
 	window.addEventListener("beforeunload", (event) => {
 		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
 	});
 
 	const params = new Proxy(new URLSearchParams(window.location.search), {
-  get: (searchParams: any, prop: any) => searchParams.get(prop),
-});
-// Get the value of "some_key" in eg "https://example.com/?some_key=some_value"
-isPreview.value = (params.preview === "true")?? false; // "some_value"
+		get: (searchParams: any, prop: any) => searchParams.get(prop),
+	});
+
+	isPreview.value = (params.preview === "true") ?? false;
 })
 
 async function disconnectBluetoothPrinter(): Promise<void> {
@@ -99,7 +98,7 @@ async function disconnectBluetoothPrinter(): Promise<void> {
 }
 async function connectBluetoothPrinter(): Promise<void> {
 
-	if (isPreview) return; 
+	if (isPreview.value) return;
 
 	try {
 		printer = new InstaxPrinter();
@@ -142,9 +141,9 @@ async function loadMetaData(): Promise<void> {
 
 
 	await getPrinterMeta(true);
-
+	console.log("SET QUEEUEUEUE")
 	timeoutHandle = setInterval(async () => {
-		await getPrinterMeta(); 
+		await getPrinterMeta();
 		printPolaroidQueue()
 	}, 2000) as ReturnType<typeof setInterval>;
 
@@ -163,25 +162,26 @@ async function getPrinterMeta(includeType = false): Promise<void> {
 }
 
 interface ImageData {
-	src: string, 
+	src: string,
 	download: boolean
 }
 
 function createdImageEvent(imageData: ImageData) {
 
 	// download image if no printer is connected (image + polaroid frame are exported)
-	if (config.value.connection == true && imageData.download != true) {
+	if (imageData.download == false && config.value.connection == true) {
 
 		// add to image queue
 		imageQueue.value.push({ base64: imageData.src, quantity: 1, state: 0, progress: 0 })
-	} else  {
+	} else {
 		var a = document.createElement("a");
 		a.href = imageData.src
 		a.download = "Polaroid.png"; //File name Here
 		a.click(); //Downloaded file
-		
-	}  
+
+	}
 }
+
 
 // process (send + print) first image in queue
 async function printPolaroidQueue(isRetry = false): Promise<void> {
@@ -196,57 +196,74 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
+			console.log(imageQueue.value[0].abortController.signal); 
 
 			await printer.sendImage(imageQueue.value[0].base64, true, async (progress: number) => {
-
-				if (imageQueue.value[0].abortController == null || imageQueue.value[0].abortController.signal.aborted == true && progress == -1) {
-					throw new Error()
+				if (imageQueue.value[0] == null) return;
+				if (imageQueue.value[0].abortController != null && (imageQueue.value[0].abortController.signal.aborted == true && progress == -1)) {
+					console.log("AFTER COM")
+					return;
 				}
 
 				imageQueue.value[0].progress = progress * 100;
 
 			}, imageQueue.value[0].abortController.signal);
 
-			
-			// finished sending --> starting print progress (now printed images are the progress)
-			imageQueue.value[0].state = 2;
-			imageQueue.value[0].progress = 0
 
-			await new Promise((r) => setTimeout(r, 250));
+			console.log("DAN HIER", imageQueue.value[0].abortController.signal.aborted)
+			if (imageQueue.value[0].abortController.signal == null || !imageQueue.value[0].abortController.signal.aborted) {
 
-			await getPrinterMeta(); // update printer information once 
-			await new Promise((r) => setTimeout(r, 250));
-
-			const quantity = imageQueue.value[0].quantity ?? 1; // total images
-			imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
+				// finished sending --> starting print progress (now printed images are the progress)
+				imageQueue.value[0].state = 2;
+				imageQueue.value[0].progress = 0
 
 
-			// begin printing commands
-			await printer.printImage(quantity, (printedImages: number) => {
+				await new Promise((r) => setTimeout(r, 250));
 
-				if (printedImages < quantity) {
-					imageQueue.value[0].progress = (((printedImages + 1) / quantity) * 100)
-				} else return;
+				await getPrinterMeta(); // update printer information once 
+				await new Promise((r) => setTimeout(r, 250));
 
-			}, imageQueue.value[0].abortController.signal)
+				const quantity = imageQueue.value[0].quantity ?? 1; // total images
+				imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
 
+				console.log("PRINTING???")
+
+				// begin printing commands
+				await printer.printImage(quantity, (printedImages: number) => {
+
+					if (printedImages < quantity) {
+						imageQueue.value[0].progress = (((printedImages + 1) / quantity) * 100)
+					} else return;
+
+				}, imageQueue.value[0].abortController.signal)
+
+			}
 
 		} catch (error) {
-			if (!isRetry) return printPolaroidQueue(true); 
+			console.log("ERROR WAS CALLED CH")
+			if (!isRetry && !imageQueue.value[0].abortController.signal) return printPolaroidQueue(true);
 		}
 
+		console.log("GONNA FINSIH UP PROCESS")
 
+		finishUpPrinting()
 
-		await new Promise((r) => setTimeout(r, 500));
-
-		imageQueue.value.shift(); // remove element from queue
-
-		isPrinting = false;
-		if (timeoutHandle) clearInterval(timeoutHandle);
-
-		loadMetaData();
 	}
 
+}
+
+async function finishUpPrinting() {
+	console.log("FU")
+	await new Promise((r) => setTimeout(r, 500));
+
+
+	imageQueue.value.shift(); // remove element from queue
+
+
+	isPrinting = false;
+	if (timeoutHandle) clearInterval(timeoutHandle);
+
+	loadMetaData();
 }
 
 
@@ -330,8 +347,6 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 	top: 25px;
 	left: 25px;
 	gap: 15px;
-	
+
 }
-
-
 </style>./api/instax
