@@ -2,7 +2,8 @@
 	<div class="settings-container">
 
 		<!-- caption input; only visible if no printer is connected -->
-		<input id="caption-input" spellcheck="false" class="caption-input" placeholder="Image caption" :maxlength="captionLength" v-model="settings.text" />
+		<input id="caption-input" spellcheck="false" class="caption-input" placeholder="Image caption"
+			   :maxlength="captionLength" v-model="settings.text" />
 
 		<div class="align-span-buttons">
 
@@ -10,21 +11,25 @@
 			<div class="rotation-controls">
 
 				<!-- rotate left icon button -->
-				<button oncontextmenu="return false" title="rotate image clockwise"  v-on:click="updateRotation(-1)" class="icon-button ">
-					<img draggable="false" title="rotate image clockwise" src="@/assets/icons/controls/rotate-left.svg" width="16" />
+				<button oncontextmenu="return false" title="rotate image clockwise" v-on:click="updateRotation(-1)"
+						class="icon-button ">
+					<img draggable="false" title="rotate image clockwise" src="@/assets/icons/controls/rotate-left.svg"
+						 width="16" />
 				</button>
 
 
 				<!-- input; values are handled in updateRotation function -->
 				<div class="rotation-input">
-					<input id="rotation-input" title="image roation degree input form" v-model="settings.rotation" v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*"
-						   min="0" max="360">
+					<input id="rotation-input" title="image roation degree input form" v-model="settings.rotation"
+						   v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*" min="0" max="360">
 					<span class="rotation-degree">°</span>
 				</div>
 
 				<!-- rotate right icon button -->
-				<button oncontextmenu="return false" title="rotate image counter-clockwise" v-on:click="updateRotation(1)" class="icon-button">
-					<img draggable="false" title="rotate image counter-clockwise" src="@/assets/icons/controls/rotate-right.svg" width="16" />
+				<button oncontextmenu="return false" title="rotate image counter-clockwise" v-on:click="updateRotation(1)"
+						class="icon-button">
+					<img draggable="false" title="rotate image counter-clockwise"
+						 src="@/assets/icons/controls/rotate-right.svg" width="16" />
 				</button>
 
 
@@ -40,14 +45,18 @@
 			<div class="alignment-buttons">
 
 				<!-- Horizontal Scale Button -->
-				<button oncontextmenu="return false" title="align image horizontally" v-on:click="setAlignment('scale', false)" class="icon-button">
-					<img draggable="false" title="align image horizontally"  src="@/assets/icons/controls/align-horizontal.svg" width="16" />
+				<button oncontextmenu="return false" title="align image horizontally"
+						v-on:click="setAlignment('scale', false)" class="icon-button">
+					<img draggable="false" title="align image horizontally"
+						 src="@/assets/icons/controls/align-horizontal.svg" width="16" />
 				</button>
 
 
 				<!-- Vertical Scale Button -->
-				<button oncontextmenu="return false" title="align image vertically" v-on:click="setAlignment('scale', true)" class="icon-button">
-					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg" width="16" />
+				<button oncontextmenu="return false" title="align image vertically" v-on:click="setAlignment('scale', true)"
+						class="icon-button">
+					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg"
+						 width="16" />
 				</button>
 
 			</div>
@@ -55,25 +64,33 @@
 
 
 
-		<div style="position: relative; 
-	margin-top: 10px; width: 100%; display: flex; flex-direction: row; align-items: center;">
-		<button v-if="config.connection"  style="background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; color: black;" v-on:click="savePolaroid(false)" :title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'" class="action-button">
-			<span >
-				Print Image
-			</span>
-			
-		</button>
+		
+		<div class="print-download-action-buttons">
+			<button v-if="config.connection"
+					:style="awaitingQueue"
+					v-on:click="savePolaroid(false)"
+					:title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'"
+					class="action-button">
+				<span>
+					Print Image
+				</span>
 
-		<button v-else v-on:click="savePolaroid(true)" class="action-button" style="position: relative; display: flex; flex-direction: row; align-items: center;">
-				<img draggable="false" style="" title="download whole image" src="@/assets/icons/controls/download.svg" width="14" />
+			</button>
+
+			<button v-else v-on:click="savePolaroid(true)" class="action-button"
+					style="position: relative; display: flex; flex-direction: row; align-items: center;">
+				<img draggable="false" style="" title="download whole image" src="@/assets/icons/controls/download.svg"
+					 width="14" height="14" />
 
 				Download
-		</button>
+			</button>
 
-		<button v-if="config.connection"  v-on:click="savePolaroid(true, false)"  style="margin-left: 5px; width: 40px; position: relative;">
-			<img draggable="false" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" title="download whole image" src="@/assets/icons/controls/download.svg" width="14" />
+			<button v-if="config.connection" v-on:click="savePolaroid(true)"
+					style="margin-left: 5px; width: 40px; position: relative;">
+				<img draggable="false" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"
+					 title="download whole image" src="@/assets/icons/controls/download.svg" 	 width="14" height="14" />
 
-		</button>
+			</button>
 		</div>
 
 
@@ -87,8 +104,9 @@ const emit = defineEmits(['change', 'scale']);
 
 const props = defineProps<{
 	config: PrinterStateConfig
-	
-	savePolaroid: any; 
+
+	savePolaroid: any;
+	queueLength: number;
 }>();
 props.config;
 props.savePolaroid;
@@ -99,9 +117,12 @@ const settings = ref({
 	text: ''
 });
 
-
+const awaitingQueue = computed(() => {
+	if (props.queueLength > 2) return `background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`; 
+	else return ''
+})
 const captionLength = computed(() => {
-	return (props.config.type == InstaxFilmVariant.MINI ? 15 : (props.config.type == InstaxFilmVariant.LARGE ? 25 : 40))
+	return (props.config.type == InstaxFilmVariant.MINI ? 18 : (props.config.type == InstaxFilmVariant.SQUARE ? 25 : 35))
 })
 
 
@@ -193,7 +214,7 @@ function inputEnterEvent() {
 
 	background-color: #FFFFFFAA;
 
-	font-weight: 400!important;
+	font-weight: 400 !important;
 	font-size: 16px !important;
 }
 
@@ -209,7 +230,7 @@ function inputEnterEvent() {
 	outline: none;
 	border: none;
 	text-align: center;
-	font-weight: 400!important;
+	font-weight: 400 !important;
 	padding-right: 2px;
 	padding-left: 10px;
 	background-color: transparent;
@@ -285,7 +306,7 @@ input::-webkit-inner-spin-button {
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
-	
+
 	cursor: pointer;
 	width: 35px !important;
 	border-radius: 10px !important;
@@ -300,7 +321,7 @@ input::-webkit-inner-spin-button {
 .caption-input {
 	width: 100%;
 	height: 40px;
-	font-size: 24px!important;
+	font-size: 24px !important;
 	letter-spacing: 2px;
 	padding-top: 5px;
 
@@ -313,7 +334,7 @@ input::-webkit-inner-spin-button {
 	border: none;
 	border-radius: 15px;
 	transition: all 100ms ease-in-out;
-	font-family: "biro_script_standardregular"!important;
+	font-family: "biro_script_standardregular" !important;
 	caret-color: #00000033;
 }
 
@@ -329,10 +350,15 @@ input::-webkit-inner-spin-button {
 }
 
 
+
+.print-download-action-buttons {
+	position: relative; 
+	margin-top: 10px; width: 100%; display: flex; flex-direction: row; align-items: center;
+}
+
 .action-button {
 	width: 100%;
 	color: white;
 
 
-}
-</style>
+}</style>

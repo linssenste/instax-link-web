@@ -38,7 +38,7 @@
 
 			<div id="expand-container">
 				<div id="expand-contract" :style="expansion" class="collapsed">
-					<ImageSettings :config="config" :savePolaroid="saveEditorPolaroid" v-on:change="imageSettings = $event"
+					<ImageSettings :queueLength="queueLength" :config="config" :savePolaroid="saveEditorPolaroid" v-on:change="imageSettings = $event"
 								   v-on:scale="fitImageEvent" v-on:remove-image="image = null" />
 
 				</div>
@@ -65,6 +65,7 @@ const emit = defineEmits(['image'])
 
 const props = defineProps<{
 	config: PrinterStateConfig,
+	queueLength: number;
 }>()
 
 
@@ -101,16 +102,16 @@ watch(image, (newVal, prevVal) => {
 
 
 
-async function saveEditorPolaroid(download = false, collapse = true): Promise<void> {
+async function saveEditorPolaroid(download = false): Promise<void> {
 
-	console.log("SAVE", download, collapse)
+	
 	loading.value = true;
 
 	
-	if (collapse) {
+
 		expandContract();
 		await new Promise((r) => setTimeout(r, 525)) // await animation 
-	}
+	
 
 	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
 	emit("image", {src: imageUrl, download: download})
@@ -188,7 +189,7 @@ props.config;
 }
 
 #expand-contract {
-
+width: 100%;
 	transition: all 450ms ease-in-out;
 }
 
@@ -220,6 +221,7 @@ props.config;
 
 
 .upload-image-caption {
+	color: rgba(0, 15, 85, .75);
 	font-size: 25px; padding-top: 3px; width: 100%; font-family: 'biro_script_standardregular'; text-transform: uppercase;
 }
 

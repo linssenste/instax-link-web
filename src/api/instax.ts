@@ -56,10 +56,13 @@ export class InstaxPrinter extends InstaxBluetooth {
 		if (includeType == true) {
 			 response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
 
-			 const width = 800//parseInt(String(response.width != 600 && response.width != 800 && response.width != 1240 ? 800 : response.width)) as (600 | 800 | 1240);
+			 const width = parseInt(String(response.width != 600 && response.width != 800 && response.width != 1260 ? 800 : response.width)) as (600 | 800 | 1260);
 			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);	
 		
-			if (width == 800 && height == 800) {
+			console.log(width)
+			if (width == 1260 && height == 840 ) {
+				printerStatus.type = InstaxFilmVariant.LARGE
+			} else if (width == 800) {
 				printerStatus.type = InstaxFilmVariant.SQUARE
 			}
 		
@@ -89,10 +92,11 @@ console.log(printerStatus)
 			aborted = true
 		})
 
+		console.log("HHHHH")
 		// console.log(printCount)
 		for (let index = 0; index < (printCount); index++) {
-			//   await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], false)
-			// console.log(index)
+			  await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], false)
+			console.log(index)
 			await new Promise((r) => setTimeout(r, 15000))
  
 			if (aborted === true) {
@@ -106,12 +110,14 @@ console.log(printerStatus)
 	async sendImage(
 		imageUrl: string,
 		print = false,
+		type: InstaxFilmVariant,
 		callback: (event: any) => void,
 		signal: AbortSignal
 	): Promise<void> {
+		console.log("SEND IAMGE")
 		const imageData = await this._base64ToByteArray(imageUrl)
 
-		const chunks = this.imageToChunks(imageData)
+		const chunks = this.imageToChunks(imageData, type == InstaxFilmVariant.SQUARE ? 1808 : 900)
 
 		let isSendingImage = true
 		let printTimeout = 25
@@ -124,6 +130,7 @@ console.log(printerStatus)
 		})
 
 		while (isSendingImage == true && abortedPrinting == false) {
+		
 			try {
 				const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_START, [
 					0x02,
@@ -135,25 +142,31 @@ console.log(printerStatus)
 					...Array.from(new Uint8Array(new Uint16Array([imageData.length]).buffer))
 				])
 
+				console.log("START SUCCESS", response.status == 0)
 				if (response.status != 0) throw new Error()
 
+				console.log("SENDING PACKETS...")
 				for (let packetId = 0; packetId < chunks.length; packetId++) {
+
+
 					if (isSendingImage == false) {
-						setTimeout(async () => {
+						await new Promise((r) => setTimeout(r, 500))
+
 							await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
 
 							console.log('CANCEL COMMAND')
 							callback(-1)
-						}, 1000)
+					
 
 						break
 					}
-					// console.log(`Packet ${packetId}/${chunks.length}`, isSendingImage)
+					console.log(`Packet ${packetId}/${chunks.length}`, isSendingImage)
 
 					const chunk = this.encode(
 						INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_DATA,
 						Array.from(chunks[packetId])
 					)
+
 
 					for (let index = 0; index < chunks[packetId].length; index += 182) {
 						const isPacketEnd = index > chunks[packetId].length - 182
@@ -161,6 +174,7 @@ console.log(printerStatus)
 						const splitChunk = chunk.slice(index, index + 182)
 						const response = await this.send(splitChunk, isPacketEnd)
 
+						console.log("SEND", response)
 						
 						if (
 							isPacketEnd == true &&
@@ -199,7 +213,7 @@ console.log(printerStatus)
 				isSendingImage = false
 			} catch (error) {
 				// console.log(error)
-				printTimeout += 25
+				printTimeout += 5
 
 				await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
 
@@ -245,9 +259,8 @@ console.log(printerStatus)
 		return combined
 	}
 
-	imageToChunks(imgData: Uint8Array): Uint8Array[] {
+	imageToChunks(imgData: Uint8Array, chunkSize = 900): Uint8Array[] {
 		const imgDataChunks = []
-		const chunkSize = 1808
 
 		// Divide image data up into chunks of <chunkSize> bytes and pad the last chunk with zeroes if needed
 		for (let i = 0; i < imgData.length; i += chunkSize) {

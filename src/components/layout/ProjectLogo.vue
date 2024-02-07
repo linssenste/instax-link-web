@@ -17,7 +17,7 @@
 	text-decoration: none;
 	color: black;
 	height: 30px;
-	width: fit-content;
+	/* width: fit-content; */
 	gap: 10px!important;
 
 }

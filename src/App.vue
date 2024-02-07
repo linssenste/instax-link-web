@@ -16,9 +16,7 @@
 		<!-- only display logo in preview mode -->
 		<ProjectLogo v-else class="instax-variant-settings" />
 
-
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
-
 
 	</div>
 </template>
@@ -153,7 +151,7 @@ async function getPrinterMeta(includeType = false): Promise<void> {
 
 	try {
 		config.value.status = await printer.getInformation(includeType)
-		config.value.type = InstaxFilmVariant.SQUARE; // TODO
+		if (includeType) config.value.type = config.value.status.type
 
 	} catch (error) {
 		return
@@ -198,7 +196,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 			console.log(imageQueue.value[0].abortController.signal); 
 
-			await printer.sendImage(imageQueue.value[0].base64, true, async (progress: number) => {
+			await printer.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
 				if (imageQueue.value[0] == null) return;
 				if (imageQueue.value[0].abortController != null && (imageQueue.value[0].abortController.signal.aborted == true && progress == -1)) {
 					console.log("AFTER COM")
@@ -240,25 +238,19 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			}
 
 		} catch (error) {
-			console.log("ERROR WAS CALLED CH")
 			if (!isRetry && !imageQueue.value[0].abortController.signal) return printPolaroidQueue(true);
 		}
 
-		console.log("GONNA FINSIH UP PROCESS")
-
 		finishUpPrinting()
-
+		
 	}
 
 }
 
 async function finishUpPrinting() {
-	console.log("FU")
 	await new Promise((r) => setTimeout(r, 500));
 
-
 	imageQueue.value.shift(); // remove element from queue
-
 
 	isPrinting = false;
 	if (timeoutHandle) clearInterval(timeoutHandle);

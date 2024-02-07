@@ -1,9 +1,8 @@
 <template>
-	<div id="printer-settings">
+	<div v-if="hasBluetoothAccess" id="printer-settings">
 
-		<div v-if="!hasBluetoothAccess">NO ACCESS</div>
 
-		<button v-else-if="!config.connection" v-on:click="config.connect" class="connect-button">
+		<button v-if="!config.connection" v-on:click="config.connect" class="connect-button">
 			<img width="18" height="18" alt="bluetooth icon to connect" src="@/assets/icons/printer/bluetooth.svg" />
 			<span>Connect</span>
 		</button>
@@ -37,7 +36,8 @@
 						<span style="letter-spacing: 2px">{{ config.status.polaroidCount }}/10</span>
 					</div>
 
-					<div v-if="config.status != null && config.status.battery.level != null && config.status.polaroidCount != null" class="printer-status-battery">
+					<div v-if="config.status != null && config.status.battery.level != null && config.status.polaroidCount != null"
+						 class="printer-status-battery">
 						<img v-if="config.status.battery.charging" draggable="false" width="25"
 							 src="@/assets/icons/battery/battery-charging.svg" />
 						<img v-else-if="batteryIcon == 0" draggable="false" width="25"
@@ -68,7 +68,7 @@
 
 			<StatusAlerts v-if="config.status != null" :status="config.status" />
 
-			<PrintingStatus  v-if="config.status != null" :stack="config.status.polaroidCount" :queue="queue" />
+			<PrintingStatus v-if="config.status != null" :stack="config.status.polaroidCount" :queue="queue" />
 
 
 		</div>
@@ -94,11 +94,16 @@ const hasBluetoothAccess = ref(false);
 
 onMounted(() => {
 
-	// check bluetooth access
-	(navigator as any).bluetooth.getAvailability().then(available => {
-		if (available) hasBluetoothAccess.value = true
-	});
-	
+	try {
+		// check bluetooth access
+		(navigator as any).bluetooth.getAvailability().then(available => {
+			if (available) hasBluetoothAccess.value = true
+		});
+	} catch (error) {
+		hasBluetoothAccess.value = false
+	}
+
+
 })
 let remainingPolaroids = ref(10)
 

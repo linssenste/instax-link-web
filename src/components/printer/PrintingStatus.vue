@@ -24,16 +24,15 @@
 						<!-- remove/cancel button -->
 						<button class="remove-button" :class="index == 0 && isCanceling ? 'disabled' : ''"
 								v-on:click="removeImageEvent(index)">
-							<img  src="@/assets/icons/controls/xmark.svg" width="12" />
+							<img src="@/assets/icons/controls/xmark.svg" width="12" />
 						</button>
 					</div>
 
 
 					<div v-if="element.state < 2" class="print-quantity">
-						
+
 						<!-- decrease input -->
-						<button
-								v-on:click="element.quantity -= 1" :class="element.quantity <= 1 ? 'disabled' : ''"
+						<button v-on:click="element.quantity -= 1" :class="element.quantity <= 1 ? 'disabled' : ''"
 								class="quantity-icon-button">
 							<img src="@/assets/icons/printer/minus.svg" draggable="false" width="12" />
 
@@ -44,8 +43,7 @@
 							   max="10" />
 
 						<!-- increase button -->
-						<button 
-								v-on:click="element.quantity += 1" :class="element.quantity >= 10 ? 'disabled' : ''"
+						<button v-on:click="element.quantity += 1" :class="element.quantity >= 10 ? 'disabled' : ''"
 								class="quantity-icon-button">
 							<img src="@/assets/icons/printer/plus.svg" draggable="false" width="12" />
 						</button>
@@ -88,36 +86,34 @@ interface QUEUE_ELEMENT {
 	quantity: number,
 	base64: string,
 	state: 0 | 1 | 2,
-	progress: number, 
+	progress: number,
 	abortController?: null | AbortController
 }
 
 
 const props = defineProps<{
-
 	stack: number | null;
 	queue: QUEUE_ELEMENT[]
 }>();
+
 props.queue;
 
+watch(() => props.queue, (newVal, oldVal) => {
+
+	if (newVal.length > 0 && (newVal[0].abortController == null || newVal[0].abortController.signal.aborted == false)) {
+		isCanceling.value = false
+	}
+}, { deep: true })
 
 const isCanceling = ref(false)
 
-watch(isCanceling, () => {
-	if (isCanceling.value) {
-		setTimeout(() => {
-			props.queue.splice(0, 1)
-		}, 15000);
-	}
-})
 function removeImageEvent(index: number): void {
-
 
 	if (index == 0 && props.stack > 0) {
 		isCanceling.value = true;
 		props.queue[0].abortController.abort();
-
 	}
+
 	else props.queue.splice(index, 1)
 }
 
@@ -126,7 +122,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 	if (newValue.length != oldValue.length) {
 		isCanceling.value = false;
 	}
-	
+
 	if (props.queue.length == 0) return;
 
 
@@ -156,19 +152,19 @@ watch(() => props.queue, (newValue, oldValue) => {
 	height: 10px;
 	position: relative;
 	overflow: hidden;
-	background-color: var(--dynamic-bg-color); 
+	background-color: var(--dynamic-bg-color);
 
 }
 
 .progress-print {
 	transition: all 15s linear;
-	background-color: var(--dynamic-bg-color)!important; 
+	background-color: var(--dynamic-bg-color) !important;
 }
 
 
 .progress-step {
 
-	background-color: var(--dynamic-bg-color); 
+	background-color: var(--dynamic-bg-color);
 
 	width: 12px !important;
 	height: 10px !important;
@@ -178,7 +174,9 @@ watch(() => props.queue, (newValue, oldValue) => {
 }
 
 .print-quantity {
-	display: flex; flex-direction: row; align-items: center; 
+	display: flex;
+	flex-direction: row;
+	align-items: center;
 }
 
 
@@ -187,7 +185,7 @@ watch(() => props.queue, (newValue, oldValue) => {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background-color: var(--dynamic-bg-color); 
+	background-color: var(--dynamic-bg-color);
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
 }
@@ -285,7 +283,12 @@ input::-webkit-inner-spin-button {
 }
 
 .status-text {
-	color: #a0a0a0; display: flex; flex-direction: row; align-items: center; width: 100%; justify-content: space-between;
+	color: #a0a0a0;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 100%;
+	justify-content: space-between;
 }
 
 .remove-button {
@@ -302,13 +305,17 @@ input::-webkit-inner-spin-button {
 }
 
 .remove-button img {
-	position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
 }
 
 
 .printing-status-progress {
-	position: relative; width: 100%; display: flex; flex-direction: row; 
+	position: relative;
+	width: 100%;
+	display: flex;
+	flex-direction: row;
 	margin-top: 10px;
-}
-
-</style>
+}</style>

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watchEffect } from 'vue'
 
-// events
+// color update event
 const emit = defineEmits<{
   (e: 'color-change', color: string): void;
 }>();
