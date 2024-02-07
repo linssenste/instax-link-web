@@ -1,9 +1,10 @@
 <template>
 	<div id="cropper-area">
-		<canvas hidden id="myCanvas" width="800" height="200" style="background: transparent;">
+		<canvas hidden id="myCanvas" :width="config.type == InstaxFilmVariant.MINI ? 600 : (config.type == InstaxFilmVariant.SQUARE ? 800 : 1150)" height="200" style="background-color: red;">
 		</canvas>
 		<div ref="container" class="container"></div>
-		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon" src="@/assets/icons/controls/xmark.svg" width="16" height="16"/></div>
+		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon"
+				 src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
 
 		<div class="center-cross" v-if="!loading">
 			<div class="cross-element">
@@ -79,7 +80,6 @@ const loadCanvasImage = () => {
 	konvaImage.onload = () => {
 		fitImage(konvaImage);
 		if (layer && image) layer.add(image as Konva.Image);
-
 	};
 	konvaImage.src = props.image;
 
@@ -196,41 +196,40 @@ async function saveCanvasImage(printable = true): Promise<string> {
 	return new Promise<string>((resolve, reject) => {
 		if (!stage || !image || !backgroundRect) reject(null)
 		else {
-	if (!printable) {
-			const filterList = [
-				Konva.Filters.Contrast,
-				Konva.Filters.HSL,
-				Konva.Filters.Brighten,
-				Konva.Filters.Noise
-			]
-			// Apply filters
-			image.filters(filterList);
-			image.contrast(-1)
-			image.saturation(-0.2)
-			image.brightness(.05)
-			image.noise(.1)
-			image.cache();
+			if (!printable) {
+				const filterList = [
+					Konva.Filters.Contrast,
+					Konva.Filters.HSL,
+					Konva.Filters.Brighten,
+					Konva.Filters.Noise
+				]
+				// Apply filters
+				image.filters(filterList);
+				image.contrast(-1)
+				image.saturation(-0.2)
+				image.brightness(.05)
+				image.noise(.15)
+				image.cache();
 
 
-			backgroundRect.filters(filterList)
+				backgroundRect.filters(filterList)
 
-			backgroundRect.contrast(-1)
-			backgroundRect.saturation(-0.2)
-			backgroundRect.brightness(.05)
-			backgroundRect.noise(.1)
-			backgroundRect.cache();
-	}
+				backgroundRect.contrast(-1)
+				backgroundRect.saturation(-0.2)
+				backgroundRect.brightness(.05)
+				backgroundRect.noise(.15)
+				backgroundRect.cache();
+			}
 
-			const canvasUrl = stage.toDataURL({ pixelRatio: !printable ? 2.4:  1 });
+			const canvasUrl = stage.toDataURL({ pixelRatio: !printable ? 2.4 : 1 });
 
-			console.log(canvasUrl)
 			image.clearCache();
 			image.filters([]);
 
 			backgroundRect.filters([]);
 			backgroundRect.clearCache();
 
-	
+
 			if (!printable) {
 
 				function drawHelloWorld(canvas) {
@@ -247,7 +246,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 					// Draw the text
 					const text = props.settings.text ?? '';
 					ctx.font = `${(Math.random() * 2) + 60}px biro_script_standardregular`;
-					ctx.fillStyle = "rgba(0, 15, 85, .8)";
+					ctx.fillStyle = "rgba(0, 15, 85, .75)";
 
 					// Calculate text width
 					const textWidth = ctx.measureText(text).width;
@@ -294,8 +293,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 						const compressNext = async () => {
 							const midQuality = (minQuality + maxQuality) / 2;
 
-							const width = ((props.config.type == InstaxFilmVariant.MINI ? 600 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 1240)) || 800)
-							const height = ((props.config.type == InstaxFilmVariant.MINI ? 800 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 840)) || 800)
+							const width = ((props.config.type == InstaxFilmVariant.MINI ? 600 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
+							const height = ((props.config.type == InstaxFilmVariant.MINI ? 800 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)
 							const options = {
 								maxWidth: width,
 								maxHeight: height,
@@ -327,6 +326,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 									const reader = new FileReader();
 									reader.onloadend = () => {
 										const base64 = reader.result as string;
+
+										console.log(base64)
 										resolve(base64);
 									};
 									reader.readAsDataURL(compressedFile);
@@ -475,7 +476,7 @@ const getCenter = (p1, p2) => {
 
 
 function removeImage(): void {
-	emit('remove-image'); 
+	emit('remove-image');
 	setTimeout(() => {
 		props.settings.text = ""
 	}, 500);
@@ -581,4 +582,5 @@ onMounted(initStage);
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
-}</style>
+}
+</style>

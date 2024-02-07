@@ -55,7 +55,7 @@ describe('Polaroid manual size selector', () => {
 
 	it('renders polaroids with correct titles', () => {
 		const polaroidTitles = wrapper.findAll('.polaroid').map((polaroid) => polaroid.attributes('title'));
-		const expectedTitles = ['Instax Mini (600x800)', 'Instax Square (800x800)', 'Instax Large (1240x840)'];
+		const expectedTitles = ['Instax Mini (600x800)', 'Instax Square (800x800)', 'Instax Large (1260x840)'];
 		expect(polaroidTitles).toEqual(expectedTitles);
 	});
 

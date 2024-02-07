@@ -1,4 +1,5 @@
 <template>
+	<div id="project-info">
 	<div v-if="showOverlay" class="info-overlay" id="info-overlay">
 
 		<div class="container">
@@ -41,6 +42,7 @@
 
 	</div>
 
+	<!-- info button to open fixed overlay -->
 	<button @click="toggleOverlay()"
 			style="color: var(--dynamic-bg-color)!important; background-color: rgba(250, 250, 250, .8); padding-right: 30px; border-radius: 20px; padding-left: 30px; margin-right: 16px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px">
 		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="18">
@@ -49,6 +51,10 @@
 		</svg>
 		INFOS
 	</button>
+
+</div>
+
+
 </template>
   
 <script lang="ts" setup>
@@ -80,6 +86,9 @@ async function toggleOverlay(): Promise<void> {
 
 </script>
 <style scoped>
+#project-info {
+	position: relative;
+}
 .info-overlay {
 	z-index: 1000000 !important;
 	position: fixed;

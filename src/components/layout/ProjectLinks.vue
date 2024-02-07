@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import ProjectInformation from '@/components/layout/ProjectInformation.vue'
+import ProjectInformation from './ProjectInformation.vue'
 </script>
 <style scoped>
 .link-row {

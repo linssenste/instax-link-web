@@ -5,7 +5,6 @@
 
 		</div>
 	
-
 		<div class="polaroid"  >
 			<img
 				v-show="loadError == false"
@@ -104,7 +103,7 @@ const polaroidImageSource = computed(() => {
 .inner-large {
 	padding-top: 5px;
 	padding-left: 2px;
-	aspect-ratio: 1240/840;
+	aspect-ratio: 1260/840;
 }
 
 

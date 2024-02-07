@@ -23,7 +23,7 @@ const polaroidTitle = (filmType: InstaxFilmVariant) => {
 	switch (filmType) {
 		case InstaxFilmVariant.MINI: return "Instax Mini (600x800)"
 		case InstaxFilmVariant.SQUARE: return "Instax Square (800x800)"
-		case InstaxFilmVariant.LARGE: return "Instax Large (1240x840)"
+		case InstaxFilmVariant.LARGE: return "Instax Large (1260x840)"
 		default: break;
 	}
 }
