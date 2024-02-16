@@ -206,16 +206,16 @@ async function saveCanvasImage(printable = true): Promise<string> {
 				// Apply filters
 				image.filters(filterList);
 				image.contrast(-1)
-				image.saturation(-0.2)
+				// image.saturation(-0.2)
 				image.brightness(.05)
-				image.noise(.15)
+				image.noise(.1)
 				image.cache();
 
 
 				backgroundRect.filters(filterList)
 
 				backgroundRect.contrast(-1)
-				backgroundRect.saturation(-0.2)
+				// backgroundRect.saturation(-0.2)
 				backgroundRect.brightness(.05)
 				backgroundRect.noise(.15)
 				backgroundRect.cache();
