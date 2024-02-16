@@ -1,8 +1,9 @@
 <template>
 	<div oncontextmenu="return false" class="size-selector">
 
-		<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.LARGE]" :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)"
-			 @click="selectedType = filmType" class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
+		<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.LARGE]"
+			 :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)" @click="selectedType = filmType"
+			 class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
 			<div class="inner-polaroid"></div>
 		</div>
 
@@ -15,10 +16,17 @@ import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 
 const selectedType = ref<InstaxFilmVariant>(InstaxFilmVariant.SQUARE);
 
+// events
 const emit = defineEmits<{
+	/**
+	 * emits new selected type (mini, square or large)
+	 * @param {InstaxFilmVariant} type new polaroid size type
+	 */
 	(e: 'type-change', type: InstaxFilmVariant): void;
 }>();
 
+
+// hovering html title
 const polaroidTitle = (filmType: InstaxFilmVariant) => {
 	switch (filmType) {
 		case InstaxFilmVariant.MINI: return "Instax Mini (600x800)"
@@ -28,18 +36,19 @@ const polaroidTitle = (filmType: InstaxFilmVariant) => {
 	}
 }
 
-watch(selectedType, () => {
-	emit('type-change', selectedType.value);
-});
-
-
-function polaroidClass(filmType: InstaxFilmVariant) {
+// styling
+const polaroidClass = (filmType: InstaxFilmVariant) => {
 	return {
 		backgroundColor: selectedType.value === filmType ? 'var(--dynamic-bg-color)' : 'var(--grey-color)',
 		width: `${filmType == InstaxFilmVariant.MINI ? 18 : (filmType == InstaxFilmVariant.SQUARE ? 25 : 40)}px`,
 		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .25 : 0})`,
 	}
 }
+
+// emit change event
+watch(selectedType, () => {
+	emit('type-change', selectedType.value);
+}, {immediate: true});
 
 </script>
 
@@ -68,7 +77,7 @@ function polaroidClass(filmType: InstaxFilmVariant) {
 
 .polaroid:hover {
 	transform: scale(1.02);
-	box-shadow: 0px 0px 5px rgba(0, 0, 0, .1) 
+	box-shadow: 0px 0px 5px rgba(0, 0, 0, .1)
 }
 
 
@@ -80,4 +89,5 @@ function polaroidClass(filmType: InstaxFilmVariant) {
 	width: 130px;
 	justify-content: center;
 }
+
 </style>
