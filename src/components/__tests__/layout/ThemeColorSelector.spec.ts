@@ -15,7 +15,7 @@ describe('Theme color', () => {
 
   it('renders all color options and the component itself', () => {
     expect(wrapper.exists()).toBe(true)
-    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'pink']
+    const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink']
     colors.forEach(color => {
       expect(wrapper.find(`[data-testid="${color}-color-item"]`).exists()).toBe(true)
     })

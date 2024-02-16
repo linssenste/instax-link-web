@@ -9,7 +9,7 @@ import PolaroidSizeSelector from '../../../components/layout/PolaroidSizeSelecto
 
 // More on how to set up stories at: https://storybook.js.org/docs/writing-stories
 const meta = {
-  title: 'Layout/Polaroid type selector',
+  title: 'Layout/Polaroid size selector',
   component: PolaroidSizeSelector,
 
   tags: ['autodocs'],
