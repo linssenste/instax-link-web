@@ -216,7 +216,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 				imageQueue.value[0].progress = 0
 
 
-				await new Promise((r) => setTimeout(r, 250));
+				await new Promise((r) => setTimeout(r, 1000));
 
 				await getPrinterMeta(); // update printer information once 
 				await new Promise((r) => setTimeout(r, 250));

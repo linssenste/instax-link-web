@@ -10,26 +10,38 @@
     "build-only": "vite build",
     "test:coverage": "vitest run --coverage",
     "dev": "vite --host",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
-	"vue": "^3.4.15",
     "buffer": "^6.0.3",
+    "image-compressor.js": "^1.1.4",
     "konva": "^9.3.1",
-	
     "merge-images": "^2.0.0",
-	"image-compressor.js": "^1.1.4"
+    "vue": "^3.4.15"
   },
-
   "devDependencies": {
+    "@storybook/addon-essentials": "^7.6.16",
+    "@storybook/addon-interactions": "^7.6.16",
+    "@storybook/addon-links": "^7.6.16",
+    "@storybook/blocks": "^7.6.16",
+    "@storybook/jest": "^0.2.3",
+    "@storybook/test": "^7.6.16",
+    "@storybook/testing-library": "^0.2.2",
+    "@storybook/vue3": "^7.6.16",
+    "@storybook/vue3-vite": "^7.6.16",
     "@types/node": "^20.4.2",
-	"@vitejs/plugin-vue": "^5.0.3",
+    "@vitejs/plugin-vue": "^5.0.3",
     "@vitest/coverage-istanbul": "^0.34.1",
     "@vue/test-utils": "^2.4.1",
     "happy-dom": "^10.7.0",
     "jsdom": "^23.0.1",
     "path": "^0.12.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sass": "^1.63.6",
+    "storybook": "^7.6.16",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
     "vitest": "^0.33.0",

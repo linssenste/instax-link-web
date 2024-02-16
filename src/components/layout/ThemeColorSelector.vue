@@ -16,13 +16,22 @@ const emit = defineEmits<{
 }>();
 
 
-const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink', ]; // yeah, i know... #pride
+const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink']; // yeah, i know... #pride
 const selectedColor=ref(localStorage.getItem('theme-color') ?? 'red'); // default color
 
 const colorStyling = (name: string) => ({ backgroundColor: `var(--${name}-color)`});
 const selectedClass = (color: string) => (selectedColor.value==color ? 'color-selected' : '');
 
 onMounted(() => {
+	// const params = new Proxy(new URLSearchParams(window.location.search), {
+	// 	get: (searchParams: any, prop: any) => searchParams.get(prop),
+	// });
+
+	// if (params.random === "true") {
+	// 	const randomIndex = Math.floor(Math.random() * (colors.length - 1)) + 1;
+	// 	selectedColor.value = colors[randomIndex]
+	// }
+
 	// emit default color on loaded to make sure everything is setup correctly
 	changeThemeColor(selectedColor.value); 
 })
