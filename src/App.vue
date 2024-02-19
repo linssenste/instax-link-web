@@ -8,13 +8,12 @@
 		<ProjectLinks class="project-links-section" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
-		<div v-if="!isPreview" class="instax-variant-settings">
+		<div v-if="!isPreview" class="printer-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
 			<PrinterSettings :queue="imageQueue" :config="config" />
 		</div>
 
 		<!-- only display logo in preview mode -->
-		<ProjectLogo v-else class="instax-variant-settings" />
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
 
@@ -34,7 +33,7 @@ import PrinterSettings from './components/printer/PrinterSettings.vue';
 import { InstaxPrinter } from './api/instax';
 
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
-import ProjectLogo from './components/layout/ProjectLogo.vue';
+
 import { QueueImage } from './interfaces/QueueImage';
 
 
@@ -331,7 +330,7 @@ async function finishUpPrinting() {
 }
 
 
-.instax-variant-settings {
+.printer-variant-settings {
 	position: absolute;
 	display: flex;
 	flex-direction: row;
@@ -341,4 +340,4 @@ async function finishUpPrinting() {
 	gap: 15px;
 
 }
-</style>./api/instax
+</style>

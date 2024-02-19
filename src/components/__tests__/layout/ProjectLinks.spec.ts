@@ -17,9 +17,6 @@ describe('Project info links', () => {
     expect(wrapper.exists()).toBe(true);
   })
 
-
-
-
   it('renders Github link with correct href attribute', () => {
 	const githubLink = wrapper.find('[data-testid="github-link"]');
 	expect(githubLink.exists()).toBe(true);

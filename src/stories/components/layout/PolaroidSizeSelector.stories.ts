@@ -1,13 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3';
 import { action } from '@storybook/addon-actions'
-
-import { expect } from '@storybook/jest';
-
 import { userEvent, within } from '@storybook/testing-library';
 
 import PolaroidSizeSelector from '../../../components/layout/PolaroidSizeSelector.vue';
 
-// More on how to set up stories at: https://storybook.js.org/docs/writing-stories
+/**
+ * Selector component to choose between three different types (or sizes) of Polaroid: Mini (600x800), Square (800x800) or Wide (1260x840). The color of the selected type is bound to the CSS variable ``--dynamic-bg-color`` to match the variable style of the application.
+ */
 const meta = {
   title: 'Layout/Polaroid size selector',
   component: PolaroidSizeSelector,
@@ -21,10 +20,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 
-/**
- * Selector component to choose between three different types (or sizes) of Polaroid: Mini (600x800), Square (800x800) or Wide (1260x840). The color of the selected type is bound to the CSS variable ``--dynamic-bg-color`` to match the variable style of the application.
- */
- export const Default: Story = {
+
+ export const Event: Story = {
 	decorators: [
 	  () => ({
 		template: '<story v-on:type-change="action"/>',
