@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 // component
 import ThemeColorSelector from '../../../components/layout/ThemeColorSelector.vue'
 
-describe('Theme color', () => {
+describe('Theme color selection', () => {
   let wrapper 
 
   beforeEach(() => {
@@ -71,7 +71,6 @@ describe('Theme color', () => {
 	  const greenSelector = wrapper.find('[data-testid="green-color-item"]')
 	  expect(greenSelector.classes()).toContain('color-selected')
 	})
-  
   })
 
 })
