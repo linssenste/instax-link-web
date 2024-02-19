@@ -35,7 +35,6 @@
 
 		</div>
 
-		<ProjectLogo class="project-logo" />
 
 		<button class="close-button" data-testid="clos-overlay-button" title="Close info overlay"
 				@click="toggleOverlay()"><img src="@/assets/icons/controls/xmark.svg" width="16" /></button>
@@ -59,7 +58,7 @@
   
 <script lang="ts" setup>
 import { ref } from 'vue';
-import ProjectLogo from './ProjectLogo.vue';
+
 
 const showOverlay = ref(false);
 
@@ -122,7 +121,8 @@ async function toggleOverlay(): Promise<void> {
 }
 
 .info-center-column {
-	max-width: 560px;
+	width: 560px;
+	max-width: 100%;
 	line-height: 22px;
 	letter-spacing: .75px;
 	text-align: justify;
@@ -161,10 +161,5 @@ async function toggleOverlay(): Promise<void> {
 	transform: translate(-50%, -50%);
 }
 
-
-.project-logo {
-	position: fixed;
-	top: 25px;
-	left: 25px
-}</style>
+</style>
   
