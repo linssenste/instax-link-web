@@ -1,8 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, beforeEach } from 'vitest'
 
-
-// component
 import ProjectLinks from '../../../components/layout/ProjectLinks.vue'
 
 describe('Project info links', () => {
