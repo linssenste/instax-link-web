@@ -3,7 +3,6 @@
 	<div class="link-row">
 
 		<!-- @TODO: SEO optimized project infos here -->
-		<ProjectInformation/>
 		
 		<!-- Github icon link to Project -->
 		<a oncontextmenu="return false" data-testid="github-link" href="https://github.com/linssenste/instax-link-web"
@@ -15,9 +14,7 @@
 	</div>
 </template>
 
-<script setup lang="ts">
-import ProjectInformation from './ProjectInformation.vue'
-</script>
+
 <style scoped>
 .link-row {
 	position: relative;
