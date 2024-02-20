@@ -8,7 +8,7 @@ import PolaroidSizeSelector from '../../../components/layout/PolaroidSizeSelecto
  * Selector component to choose between three different types (or sizes) of Polaroid: Mini (600x800), Square (800x800) or Wide (1260x840). The color of the selected type is bound to the CSS variable ``--dynamic-bg-color`` to match the variable style of the application.
  */
 const meta = {
-  title: 'Layout/Polaroid size selector',
+  title: 'Layout/Type selector',
   component: PolaroidSizeSelector,
 
   tags: ['autodocs'],
@@ -30,7 +30,6 @@ type Story = StoryObj<typeof meta>;
 	],
 
 	play: async ({ canvasElement }) => {
-				document.documentElement.style.setProperty('--dynamic-bg-color', `var(--red-color)`);
 
 		const canvas = within(canvasElement);
 	
