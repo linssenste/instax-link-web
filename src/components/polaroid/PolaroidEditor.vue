@@ -9,7 +9,7 @@
 		<div class="polaroid-editor">
 
 
-			<PolaroidFrame :config="config" style="z-index: 5">
+			<PolaroidFrame :type="config.type" style="z-index: 5">
 				<template v-slot:polaroid-area>
 
 					<CropperArea v-if="image" class="cropper-area" :key="config.type || image" ref="cropperAreaRef"
@@ -23,7 +23,7 @@
 				</template>
 
 				<template v-slot:polaroid-text>
-					<div v-if="!image" class="upload-image-caption">
+					<div v-if="!image" class="polaroid-caption">
 						<span>Choose an image!</span>
 					</div>
 
@@ -57,8 +57,8 @@ import PolaroidFrame from './PolaroidFrame.vue';
 import CropperArea from './CropperArea.vue';
 import ImageSettings from './ImageSettings.vue';
 
-import DropImageUpload from '../upload/DropImageUpload.vue';
-import SelectImageUpload from '../upload/SelectImageUpload.vue';
+import DropImageUpload from '../files/DropImageUpload.vue';
+import SelectImageUpload from '../files/SelectImageUpload.vue';
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 const emit = defineEmits(['image'])
@@ -136,12 +136,14 @@ function fitImageEvent(type: string): void {
 function savePolaroidCanvas(imageURL: string): void {
 	emit('image', imageURL)
 }
-function getFileData(file: File): void {
+function getFileData(file: File | null): void {
+
+	if (!file) return;
 
 	var reader = new FileReader();
 	reader.readAsDataURL(file);
-	reader.onload = async function () {
 	
+	reader.onload = async function () {
 		image.value = reader.result as string;
 	};
 	reader.onerror = function (error) {
@@ -220,10 +222,6 @@ width: 100%;
 }
 
 
-.upload-image-caption {
-	color: rgba(0, 15, 85, .75);
-	font-size: 25px; padding-top: 3px; width: 100%; font-family: 'biro_script_standardregular'; text-transform: uppercase;
-}
 
 
 .drop-image-text {
