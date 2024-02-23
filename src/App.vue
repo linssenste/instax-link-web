@@ -4,16 +4,14 @@
 		<!-- bottom-left corner: color selector -->
 		<ThemeColorSelector class="theme-color-selector" v-on:color-change="themeChangeEvent" />
 
-		<!-- bottom-right corner: project related links/information -->
-		<ProjectLinks class="project-links-section" />
+		<!-- bottom-right corner: project github link -->
+		<ProjectLinks class="project-links"/>
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
-		<div v-if="!isPreview" class="printer-variant-settings">
+		<div class="printer-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
 			<PrinterSettings :queue="imageQueue" :config="config" />
 		</div>
-
-		<!-- only display logo in preview mode -->
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
 
@@ -24,7 +22,6 @@
 import { onMounted, ref, watch } from 'vue';
 
 import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
-import ProjectLinks from './components/layout/ProjectLinks.vue';
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
@@ -35,6 +32,7 @@ import { InstaxPrinter } from './api/instax';
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
 
 import { QueueImage } from './interfaces/QueueImage';
+import ProjectLinks from './components/layout/ProjectLinks.vue';
 
 
 const config = ref<PrinterStateConfig>({
@@ -72,18 +70,12 @@ let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
 const imageQueue = ref<QueueImage[]>([])
 
-const isPreview = ref(true);
 onMounted(() => {
 
 	window.addEventListener("beforeunload", (event) => {
 		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
 	});
 
-	const params = new Proxy(new URLSearchParams(window.location.search), {
-		get: (searchParams: any, prop: any) => searchParams.get(prop),
-	});
-
-	isPreview.value = (params.preview === "true") ?? false;
 })
 
 async function disconnectBluetoothPrinter(): Promise<void> {
@@ -95,7 +87,6 @@ async function disconnectBluetoothPrinter(): Promise<void> {
 }
 async function connectBluetoothPrinter(): Promise<void> {
 
-	if (isPreview.value) return;
 
 	try {
 		printer = new InstaxPrinter();
@@ -193,7 +184,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
-			console.log(imageQueue.value[0].abortController.signal); 
+			console.log(imageQueue.value[0].abortController.signal);
 
 			await printer.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
 				if (imageQueue.value[0] == null) return;
@@ -241,7 +232,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 		}
 
 		finishUpPrinting()
-		
+
 	}
 
 }
@@ -286,12 +277,18 @@ async function finishUpPrinting() {
 }
 
 
-.project-links-section {
+
+.project-links {
 	position: absolute;
 	bottom: 18px;
 	right: 25px;
 	z-index: 10 !important;
 }
+
+.github-link:hover {
+	transform: scale(1.1);
+}
+
 
 .theme-color-selector {
 	position: absolute;
@@ -300,34 +297,6 @@ async function finishUpPrinting() {
 	z-index: 10 !important;
 }
 
-.polaroid img {
-	display: block;
-	width: 100%;
-	height: auto;
-}
-
-.polaroid::after {
-	content: "";
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: linear-gradient(45deg, #fff, rgba(255, 255, 255, 0));
-	pointer-events: none;
-}
-
-.polaroid::before {
-	content: "";
-	position: absolute;
-	top: 10px;
-	left: 10px;
-	right: 10px;
-	bottom: 10px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: 5px;
-	pointer-events: none;
-}
 
 
 .printer-variant-settings {

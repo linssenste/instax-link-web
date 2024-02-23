@@ -11,10 +11,18 @@
 	
 	
 <script setup lang="ts">
-import {watch, onMounted, onUnmounted, ref } from 'vue';
+import {onMounted, onUnmounted, ref } from 'vue';
 
 
-const emit = defineEmits(['dropped']);
+// events
+const emit = defineEmits<{
+	
+	/**
+	 * emits dropped file
+	 * @param {File} dropped file
+	 */
+	(e: 'dropped', type: File): void;
+}>();
 
 
 
@@ -36,10 +44,13 @@ onUnmounted(() => {
 });
 
 
-const updateDragState = (isDragging: boolean) => {
 
+let dragCounter = 0; // debounce drag cursor in edge cases
+
+const updateDragState = (isDragging: boolean) => {
 	isDraggingOver.value = isDragging;
 };
+
 
 const dragOver = (e: DragEvent) => {
 	e.preventDefault();
@@ -47,7 +58,7 @@ const dragOver = (e: DragEvent) => {
 
 	updateDragState(true);
 };
-let dragCounter = 0;
+
 
 const dragEnter = (e: DragEvent) => {
 	e.preventDefault();
@@ -117,4 +128,6 @@ const onDrop = (e: DragEvent) => {
 	font-size: 75px;
 	z-index: 10
 }
+
+
 </style> 

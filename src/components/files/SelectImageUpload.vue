@@ -1,10 +1,10 @@
 <template>
-	<div class="upload-area" title="Upload or drop an image" v-on:click="uploadImage()">
+	<div class="upload-area" data-testid="upload-area" title="Upload or drop an image" v-on:click="uploadImage()">
 
 		<!-- opaque background color in theme color -->
-		<div class="area-background" />
+		<div class="area-background" data-testid="area-bg"  />
 
-		<input data-testid="input-file" v-on:change="inputChanged($event)" type="file" name="" accept="image/*" id='upload'
+		<input data-testid="input-file" v-on:change="inputChanged($event)" type="file" name="" accept="image/*" id="upload"
 			   hidden title="Upload image input" placeholder="">
 
 		<img width="50" data-testid="plus-icon" title="Upload or drop an image" class="upload-icon" src="@/assets/icons/printer/plus.svg" />
@@ -13,14 +13,24 @@
 </template>
 
 <script lang="ts" setup>
-const emit = defineEmits(['selected']);
+
+// events
+const emit = defineEmits<{
+
+	/**
+	 * emits selected file from input
+	 * @param {File} selected image File
+	 */
+	(e: 'selected', type: File): void;
+}>();
+
 
 function inputChanged(e: Event): void {
 	e.preventDefault();
 	e.stopImmediatePropagation();
 
+	if (!(e.target as any).files) return;
 	const file = (e.target as any).files[0];
-
 	emit('selected', file)
 
 }
@@ -56,10 +66,8 @@ function uploadImage(): void {
 
 .upload-area:hover .upload-icon {
 	opacity: 1;
-
 	width: 55px;
 }
-
 
 .area-background {
 	width: 100%;

@@ -12,7 +12,6 @@ describe('Theme color selection', () => {
     wrapper = mount(ThemeColorSelector);
   })
 
-
   it('renders all color options and the component itself', () => {
     expect(wrapper.exists()).toBe(true)
     const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink']
@@ -27,7 +26,7 @@ describe('Theme color selection', () => {
 
     await wrapper.find(`[data-testid="${firstColor}-color-item"]`).trigger('click')
     await nextTick()
-	
+  
     await wrapper.find(`[data-testid="${secondColor}-color-item"]`).trigger('click')
     await nextTick()
 
@@ -35,7 +34,6 @@ describe('Theme color selection', () => {
     expect(wrapper.find(`[data-testid="${secondColor}-color-item"]`).classes()).toContain('color-selected')
   })
 
-  
   describe('Color button interactions', () => {
     it.each(['red', 'orange', 'yellow', 'green', 'blue', 'pink'])(
       'emits "color-change", applies class, and stores "%s" in local storage when clicked',
@@ -45,32 +43,35 @@ describe('Theme color selection', () => {
         await nextTick()
 
         // Check emission of 'color-change'
-		expect(wrapper.emitted('color-change')).toBeTruthy()
+        expect(wrapper.emitted('color-change')).toBeTruthy()
         expect(wrapper.emitted('color-change').slice(-1)[0][0]).toBe(color)
 
-		expect(selector.classes()).toContain('color-selected')
+        expect(selector.classes()).toContain('color-selected')
 
-		expect(localStorage.getItem('theme-color')).toBe(color)
+        expect(localStorage.getItem('theme-color')).toBe(color)
+
+        // Check if CSS variable is updated
+        const computedStyle = window.getComputedStyle(document.documentElement)
+        expect(computedStyle.getPropertyValue('--dynamic-bg-color')).toBe(`var(--${color}-color)`)
       }
     )
   })
 
   describe('Setting default color on load', () => {
-	it('defaults to red if no color is set in local storage', async () => {
-	  localStorage.removeItem('theme-color') // Ensure no color is set
-	  const wrapper = shallowMount(ThemeColorSelector)
-	  await nextTick()
-	  const redSelector = wrapper.find('[data-testid="red-color-item"]')
-	  expect(redSelector.classes()).toContain('color-selected')
-	})
+    it('defaults to red if no color is set in local storage', async () => {
+      localStorage.removeItem('theme-color') // Ensure no color is set
+      const wrapper = shallowMount(ThemeColorSelector)
+      await nextTick()
+      const redSelector = wrapper.find('[data-testid="red-color-item"]')
+      expect(redSelector.classes()).toContain('color-selected')
+    })
   
-	it('uses color from local storage if available', async () => {
-	  localStorage.setItem('theme-color', 'green')
-	  const wrapper = shallowMount(ThemeColorSelector);
-	  await nextTick()
-	  const greenSelector = wrapper.find('[data-testid="green-color-item"]')
-	  expect(greenSelector.classes()).toContain('color-selected')
-	})
+    it('uses color from local storage if available', async () => {
+      localStorage.setItem('theme-color', 'green')
+      const wrapper = shallowMount(ThemeColorSelector);
+      await nextTick()
+      const greenSelector = wrapper.find('[data-testid="green-color-item"]')
+      expect(greenSelector.classes()).toContain('color-selected')
+    })
   })
-
 })
