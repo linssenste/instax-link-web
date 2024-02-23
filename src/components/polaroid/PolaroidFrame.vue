@@ -1,6 +1,6 @@
 <template>
 	<div class="editor" >
-		<div class="inner" id="polaroid-frame" :class="`inner-${config.type}`">
+		<div class="inner" id="polaroid-frame" :class="`inner-${type}`">
 			<slot  name="polaroid-area" />
 
 		</div>
@@ -11,7 +11,7 @@
 				v-on:load="frameLoaded = true"
 				v-on:error="loadError = true"
 				:src="polaroidImageSource"
-				alt="polaroid frame"
+				:alt="`${type} Polaroid-themed frame`"
 				draggable="false"
 				preload
 				:width="polaroidImageWidth"
@@ -30,25 +30,25 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 
 const loadError = ref(false)
 const frameLoaded = ref(false);
 
 
 const props = defineProps<{
-	config: PrinterStateConfig
+	type: InstaxFilmVariant
 }>();
+props.type; 
 
 
 const polaroidImageWidth  = computed(() => {
-	return props.config.type == InstaxFilmVariant.SQUARE ? 368 : (props.config.type == InstaxFilmVariant.MINI ? 282 : 522)
+	return props.type == InstaxFilmVariant.SQUARE ? 368 : (props.type == InstaxFilmVariant.MINI ? 282 : 522)
 });
 
 const polaroidImageSource = computed(() => {
-	return `/polaroids/${props.config.type}.webp`
+	return `/polaroids/${props.type}.webp`
 });
-
 
 
 
@@ -60,6 +60,7 @@ const polaroidImageSource = computed(() => {
 .editor {
 
 	position: relative;
+	width: fit-content;
 
 	z-index: 200!important;
 	border-radius: 10px;
@@ -86,6 +87,7 @@ const polaroidImageSource = computed(() => {
 	height: 325px;
 	background-color: white;
 	z-index: 2000000;
+	overflow: hidden;
 }
 
 .inner-mini {
