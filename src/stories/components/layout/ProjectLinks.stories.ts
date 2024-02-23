@@ -22,14 +22,30 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 
-export const Event: Story = {
-	decorators: [
-		() => ({
-			template: '<story v-on:color-change="action"/>',
-			methods: { action: action('color-change') }
-		}),
-	],
+export const Primary: Story = {
+
 }
+
+export const References: Story = {
+	play: async ({ canvasElement }) => {
+		
+		const canvas = within(canvasElement);
+		
+		await userEvent.hover(canvas.getByTestId("github-link"));
+		await userEvent.click(canvas.getByTestId("github-link"));
+
+		await userEvent.hover(canvas.getByTestId("storybook-link"));
+		await userEvent.click(canvas.getByTestId("storybook-link"));
+
+		await userEvent.hover(canvas.getByTestId("bmc-link"));
+		await userEvent.click(canvas.getByTestId("bmc-link"));
+  
+	  }
+
+}
+
+
+
 
 
 
