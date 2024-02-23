@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>;
  export const Upload: Story = {
 	decorators: [
 	  () => ({
-		template: '<div style="width: 300px; height: 300px; position: relative; background-color: red; border-radius: 10px; overflow: hidden"><story v-on:selected="action"/></div>',
+		template: '<div style="width: 300px; height: 300px; position: relative; border-radius: 10px; overflow: hidden"><story v-on:selected="action"/></div>',
 		methods: { action: action('selected') }
 	  }),
 	],

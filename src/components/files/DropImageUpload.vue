@@ -7,6 +7,9 @@
 		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image" src="@/assets/icons/printer/plus.svg" />
 
 	</div>
+
+	<div class="drop-image-text">
+		... or drop it here!</div>
 </template>
 	
 	
@@ -98,8 +101,8 @@ const onDrop = (e: DragEvent) => {
 .drop-overlay {
 	z-index: 1000000 !important;
 	position: fixed;
-	width: 100vw;
-	height: 100vh;
+	width: 100%;
+	height: 100%;
 	top: 0px;
 	left: 0px;
 	background: rgba(255, 255, 255, .5);
@@ -129,5 +132,9 @@ const onDrop = (e: DragEvent) => {
 	z-index: 10
 }
 
+
+.drop-image-text {
+	position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); letter-spacing: 1.5px; font-size: 15px; opacity: .25;
+}
 
 </style> 
