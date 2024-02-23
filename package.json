@@ -15,10 +15,12 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@storybook/addon-a11y": "^7.6.17",
     "buffer": "^6.0.3",
     "image-compressor.js": "^1.1.4",
     "konva": "^9.3.1",
     "merge-images": "^2.0.0",
+    "storybook-addon-vue-slots": "^0.9.29",
     "vue": "^3.4.15"
   },
   "devDependencies": {
