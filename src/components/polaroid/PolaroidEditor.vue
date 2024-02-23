@@ -1,10 +1,8 @@
 <template>
 	<div>
 
-		<DropImageUpload v-on:dropped="getFileData($event)" />
+		<DropImageUpload v-if="!image" v-on:dropped="getFileData($event)" />
 
-		<div v-if="!image" class="drop-image-text">
-		... or drop it here!</div>
 		
 		<div class="polaroid-editor">
 
@@ -221,10 +219,4 @@ width: 100%;
 	opacity: .75;
 }
 
-
-
-
-.drop-image-text {
-	position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); letter-spacing: 1.5px; font-size: 15px; opacity: .25;
-}
 </style>
