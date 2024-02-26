@@ -16,6 +16,7 @@
 				preload
 				:width="polaroidImageWidth"
 				height="440"
+				fetchpriority="high"
 				
 				class="polaroid-frame"
 			/>
