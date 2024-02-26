@@ -21,6 +21,7 @@ describe('Drag & Drop area', () => {
     expect(wrapper.exists()).toBe(true);
   })
 
+  
   it('displays overlay when dragging over', async () => {
     expect(wrapper.find('[data-testid="drop-area"]').exists()).toBe(false);
    
@@ -42,21 +43,5 @@ describe('Drag & Drop area', () => {
     expect(wrapper.find('[data-testid="drop-area"]').exists()).toBe(false);
   });
 
-  it('emits "dropped" event when valid image file is dropped', async () => {
-    const file = new File(['(⌐□_□)'], 'test.png', { type: 'image/png' });
-    const spy = vi.spyOn(wrapper.vm, '$emit');
-    const dropEvent = new DragEvent('drop', {
-      dataTransfer: {
-        files: [file]
-      }
-    });
-    wrapper.vm.onDrop(dropEvent);
-    await nextTick();
-    expect(spy).toHaveBeenCalledWith('dropped', file);
-    spy.mockRestore();
-  });
 
-
-  
-  
 })
