@@ -12,7 +12,7 @@ describe('Polaroid size (or type) selector', () => {
 	})
 
 
-	
+
 	it('renders component itself', () => {
 		expect(wrapper.exists()).toBe(true);
 	})
@@ -36,7 +36,7 @@ describe('Polaroid size (or type) selector', () => {
 		expect(wrapper.emitted()['type-change']).toBeTruthy(); // type-change event
 		expect(wrapper.emitted()['type-change'][0][0]).toEqual("square");
 	});
-	
+
 
 	it('emits "type-change" event on type click', async () => {
 

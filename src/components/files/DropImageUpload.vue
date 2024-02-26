@@ -1,10 +1,11 @@
 <template>
-	<div v-if="isDraggingOver" data-testid="drop-area"  class="drop-overlay">
+	<div v-if="isDraggingOver" data-testid="drop-area" class="drop-overlay">
 
 		<!-- opaque background color in theme color -->
 		<div data-testid="color-overlay" class="color-overlay" />
 
-		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image" src="@/assets/icons/printer/plus.svg" />
+		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image"
+			 src="@/assets/icons/printer/plus.svg" />
 
 	</div>
 
@@ -14,12 +15,12 @@
 	
 	
 <script setup lang="ts">
-import {onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 
 // events
 const emit = defineEmits<{
-	
+
 	/**
 	 * emits dropped file
 	 * @param {File} dropped file
@@ -96,8 +97,6 @@ const onDrop = (e: DragEvent) => {
 </script>
 	
 <style scoped lang="scss">
-
-
 .drop-overlay {
 	z-index: 1000000 !important;
 	position: fixed;
@@ -106,7 +105,7 @@ const onDrop = (e: DragEvent) => {
 	top: 0px;
 	left: 0px;
 	background: rgba(255, 255, 255, .5);
-    -moz-backdrop-filter: blur(4px);
+	-moz-backdrop-filter: blur(4px);
 	-webkit-backdrop-filter: blur(4px);
 
 	backdrop-filter: blur(4px);
@@ -133,8 +132,21 @@ const onDrop = (e: DragEvent) => {
 }
 
 
+
 .drop-image-text {
-	position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); letter-spacing: 1.5px; font-size: 15px; opacity: .25;
+	position: fixed;
+	bottom: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+	letter-spacing: 1.5px;
+	font-size: 15px;
+	opacity: .25;
+}
+
+@media only screen and (max-width: 600px) {
+	.drop-image-text {
+		display: none!important;
+	}
 }
 
 </style> 

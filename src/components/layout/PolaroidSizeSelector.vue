@@ -60,12 +60,11 @@ watch(selectedType, () => {
 	border-radius: 2px;
 	cursor: pointer;
 	transition: all 150ms;
-	z-index: 1;
 }
 
 .inner-polaroid {
 	background-color: #f5f5f5 !important;
-	z-index: 2;
+
 	width: 100%;
 
 
