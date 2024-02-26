@@ -8,15 +8,15 @@
 		   class="link" title="Creators Buy-me-a-Coffee page" target="_blank" rel="noopener noreferrer">
 
 			<img alt="link to developers BMC page for support" draggable="false" src="@/assets/icons/bmc-icon.svg" 
-				 height="30" />
+				 height="30" width="21" />
 		</a>
 
 		<!-- Storybook Chromatic link (project documentation) -->
 		<a data-testid="storybook-link" href="https://github.com/linssenste/instax-link-web"
 		   class="link" title="Project documentation on Storybook" target="_blank" rel="noopener noreferrer">
 
-			<img alt="link to storybook page of this project" draggable="false" src="@/assets/icons/storybook-icon.png" 
-				 height="30" />
+			<img alt="link to storybook page of this project" draggable="false" src="@/assets/icons/storybook-icon.svg" 
+				 height="30" width="25" />
 		</a>
 
 		<!-- Github icon link to Project -->
