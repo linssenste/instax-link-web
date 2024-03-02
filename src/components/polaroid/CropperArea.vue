@@ -1,33 +1,29 @@
 <template>
 	<div id="cropper-area">
-		<canvas hidden id="myCanvas" :width="config.type == InstaxFilmVariant.MINI ? 600 : (config.type == InstaxFilmVariant.SQUARE ? 800 : 1150)" height="200" style="background-color: red;">
-		</canvas>
-		<div ref="container" class="container"></div>
+
+		<div id="container" class="container" />
+
 		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon"
 				 src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
 
 		<div class="center-cross" v-if="!loading">
-			<div class="cross-element">
-			</div>
-			<div class="cross-element">
-			</div>
+			<div class="cross-element" />
+			<div class="cross-element" />
 		</div>
 	</div>
 </template>
   
 <script lang="ts" setup>
+
 import Konva from 'konva';
-import ImageCompressor from 'image-compressor.js';
-import { onMounted, ref, watch } from 'vue';
-import mergeImages from 'merge-images';
-import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
-
-
-
+import { onMounted, watch } from 'vue';
+import { type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { downloadPolaroid } from '../../cropper/cropper.download';
+import { compressedImage } from '../../cropper/cropper.print'
 const emit = defineEmits(['save', 'remove-image']);
 
 const props = defineProps<{
-	image: string,
+	src: string,
 	loading: boolean;
 	config: PrinterStateConfig
 	settings: {
@@ -37,25 +33,24 @@ const props = defineProps<{
 	}
 }>();
 
-let container: Konva.StageConfig | null = null;
+
 let stage: Konva.Stage | null = null;
 let layer: Konva.Layer | null = null;
 let image: Konva.Image | null = null;
 let backgroundRect: Konva.Rect | null = null;
 
-const initStage = async () => {
 
-	const containerDoc = document.getElementById('cropper-area')
+onMounted(() => {
+	const containerDoc = document.getElementById('container') as HTMLDivElement;
 	const containerRect = containerDoc?.getBoundingClientRect();
 
 	if (containerRect == null) return;
-
 
 	Konva.hitOnDragEnabled = true;
 
 	// create stage
 	stage = new Konva.Stage({
-		container: container as any,
+		container: containerDoc,
 		width: containerRect.width,
 		height: containerRect.height,
 		draggable: true
@@ -64,282 +59,107 @@ const initStage = async () => {
 	layer = new Konva.Layer();
 	stage.add(layer);
 
-	// load polaroid
-	loadCanvasImage();
-	addCanvasListeners();
 
-
-
-};
-
-
-
-const loadCanvasImage = () => {
+	// load image & add to stage
 	const konvaImage = new window.Image();
 
 	konvaImage.onload = () => {
-		fitImage(konvaImage);
-		if (layer && image) layer.add(image as Konva.Image);
+
+		// fit image into stage
+		const { width, height } = getRotatedBoundingBox(konvaImage);
+		const containerRatio = stage.width() / stage.height();
+
+		fitImage(konvaImage, { width, height }, ((width / height) < containerRatio));
+
+		// add image into stage
+		if (layer && image) {
+			layer.add(image);
+			addCanvasListeners(); // initialize image/stage event listeners
+		}
+
 	};
-	konvaImage.src = props.image;
+
+	konvaImage.src = props.src;
+});
 
 
-};
 
-// Function to calculate the rotated bounding box dimensions
-
-const getRotatedBoundingBox = (konvaImage) => {
+// calculate the rotated bounding box dimensions
+const getRotatedBoundingBox = (img: HTMLImageElement) => {
 	const radians = props.settings.rotation * Math.PI / 180;
+
 	const cos = Math.abs(Math.cos(radians));
 	const sin = Math.abs(Math.sin(radians));
+
 	return {
-		width: konvaImage.width * cos + konvaImage.height * sin,
-		height: konvaImage.width * sin + konvaImage.height * cos
+		width: img.width * cos + img.height * sin,
+		height: img.width * sin + img.height * cos
 	};
 };
 
 
-// Function to fit the image within the stage
-const fitImage = (konvaImage: Konva.Image): void => {
-	if (!stage) return;
-
-	const rotatedBoundingBox = getRotatedBoundingBox(konvaImage);
-
-	const containerAspectRatio = stage.width() / stage.height();
-	const imageAspectRatio = rotatedBoundingBox.width / rotatedBoundingBox.height;
-
-	if (imageAspectRatio < containerAspectRatio) {
-		fitImageHorizontally(konvaImage, rotatedBoundingBox);
-	} else {
-		fitImageVertically(konvaImage, rotatedBoundingBox);
-	}
-};
-
-const fitImageHorizontally = (konvaImage: Konva.Image, boundingBox?: { width: number, height: number }): void => {
-	if (!stage) return;
-
-	const scale = stage.width() / (boundingBox?.width ?? konvaImage.width());
-	updateStageImage(konvaImage, scale);
-};
-
-const fitImageVertically = (konvaImage: Konva.Image, boundingBox?: { width: number, height: number }): void => {
-	if (!stage) return;
-
-	const scale = stage.height() / (boundingBox?.height ?? konvaImage.height());
-	updateStageImage(konvaImage, scale);
-};
-
-
-const updateStageImage = (konvaImage, scale) => {
+const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: number }, horizontally: boolean): void => {
 	if (!stage || !layer) return;
 
-	layer.removeChildren(); // Clear existing image
-
+	// remove existing image
+	layer.removeChildren();
 
 	stage.scale({ x: 1, y: 1 }); // Update stage scale
 	stage.position({ x: 0, y: 0 }); // Reset stage position
 
+	// calculate scaling
+	const scale = (horizontally ? (stage.width() / boundingBox.width) : (stage.height() / boundingBox.height)) ?? 1;
 
-
+	// create new image object and scale
 	image = new Konva.Image({
 		x: stage.width() / 2,
 		y: stage.height() / 2,
-		image: konvaImage,
+		image: img,
 		scaleX: scale,
 		scaleY: scale,
 		draggable: false,
 		rotation: props.settings.rotation || 0,
 	});
 
-
-	image.offsetX(konvaImage.width / 2);
-	image.offsetY(konvaImage.height / 2);
+	image.offsetX(img.width / 2);
+	image.offsetY(img.height / 2);
 
 	backgroundRect = new Konva.Rect({
 		x: 0,
 		y: 0,
 		width: stage.width(),
 		height: stage.height(),
-		fill: props.settings.color || '#FFFFFF',
-		listening: false,
+		fill: props.settings.color ?? '#FFFFFF',
 	});
 
 	layer.add(backgroundRect);
 	layer.add(image);
-
-	// Redraw the layer to apply the filters
-	layer.batchDraw();
 };
 
 
-const fitVertically = () => {
-	const rotatedBoundingBox = getRotatedBoundingBox((image as Konva.Image).attrs.image);
-
-
-
-	if (image && layer) {
-		fitImageVertically(image.attrs.image, rotatedBoundingBox);
-		layer.draw();
-	}
+function fit(horizontal: boolean): void {
+	if (!image || !layer) return
+	const boundingBox = getRotatedBoundingBox(image.attrs.image)
+	fitImage(image.attrs.image, boundingBox, horizontal);
 };
 
-const fitHorizontally = () => {
-	const rotatedBoundingBox = getRotatedBoundingBox((image as Konva.Image).attrs.image);
-
-	if (image && layer) {
-		fitImageHorizontally(image.attrs.image, rotatedBoundingBox);
-		layer.draw();
-	}
-};
 
 async function saveCanvasImage(printable = true): Promise<string> {
-	return new Promise<string>((resolve, reject) => {
+	return new Promise<string>(async (resolve, reject) => {
 		if (!stage || !image || !backgroundRect) reject(null)
 		else {
+
 			if (!printable) {
-				const filterList = [
-					Konva.Filters.Contrast,
-					Konva.Filters.HSL,
-					Konva.Filters.Brighten,
-					Konva.Filters.Noise
-				]
-				// Apply filters
-				image.filters(filterList);
-				image.contrast(-1)
-				// image.saturation(-0.2)
-				image.brightness(.05)
-				image.noise(.1)
-				image.cache();
+				// TODO: error handling?
+				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text, image, backgroundRect, stage);
+				resolve(polaroidImage);
 
-
-				backgroundRect.filters(filterList)
-
-				backgroundRect.contrast(-1)
-				// backgroundRect.saturation(-0.2)
-				backgroundRect.brightness(.05)
-				backgroundRect.noise(.15)
-				backgroundRect.cache();
 			}
 
-			const canvasUrl = stage.toDataURL({ pixelRatio: !printable ? 2.4 : 1 });
+			else {
 
-			image.clearCache();
-			image.filters([]);
-
-			backgroundRect.filters([]);
-			backgroundRect.clearCache();
-
-
-			if (!printable) {
-
-				function drawHelloWorld(canvas) {
-
-					const ctx = canvas.getContext("2d");
-
-					// Clear the canvas (optional, if you want to clear previous drawings)
-					ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-					// Draw the transparent background
-					ctx.fillStyle = "rgba(255, 150, 100, 0)"; // Transparent white background
-					ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-					// Draw the text
-					const text = props.settings.text ?? '';
-					ctx.font = `${(Math.random() * 2) + 60}px biro_script_standardregular`;
-					ctx.fillStyle = "rgba(0, 15, 85, .75)";
-
-					// Calculate text width
-					const textWidth = ctx.measureText(text).width;
-
-
-					const x = (canvas.width - textWidth) / 2;
-					const y = canvas.height / 2;
-					const rotationAngle = (Math.random() * 2) - 1;
-
-					ctx.save();
-					ctx.translate(x + textWidth / 2, y);
-					ctx.rotate((rotationAngle * Math.PI) / 180);
-
-
-					ctx.fillText(text, -textWidth / 2, 0);
-					ctx.restore();
-				}
-
-				const canvas = document.getElementById('myCanvas');
-				if (!canvas) reject(null)
-				drawHelloWorld(canvas);
-
-				mergeImages([
-					{ src: canvasUrl, x: props.config.type == InstaxFilmVariant.SQUARE ? 28 : props.config.type == InstaxFilmVariant.MINI ? 22 : 22, y: 40 },
-					{ src: `/polaroids/export/${props.config.type}_scale.png`, x: 0, y: 0 },
-					{ src: (canvas as HTMLCanvasElement).toDataURL('image/png'), x: 20, y: (Math.random() * 10) + 835 }
-				])
-					.then(b64 => resolve(b64));
-
-			} else {
-
-				fetch(canvasUrl)
-					.then((res) => res.blob())
-					.then((blob) => {
-						const file = new File([blob], "compressed-image.jpeg", { type: "image/jpeg" });
-						const compressor = new ImageCompressor();
-
-						let isCompressed = false;
-						let minQuality = 0;
-						let maxQuality = 1;
-						let compressedFile: Blob | null = null;
-						let redoCounter = 0;
-
-						const compressNext = async () => {
-							const midQuality = (minQuality + maxQuality) / 2;
-
-							const width = ((props.config.type == InstaxFilmVariant.MINI ? 600 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
-							const height = ((props.config.type == InstaxFilmVariant.MINI ? 800 : (props.config.type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)
-							const options = {
-								maxWidth: width,
-								maxHeight: height,
-								minWidth: width,
-								minHeight: height,
-								quality: midQuality,
-							};
-
-							compressedFile = await compressor.compress(file, options);
-
-							redoCounter += 1;
-
-							if (compressedFile.size > 60 * 1024) {
-								maxQuality = midQuality;
-							} else {
-								minQuality = midQuality;
-							}
-
-							if (maxQuality - minQuality < 0.01) {
-								isCompressed = true;
-							}
-
-							if (!isCompressed && redoCounter < 50) {
-								compressNext();
-							} else {
-								if (compressedFile === null) {
-									reject(new Error("Compression failed"));
-								} else {
-									const reader = new FileReader();
-									reader.onloadend = () => {
-										const base64 = reader.result as string;
-
-										console.log(base64)
-										resolve(base64);
-									};
-									reader.readAsDataURL(compressedFile);
-								}
-							}
-						};
-
-						compressNext();
-					})
-					.catch((error) => {
-						reject(error);
-					});
+				const compressedCanvasImage = await compressedImage(props.config.type, stage);
+				resolve(compressedCanvasImage)
 			}
 		}
 	});
@@ -347,8 +167,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 }
 
 
+defineExpose({ fit, saveCanvasImage });
 
-defineExpose({ fitVertically, saveCanvasImage, fitHorizontally });
 
 const resetBackgroundRect = () => {
 	if (backgroundRect == null) return;
@@ -357,11 +177,10 @@ const resetBackgroundRect = () => {
 	backgroundRect.scaleY(1 / stage.scaleY());
 }
 
+
 const addCanvasListeners = () => {
 
-
 	stage.on('dragmove', resetBackgroundRect);
-
 
 	// Wheel zoom functionality
 	stage.on('wheel', (e) => {
@@ -383,7 +202,6 @@ const addCanvasListeners = () => {
 			y: pointer.y - mousePointTo.y * newScale,
 		};
 		stage.position(newPos);
-		stage.batchDraw();
 	});
 
 	let lastCenter: any = null;
@@ -393,8 +211,8 @@ const addCanvasListeners = () => {
 	// Multi-touch zoom functionality
 	stage.on('touchmove', (e) => {
 		e.evt.preventDefault();
-		var touch1 = e.evt.touches[0];
-		var touch2 = e.evt.touches[1];
+		const touch1 = e.evt.touches[0];
+		const touch2 = e.evt.touches[1];
 
 		if (touch1 && !touch2 && !stage.isDragging() && dragStopped) {
 			stage.startDrag();
@@ -408,11 +226,11 @@ const addCanvasListeners = () => {
 				stage.stopDrag();
 			}
 
-			var p1 = {
+			const p1 = {
 				x: touch1.clientX,
 				y: touch1.clientY,
 			};
-			var p2 = {
+			const p2 = {
 				x: touch2.clientX,
 				y: touch2.clientY,
 			};
@@ -421,30 +239,30 @@ const addCanvasListeners = () => {
 				lastCenter = getCenter(p1, p2);
 				return;
 			}
-			var newCenter = getCenter(p1, p2);
+			const newCenter = getCenter(p1, p2);
 
-			var dist = getDistance(p1, p2);
+			const dist = getDistance(p1, p2);
 
 			if (!lastDist) {
 				lastDist = dist;
 			}
 
 			// local coordinates of center point
-			var pointTo = {
+			const pointTo = {
 				x: (newCenter.x - stage.x()) / stage.scaleX(),
 				y: (newCenter.y - stage.y()) / stage.scaleX(),
 			};
 
-			var scale = stage.scaleX() * (dist / lastDist);
+			const scale = stage.scaleX() * (dist / lastDist);
 
 			stage.scaleX(scale);
 			stage.scaleY(scale);
 
 			// calculate new position of the stage
-			var dx = newCenter.x - lastCenter.x;
-			var dy = newCenter.y - lastCenter.y;
+			const dx = newCenter.x - lastCenter.x;
+			const dy = newCenter.y - lastCenter.y;
 
-			var newPos = {
+			const newPos = {
 				x: newCenter.x - pointTo.x * scale + dx,
 				y: newCenter.y - pointTo.y * scale + dy,
 			};
@@ -477,36 +295,25 @@ const getCenter = (p1, p2) => {
 
 function removeImage(): void {
 	emit('remove-image');
-	setTimeout(() => {
-		props.settings.text = ""
-	}, 500);
+
 }
 
-watch(() => props.settings.color, () => {
-	setBackgroundColor()
-});
-
-
-watch(() => props.image, () => {
-	setBackgroundColor();
-})
 function setBackgroundColor(): void {
 	const color = props.settings.color ?? '#FFFFFF';
 
-	stage.getContainer().style.backgroundColor = color;
 	backgroundRect.fill(color)
 
-
-	let doc = document.getElementById("polaroid-frame");
-	if (!doc) return;
-	doc.style.backgroundColor = color;
+	const doc = document.getElementById("polaroid-frame");
+	if (doc) doc.style.backgroundColor = color;
 }
+
 watch(() => props.settings.rotation, (newVal, oldVal) => {
 	image.rotate((newVal - oldVal))
 })
 
+watch([() => props.settings.color, () => props.src], setBackgroundColor);
 
-onMounted(initStage);
+
 </script>
 
 <style scoped>
