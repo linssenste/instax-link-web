@@ -15,7 +15,6 @@
 	"dependencies": {
 		"buffer": "^6.0.3",
 		"compressorjs": "^1.2.1",
-		"image-compressor.js": "^1.1.4",
 		"konva": "^9.3.1",
 		"merge-images": "^2.0.0",
 		"vue": "^3.4.15"
