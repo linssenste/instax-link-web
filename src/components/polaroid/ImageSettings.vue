@@ -64,11 +64,9 @@
 
 
 
-		
+
 		<div class="print-download-action-buttons">
-			<button v-if="config.connection"
-					:style="awaitingQueue"
-					v-on:click="savePolaroid(false)"
+			<button v-if="config.connection" :style="awaitingQueue" v-on:click="savePolaroid(false)"
 					:title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'"
 					class="action-button">
 				<span>
@@ -88,7 +86,7 @@
 			<button v-if="config.connection" v-on:click="savePolaroid(true)"
 					style="margin-left: 5px; width: 40px; position: relative;">
 				<img draggable="false" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"
-					 title="download whole image" src="@/assets/icons/controls/download.svg" 	 width="14" height="14" />
+					 title="download whole image" src="@/assets/icons/controls/download.svg" width="14" height="14" />
 
 			</button>
 		</div>
@@ -105,7 +103,7 @@ const emit = defineEmits(['change', 'scale']);
 const props = defineProps<{
 	config: PrinterStateConfig
 
-	savePolaroid: any;
+	savePolaroid: () => void;
 	queueLength: number;
 }>();
 props.config;
@@ -118,7 +116,7 @@ const settings = ref({
 });
 
 const awaitingQueue = computed(() => {
-	if (props.queueLength > 2) return `background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`; 
+	if (props.queueLength > 2) return `background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
 	else return ''
 })
 const captionLength = computed(() => {
@@ -352,8 +350,12 @@ input::-webkit-inner-spin-button {
 
 
 .print-download-action-buttons {
-	position: relative; 
-	margin-top: 10px; width: 100%; display: flex; flex-direction: row; align-items: center;
+	position: relative;
+	margin-top: 10px;
+	width: 100%;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
 }
 
 .action-button {
@@ -361,4 +363,5 @@ input::-webkit-inner-spin-button {
 	color: white;
 
 
-}</style>
+}
+</style>
