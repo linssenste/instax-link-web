@@ -7,12 +7,15 @@ import eslintPlugin from 'vite-plugin-eslint';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-	plugins: [vue(), eslintPlugin()],
+	plugins: [vue(), eslintPlugin({
+		exclude: ['/virtual:/**', 'node_modules/**', '/sb-preview/**'],
+	})],
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url))
 		}
 	},
+
 	test: {
 		exclude: [...configDefaults.exclude, 'packages/template/*'],
 		globals: true,
