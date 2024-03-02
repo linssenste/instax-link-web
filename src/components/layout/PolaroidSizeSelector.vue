@@ -1,7 +1,7 @@
 <template>
 	<div oncontextmenu="return false" class="size-selector">
 
-		<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.LARGE]"
+		<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.LARGE]" :key="filmType"
 			 :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)" @click="selectedType = filmType"
 			 class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
 			<div class="inner-polaroid"></div>
@@ -48,7 +48,7 @@ const polaroidClass = (filmType: InstaxFilmVariant) => {
 // emit change event
 watch(selectedType, () => {
 	emit('type-change', selectedType.value);
-}, {immediate: true});
+}, { immediate: true });
 
 </script>
 
@@ -88,5 +88,4 @@ watch(selectedType, () => {
 	width: 130px;
 	justify-content: center;
 }
-
 </style>

@@ -26,7 +26,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 	}
 
 
-	
+
 
 	// Sends a command to the printer
 	async sendCommand(opCode: number, command: number[], awaitResponse = true): Promise<void> {
@@ -43,34 +43,34 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 
 	async getInformation(includeType = false) {
-	
-		let printerStatus = {
+
+		const printerStatus = {
 			battery: {
-				charging: false, 
+				charging: false,
 				level: null
-			}, 
-			polaroidCount: null, 
+			},
+			polaroidCount: null,
 			type: null
 		}
 		let response = null;
 		if (includeType == true) {
-			 response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
+			response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
 
-			 const width = parseInt(String(response.width != 600 && response.width != 800 && response.width != 1260 ? 800 : response.width)) as (600 | 800 | 1260);
-			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);	
-		
+			const width = parseInt(String(response.width != 600 && response.width != 800 && response.width != 1260 ? 800 : response.width)) as (600 | 800 | 1260);
+			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);
+
 			console.log(width)
-			if (width == 1260 && height == 840 ) {
+			if (width == 1260 && height == 840) {
 				printerStatus.type = InstaxFilmVariant.LARGE
 			} else if (width == 800) {
 				printerStatus.type = InstaxFilmVariant.SQUARE
 			} else if (width == 600) {
 				printerStatus.type = InstaxFilmVariant.MINI
 			}
-		
+
 		}
-	
-	
+
+
 
 		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]) as any;
 
@@ -79,7 +79,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2]) as any;
 		printerStatus.polaroidCount = response.photosLeft;
-console.log(printerStatus)
+		console.log(printerStatus)
 		return printerStatus;
 	}
 
@@ -97,15 +97,15 @@ console.log(printerStatus)
 		console.log("HHHHH")
 		// console.log(printCount)
 		for (let index = 0; index < (printCount); index++) {
-			const response =   await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true); 
+			const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true);
 			console.log(response)
 			// console.log(index)
 			await new Promise((r) => setTimeout(r, 15000))
- 
+
 			if (aborted === true) {
 				callback(-1);
 			} else {
-				callback(index +1)
+				callback(index + 1)
 			}
 		}
 	}
@@ -134,7 +134,7 @@ console.log(printerStatus)
 		})
 
 		while (isSendingImage == true && abortedPrinting == false) {
-		
+
 			console.log("SEND LENGTH", imageData.length, Array.from(new Uint8Array(new Uint16Array([imageData.length]).buffer)))
 			// 0x08 wide ; 0x00 square
 			// 0x02 wide at end; 0x00 square
@@ -158,11 +158,11 @@ console.log(printerStatus)
 					if (isSendingImage == false) {
 						await new Promise((r) => setTimeout(r, 500))
 
-							await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
+						await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
 
-							console.log('CANCEL COMMAND')
-							callback(-1)
-					
+						console.log('CANCEL COMMAND')
+						callback(-1)
+
 
 						break
 					}
@@ -172,10 +172,10 @@ console.log(printerStatus)
 						INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_DATA,
 						Array.from(chunks[packetId])
 					)
-					
+
 
 					console.log("C", chunk.length, chunks[packetId].length, this._printableHex(chunk))
-					for (let index = 0; index < (chunks[packetId].length + 7) ; index += 182) {
+					for (let index = 0; index < (chunks[packetId].length + 7); index += 182) {
 						const isPacketEnd = index > (chunks[packetId].length + 7) - 182
 
 						const splitChunk = chunk.slice(index, index + 182)
@@ -185,7 +185,7 @@ console.log(printerStatus)
 
 						const response = await this.send(splitChunk, isPacketEnd)
 
-						
+
 						console.log(this._decode(response as Event))
 						if (isPacketEnd == true &&
 							response == null) {
@@ -209,7 +209,7 @@ console.log(printerStatus)
 						true
 					)
 
-					  console.log('finishResponse', finishResponse)
+					console.log('finishResponse', finishResponse)
 
 					if (print != true) {
 						callback(-1)
@@ -224,20 +224,21 @@ console.log(printerStatus)
 				printTimeout += 25
 
 				let resp = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], true)
-// console.log(resp)
-if (resp.status =! 0) {
-	resp = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], true)
+				// console.log(resp)
+				if (resp.status = !0) {
+					resp = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], true)
 
-}
+				}
 
-console.log(resp)
+
+				console.log(resp)
 				if (printTimeout > 200) {
 					isSendingImage = false
 					throw new Error('ging einfach net')
 				}
 
 
-				
+
 
 
 			}
@@ -309,7 +310,7 @@ console.log(resp)
 		// Validate the packet length and checksum
 		const packetLength = (packet[2] << 8) | packet[3]
 
-		const packetChecksum = packet.reduce((acc, val) => acc + val, 0) & 255; 
+		const packetChecksum = packet.reduce((acc, val) => acc + val, 0) & 255;
 		console.log("CRC:", packetChecksum)
 		if (packetLength !== packet.length || packetChecksum !== 255) {
 			throw new Error('Invalid packet')
@@ -367,5 +368,5 @@ console.log(resp)
 
 	connect;
 	disconnect;
-	
+
 }

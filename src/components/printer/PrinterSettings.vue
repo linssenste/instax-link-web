@@ -84,11 +84,21 @@ import { computed, onMounted, ref } from 'vue';
 import PrintingStatus from '../printer/PrintingStatus.vue';
 import StatusAlerts from '../printer/StatusAlerts.vue'
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import type { QueueImage } from '../../interfaces/QueueImage'
 
 const props = defineProps<{
 	config: PrinterStateConfig;
-	queue: any,
+	queue: QueueImage[],
 }>();
+
+declare global {
+	interface Navigator {
+		bluetooth?: {
+			getAvailability(): Promise<boolean>;
+			// Add other Bluetooth API methods here if needed
+		};
+	}
+}
 
 const hasBluetoothAccess = ref(false);
 
@@ -96,8 +106,10 @@ onMounted(() => {
 
 	try {
 		// check bluetooth access
-		(navigator as any).bluetooth.getAvailability().then(available => {
-			if (available) hasBluetoothAccess.value = true
+		navigator.bluetooth?.getAvailability()?.then(available => {
+			if (available) {
+				hasBluetoothAccess.value = true;
+			}
 		});
 	} catch (error) {
 		hasBluetoothAccess.value = false
@@ -105,7 +117,7 @@ onMounted(() => {
 
 
 })
-let remainingPolaroids = ref(10)
+const remainingPolaroids = ref(10)
 
 props.config;
 
@@ -114,12 +126,17 @@ const printerType = computed(() => {
 	else return props.config.status?.type
 })
 const batteryIcon = computed(() => {
-	if (props.config.status?.battery.level == null || props.config.status?.battery.level <= 10) return 0;
-	else if (props.config.status?.battery.level <= 35) return 25;
-	else if (props.config.status?.battery.level <= 60) return 50;
-	else if (props.config.status?.battery.level <= 90) return 75;
-	else if (props.config.status?.battery.level >= 90) return 100;
-})
+	const { level } = props.config.status?.battery || {}; // Destructure to simplify property access
+
+	if (level == null) return 0;
+	if (level <= 10) return 0;
+	if (level <= 35) return 25;
+	if (level <= 60) return 50;
+	if (level <= 90) return 75;
+
+	return 100;
+});
+
 
 
 

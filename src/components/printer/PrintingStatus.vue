@@ -2,7 +2,7 @@
 	<div style="position: relative; width: 100%; height: calc(100vh - 130px); overflow: scroll; ">
 
 
-		<div v-for="(element, index) in queue" class="status-card">
+		<div v-for="(element, index) in queue" :key="index" class="status-card">
 			<div class="image-status">
 
 				<!-- image to be printed -->
@@ -80,27 +80,20 @@
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
+import type { QueueImage } from '../../interfaces/QueueImage'
 
-
-interface QUEUE_ELEMENT {
-	quantity: number,
-	base64: string,
-	state: 0 | 1 | 2,
-	progress: number,
-	abortController?: null | AbortController
-}
 
 
 const props = defineProps<{
 	stack: number | null;
-	queue: QUEUE_ELEMENT[]
+	queue: QueueImage[]
 }>();
 
 props.queue;
 
-watch(() => props.queue, (newVal, oldVal) => {
+watch(() => props.queue, () => {
 
-	if (newVal.length > 0 && (newVal[0].abortController == null || newVal[0].abortController.signal.aborted == false)) {
+	if (props.queue.length > 0 && (props.queue[0].abortController == null || props.queue[0].abortController.signal.aborted == false)) {
 		isCanceling.value = false
 	}
 }, { deep: true })
@@ -114,7 +107,7 @@ function removeImageEvent(index: number): void {
 		props.queue[0].abortController.abort();
 	}
 
-	else props.queue.splice(index, 1)
+	// else props.queue.splice(index, 1);
 }
 
 watch(() => props.queue, (newValue, oldValue) => {
@@ -125,10 +118,6 @@ watch(() => props.queue, (newValue, oldValue) => {
 
 	if (props.queue.length == 0) return;
 
-
-	if (newValue[0].state == 2 && oldValue[0].state == 1) {
-		const doc = document.getElementById("printProgress");
-	}
 }, { deep: true })
 
 
@@ -318,4 +307,5 @@ input::-webkit-inner-spin-button {
 	display: flex;
 	flex-direction: row;
 	margin-top: 10px;
-}</style>
+}
+</style>

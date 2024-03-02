@@ -1,11 +1,7 @@
-
 export interface QueueImage {
-	
-	base64: string;
 	quantity: number,
-	state: number,
+	base64: string,
+	state: 0 | 1 | 2,
 	progress: number,
-	abortController?: AbortController | null; 
-
+	abortController?: null | AbortController
 }
-

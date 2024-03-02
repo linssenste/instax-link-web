@@ -5,7 +5,7 @@
 		<ThemeColorSelector class="theme-color-selector" v-on:color-change="themeChangeEvent" />
 
 		<!-- bottom-right corner: project github link -->
-		<ProjectLinks class="project-links"/>
+		<ProjectLinks class="project-links" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
 		<div class="printer-variant-settings">
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
@@ -60,7 +60,6 @@ function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 function typeChangeEvent(filmType: InstaxFilmVariant): void {
 	if (!config.value.connection || !printer) config.value.type = filmType
 }
-
 
 
 
@@ -162,11 +161,10 @@ function createdImageEvent(imageData: ImageData) {
 		// add to image queue
 		imageQueue.value.push({ base64: imageData.src, quantity: 1, state: 0, progress: 0 })
 	} else {
-		var a = document.createElement("a");
+		const a = document.createElement("a");
 		a.href = imageData.src
 		a.download = "Polaroid.png"; //File name Here
 		a.click(); //Downloaded file
-
 	}
 }
 
@@ -198,7 +196,6 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			}, imageQueue.value[0].abortController.signal);
 
 
-			console.log("DAN HIER", imageQueue.value[0].abortController.signal.aborted)
 			if (imageQueue.value[0].abortController.signal == null || !imageQueue.value[0].abortController.signal.aborted) {
 
 				// finished sending --> starting print progress (now printed images are the progress)
@@ -276,13 +273,10 @@ async function finishUpPrinting() {
 	}
 }
 
-
-
 .project-links {
 	position: absolute;
 	bottom: 18px;
 	right: 25px;
-	z-index: 10 !important;
 }
 
 .github-link:hover {
@@ -294,7 +288,6 @@ async function finishUpPrinting() {
 	position: absolute;
 	top: 25px;
 	right: 25px;
-	z-index: 10 !important;
 }
 
 
@@ -308,5 +301,13 @@ async function finishUpPrinting() {
 	left: 25px;
 	gap: 15px;
 
+}
+
+
+@media only screen and (max-width: 600px) {
+	.printer-variant-settings {
+
+		display: none !important;
+	}
 }
 </style>

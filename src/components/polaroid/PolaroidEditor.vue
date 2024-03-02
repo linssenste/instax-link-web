@@ -3,7 +3,7 @@
 
 		<DropImageUpload v-if="!image" v-on:dropped="getFileData($event)" />
 
-		
+
 		<div class="polaroid-editor">
 
 
@@ -11,12 +11,15 @@
 				<template v-slot:polaroid-area>
 
 					<CropperArea v-if="image" class="cropper-area" :key="config.type || image" ref="cropperAreaRef"
-								 :config="config" :image="image" :loading="loading" v-on:remove-image="image = null"
+								 :config="config" :src="image" :loading="loading" v-on:remove-image="removeImageEvent"
 								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
 					<div v-if="loading" class="loading-overlay">
-					<div  style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;" >LOADING ...</div></div>
+						<div
+							 style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;">
+							LOADING ...</div>
+					</div>
 
 				</template>
 
@@ -25,10 +28,11 @@
 						<span>Choose an image!</span>
 					</div>
 
-					<button  v-else-if="!loading" class="expand-button" 
-							v-on:click="expandContract"   :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
+					<button v-else-if="!loading" class="expand-button" v-on:click="expandContract"
+							:title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
 							:style="settingsExpansion ? 'transform: rotate(-180deg)' : 'transform: rotate(0deg)'">
-						<img width="20" height="20" :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`" src="@/assets/icons/controls/chevron-down.svg" />
+						<img width="20" height="20" :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
+							 src="@/assets/icons/controls/chevron-down.svg" />
 					</button>
 
 				</template>
@@ -36,8 +40,9 @@
 
 			<div id="expand-container">
 				<div id="expand-contract" :style="expansion" class="collapsed">
-					<ImageSettings :queueLength="queueLength" :config="config" :savePolaroid="saveEditorPolaroid" v-on:change="imageSettings = $event"
-								   v-on:scale="fitImageEvent" v-on:remove-image="image = null" />
+					<ImageSettings :queueLength="queueLength" :config="config" :savePolaroid="saveEditorPolaroid"
+								   v-on:change="imageSettings = $event" v-on:scale="fitImageEvent"
+								   v-on:remove-image="image = null" />
 
 				</div>
 
@@ -50,7 +55,7 @@
 
 <script setup lang="ts">
 
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, Ref } from 'vue'
 import PolaroidFrame from './PolaroidFrame.vue';
 import CropperArea from './CropperArea.vue';
 import ImageSettings from './ImageSettings.vue';
@@ -68,18 +73,19 @@ const props = defineProps<{
 
 
 
-const cropperAreaRef: any = ref(null);
+const cropperAreaRef: Ref<typeof CropperArea | null> = ref(null);
 props.config;
 
 
 const loading = ref(false)
 const imageSettings = ref({
 	rotation: 0,
+	text: '',
 	color: '#FFFFFF'
 })
 
 const expansion = computed(() => {
-	return `margin-top: ${(!settingsExpansion.value || !image) ? (-120 - 51) : (props.config.connection ? -55 : 10)}px; pointer-events: ${settingsExpansion.value ? 'inherit' : 'none'}`
+	return `margin-top: ${(!settingsExpansion.value || !image.value) ? (-120 - 51) : (props.config.connection ? -55 : 10)}px; pointer-events: ${settingsExpansion.value ? 'inherit' : 'none'}`
 })
 
 const settingsExpansion = ref(false)
@@ -99,20 +105,26 @@ watch(image, (newVal, prevVal) => {
 });
 
 
+function removeImageEvent() {
+	image.value = null;
+	setTimeout(() => {
+		imageSettings.value.text = ""
+	}, 500);
+}
 
 async function saveEditorPolaroid(download = false): Promise<void> {
 
-	
+
 	loading.value = true;
 
-	
 
-		expandContract();
-		await new Promise((r) => setTimeout(r, 525)) // await animation 
-	
+
+	expandContract();
+	await new Promise((r) => setTimeout(r, 525)) // await animation 
+
 
 	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
-	emit("image", {src: imageUrl, download: download})
+	emit("image", { src: imageUrl, download: download })
 
 	loading.value = false
 
@@ -126,10 +138,8 @@ function expandContract() {
 
 
 function fitImageEvent(type: string): void {
-	if (cropperAreaRef.value) {
-		if (type == 'horizontal') cropperAreaRef.value.fitVertically();
-		else cropperAreaRef.value.fitHorizontally();
-	}
+	if (cropperAreaRef.value) cropperAreaRef.value.fit((type == 'horizontal'));
+
 }
 function savePolaroidCanvas(imageURL: string): void {
 	emit('image', imageURL)
@@ -138,9 +148,9 @@ function getFileData(file: File | null): void {
 
 	if (!file) return;
 
-	var reader = new FileReader();
+	const reader = new FileReader();
 	reader.readAsDataURL(file);
-	
+
 	reader.onload = async function () {
 		image.value = reader.result as string;
 	};
@@ -164,9 +174,9 @@ props.config;
 
 	background: rgba(255, 255, 255, .75);
 	-webkit-backdrop-filter: blur(8px);
-    -moz-backdrop-filter: blur(8px);
+	-moz-backdrop-filter: blur(8px);
 	backdrop-filter: blur(8px);
-	
+
 }
 
 .polaroid-editor {
@@ -189,7 +199,7 @@ props.config;
 }
 
 #expand-contract {
-width: 100%;
+	width: 100%;
 	transition: all 450ms ease-in-out;
 }
 
@@ -218,5 +228,4 @@ width: 100%;
 .expand-button:hover {
 	opacity: .75;
 }
-
 </style>
