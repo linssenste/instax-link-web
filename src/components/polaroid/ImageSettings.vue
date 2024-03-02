@@ -103,7 +103,7 @@ const emit = defineEmits(['change', 'scale']);
 const props = defineProps<{
 	config: PrinterStateConfig
 
-	savePolaroid: () => void;
+	savePolaroid: (download: boolean) => void;
 	queueLength: number;
 }>();
 props.config;
