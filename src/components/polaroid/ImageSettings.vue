@@ -2,8 +2,8 @@
 	<div class="settings-container">
 
 		<!-- caption input; only visible if no printer is connected -->
-		<input id="caption-input" spellcheck="false" class="caption-input" placeholder="Image caption"
-			   :maxlength="captionLength" v-model="settings.text" />
+		<input id="caption-input" spellcheck="false" class="caption-input" data-testid="caption-input"
+			   placeholder="Image caption" :maxlength="captionLength" v-model="settings.text" />
 
 		<div class="align-span-buttons">
 
@@ -12,7 +12,7 @@
 
 				<!-- rotate left icon button -->
 				<button oncontextmenu="return false" title="rotate image clockwise" v-on:click="updateRotation(-1)"
-						class="icon-button ">
+						class="icon-button " data-testid="rotate-clockwise-button">
 					<img draggable="false" title="rotate image clockwise" src="@/assets/icons/controls/rotate-left.svg"
 						 width="16" />
 				</button>
@@ -20,23 +20,24 @@
 
 				<!-- input; values are handled in updateRotation function -->
 				<div class="rotation-input">
-					<input id="rotation-input" title="image roation degree input form" v-model="settings.rotation"
-						   v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*" min="0" max="360">
+					<input id="rotation-input" data-testid="rotation-input" title="image roation degree input form"
+						   v-model="settings.rotation" v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*"
+						   min="0" max="360">
 					<span class="rotation-degree">°</span>
 				</div>
 
 				<!-- rotate right icon button -->
 				<button oncontextmenu="return false" title="rotate image counter-clockwise" v-on:click="updateRotation(1)"
-						class="icon-button">
+						class="icon-button" data-testid="rotate-counter-clockwise-button">
 					<img draggable="false" title="rotate image counter-clockwise"
 						 src="@/assets/icons/controls/rotate-right.svg" width="16" />
 				</button>
 
 
 				<div>
-
 					<!-- color selector -->
-					<input title="select background color" type="color" class="color-selector" v-model="settings.color" />
+					<input title="select background color" data-testid="color-selector-input" type="color"
+						   class="color-selector" v-model="settings.color" />
 				</div>
 			</div>
 
@@ -45,16 +46,16 @@
 			<div class="alignment-buttons">
 
 				<!-- Horizontal Scale Button -->
-				<button oncontextmenu="return false" title="align image horizontally"
+				<button oncontextmenu="return false" title="align image vertically" data-testid="align-vertical-button"
 						v-on:click="setAlignment('scale', false)" class="icon-button">
-					<img draggable="false" title="align image horizontally"
-						 src="@/assets/icons/controls/align-horizontal.svg" width="16" />
+					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-horizontal.svg"
+						 width="16" />
 				</button>
 
 
 				<!-- Vertical Scale Button -->
-				<button oncontextmenu="return false" title="align image vertically" v-on:click="setAlignment('scale', true)"
-						class="icon-button">
+				<button oncontextmenu="return false" data-testid="align-horizontal-button" title="align image horizontally"
+						v-on:click="setAlignment('scale', true)" class="icon-button">
 					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg"
 						 width="16" />
 				</button>
@@ -66,31 +67,33 @@
 
 
 		<div class="print-download-action-buttons">
+
+			<!-- print image button if connected -->
 			<button v-if="config.connection" :style="awaitingQueue" v-on:click="savePolaroid(false)"
-					:title="config.connection ? 'print image with instax printer' : 'download polaroid image with filter & caption'"
-					class="action-button">
+					data-testid="print-image-button" title="print image with instax printer" class="action-button">
 				<span>
 					Print Image
 				</span>
-
 			</button>
 
-			<button v-else v-on:click="savePolaroid(true)" class="action-button"
-					style="position: relative; display: flex; flex-direction: row; align-items: center;">
+
+			<!-- download image as polaroid button if not connected -->
+			<button v-else v-on:click="savePolaroid(true)" class="action-button" data-testid="download-image-button">
 				<img draggable="false" style="" title="download whole image" src="@/assets/icons/controls/download.svg"
 					 width="14" height="14" />
-
 				Download
 			</button>
 
-			<button v-if="config.connection" v-on:click="savePolaroid(true)"
-					style="margin-left: 5px; width: 40px; position: relative;">
-				<img draggable="false" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"
-					 title="download whole image" src="@/assets/icons/controls/download.svg" width="14" height="14" />
+
+
+			<!-- icon button to download (without subtitle) -->
+			<button v-if="config.connection" v-on:click="savePolaroid(true)" class="download-icon-button"
+					data-testid="download-image-icon-button">
+				<img draggable="false" title="download whole image" src="@/assets/icons/controls/download.svg" width="14"
+					 height="14" />
 
 			</button>
 		</div>
-
 
 	</div>
 </template>
@@ -134,13 +137,15 @@ watch(settings, () => {
 }, { deep: true });
 
 
-
+// handle rotation input to be between 0 and 360°
 function updateRotation(value: number) {
 	if (settings.value.rotation <= 0 && value == -1) settings.value.rotation = 359;
 	else if (settings.value.rotation >= 359 && value == 1) settings.value.rotation = 0;
 	else settings.value.rotation += value;
 }
 
+
+// handle enter event to blur input field
 function inputEnterEvent() {
 
 	if (settings.value.rotation > 360) settings.value.rotation = settings.value.rotation - (Math.round((settings.value.rotation / 360)) * 360)
@@ -361,7 +366,19 @@ input::-webkit-inner-spin-button {
 .action-button {
 	width: 100%;
 	color: white;
+}
+
+.download-icon-button {
+	margin-left: 5px;
+	width: 40px;
+	position: relative;
+}
 
 
+.download-icon-button img {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
 }
 </style>
