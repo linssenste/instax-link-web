@@ -3,89 +3,95 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import PolaroidFrame from '../../../components/polaroid/PolaroidFrame.vue'
 import { InstaxFilmVariant } from '../../../interfaces/PrinterStateConfig'
 
-describe('Polaroid-themed frame', () => {
+describe('PolaroidFrame Component', () => {
 	let wrapper
 
-	beforeEach(() => {
+	const mountComponentWithProps = (type = InstaxFilmVariant.SQUARE) => {
 		wrapper = mount(PolaroidFrame, {
-			props: {
-				type: InstaxFilmVariant.SQUARE
-			}
+			props: { type }
 		});
-	})
+	};
 
-	it('renders frame itself', () => {
+	beforeEach(() => {
+		mountComponentWithProps();
+	});
+
+	it('renders the frame itself', () => {
 		expect(wrapper.exists()).toBe(true);
-	})
+	});
 
+	describe('Polaroid image source and width', () => {
+		const typesAndExpectedValues = [
+			{ type: InstaxFilmVariant.MINI, src: `/polaroids/${InstaxFilmVariant.MINI}.webp`, width: '282' },
+			{ type: InstaxFilmVariant.SQUARE, src: `/polaroids/${InstaxFilmVariant.SQUARE}.webp`, width: '368' },
+			{ type: InstaxFilmVariant.LARGE, src: `/polaroids/${InstaxFilmVariant.LARGE}.webp`, width: '522' }
+		];
 
-	it('displays the correct polaroid image source based on type prop', async () => {
-		await wrapper.setProps({ type: InstaxFilmVariant.SQUARE });
-		expect(wrapper.find('.polaroid-frame').attributes('src')).toBe(`/polaroids/${InstaxFilmVariant.SQUARE}.webp`);
-
-		await wrapper.setProps({ type: InstaxFilmVariant.MINI });
-		expect(wrapper.find('.polaroid-frame').attributes('src')).toBe(`/polaroids/${InstaxFilmVariant.MINI}.webp`);
-
-		await wrapper.setProps({ type: InstaxFilmVariant.LARGE });
-		expect(wrapper.find('.polaroid-frame').attributes('src')).toBe(`/polaroids/${InstaxFilmVariant.LARGE}.webp`);
-
-	})
-
-
-
-	it('correctly sets polaroid image width based on type prop', async () => {
-
-		await wrapper.setProps({ type: InstaxFilmVariant.MINI });
-		expect(wrapper.find('.polaroid-frame').attributes('width')).toBe('282');
-
-		await wrapper.setProps({ type: InstaxFilmVariant.SQUARE });
-		expect(wrapper.find('.polaroid-frame').attributes('width')).toBe('368');
-
-		await wrapper.setProps({ type: InstaxFilmVariant.LARGE });
-		expect(wrapper.find('.polaroid-frame').attributes('width')).toBe('522');
-	})
-
-
-	it('applies the correct CSS class based on the type prop', async () => {
-		await wrapper.setProps({ type: InstaxFilmVariant.MINI });
-		expect(wrapper.find('.inner-mini').exists()).toBe(true);
-
-		await wrapper.setProps({ type: InstaxFilmVariant.SQUARE });
-		expect(wrapper.find('.inner-square').exists()).toBe(true);
-
-		await wrapper.setProps({ type: InstaxFilmVariant.LARGE });
-		expect(wrapper.find('.inner-large').exists()).toBe(true);
-	})
-
-
-
-	it('renders area slot content correctly', () => {
-		const slotContent = '<div class="area-content">Slot Content</div>';
-		const wrapperWithSlot = mount(PolaroidFrame, {
-			props: {
-				type: InstaxFilmVariant.SQUARE
-			},
-			slots: {
-				'polaroid-area': slotContent
-			}
+		typesAndExpectedValues.forEach(({ type, src, width }) => {
+			it(`displays correct image source and width for type ${type}`, async () => {
+				await wrapper.setProps({ type });
+				const polaroidImage = wrapper.find('.polaroid-frame');
+				expect(polaroidImage.attributes('src')).toBe(src);
+				expect(polaroidImage.attributes('width')).toBe(width);
+			});
 		});
-		expect(wrapperWithSlot.find('.area-content').exists()).toBe(true);
-	})
+	});
 
+	describe('CSS class based on type prop', () => {
+		const typesAndExpectedClasses = [
+			{ type: InstaxFilmVariant.MINI, expectedClass: '.inner-mini' },
+			{ type: InstaxFilmVariant.SQUARE, expectedClass: '.inner-square' },
+			{ type: InstaxFilmVariant.LARGE, expectedClass: '.inner-large' }
+		];
 
-	it('renders text slot content correctly', () => {
-		const slotContent = '<div class="text-content">Slot Content</div>';
-		const wrapperWithSlot = mount(PolaroidFrame, {
-			props: {
-				type: InstaxFilmVariant.SQUARE
-			},
-			slots: {
-				'polaroid-text': slotContent
-			}
+		typesAndExpectedClasses.forEach(({ type, expectedClass }) => {
+			it(`applies correct class ${expectedClass} for type ${type}`, async () => {
+				await wrapper.setProps({ type });
+				expect(wrapper.find(expectedClass).exists()).toBe(true);
+			});
 		});
-		expect(wrapperWithSlot.find('.text-content').exists()).toBe(true);
-	})
+	});
 
-})
+	describe('Slot content', () => {
+		it('renders polaroid-area slot content correctly', () => {
+			const slotContent = '<div class="area-content">Area Slot Content</div>';
+			const wrapperWithSlot = mount(PolaroidFrame, {
+				props: { type: InstaxFilmVariant.SQUARE },
+				slots: { 'polaroid-area': slotContent }
+			});
+			expect(wrapperWithSlot.find('.area-content').exists()).toBe(true);
+		});
 
+		it('renders polaroid-text slot content correctly', () => {
+			const slotContent = '<div class="text-content">Text Slot Content</div>';
+			const wrapperWithSlot = mount(PolaroidFrame, {
+				props: { type: InstaxFilmVariant.SQUARE },
+				slots: { 'polaroid-text': slotContent }
+			});
+			expect(wrapperWithSlot.find('.text-content').exists()).toBe(true);
+		});
+	});
 
+	describe('Error handling and loading state', () => {
+		it('handles image load error correctly', async () => {
+			await wrapper.find('.polaroid-frame').trigger('error');
+			expect(wrapper.vm.loadError).toBe(true);
+		});
+
+		it('sets frameLoaded to true on image load', async () => {
+			await wrapper.find('.polaroid-frame').trigger('load');
+			expect(wrapper.vm.frameLoaded).toBe(true);
+		});
+	});
+
+	describe('Dynamic Class Binding and Reactivity', () => {
+		it('updates classes correctly when type prop changes', async () => {
+			await wrapper.setProps({ type: InstaxFilmVariant.MINI });
+			expect(wrapper.find('.inner-mini').exists()).toBe(true);
+
+			await wrapper.setProps({ type: InstaxFilmVariant.LARGE });
+			expect(wrapper.find('.inner-mini').exists()).toBe(false);
+			expect(wrapper.find('.inner-large').exists()).toBe(true);
+		});
+	});
+});
