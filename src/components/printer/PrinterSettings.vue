@@ -68,6 +68,8 @@
 
 			<StatusAlerts v-if="config.status != null" :status="config.status" />
 
+
+
 			<PrintingStatus v-if="config.status != null" :stack="config.status.polaroidCount" :queue="queue" />
 
 
