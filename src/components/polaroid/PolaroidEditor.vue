@@ -1,7 +1,7 @@
 <template>
 	<div>
 
-		<DropImageUpload v-if="!image" v-on:dropped="getFileData($event)" />
+		<DropImageUpload v-on:dropped="getFileData($event)" />
 
 
 		<div class="polaroid-editor">
@@ -10,7 +10,7 @@
 			<PolaroidFrame :type="config.type" style="z-index: 5">
 				<template v-slot:polaroid-area>
 
-					<CropperArea v-if="image" class="cropper-area" :key="config.type || image" ref="cropperAreaRef"
+					<CropperArea v-if="image" class="cropper-area" :key="config.type && image" ref="cropperAreaRef"
 								 :config="config" :src="image" :loading="loading" v-on:remove-image="removeImageEvent"
 								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
@@ -146,6 +146,7 @@ function savePolaroidCanvas(imageURL: string): void {
 }
 function getFileData(file: File | null): void {
 
+	console.log("test")
 	if (!file) return;
 
 	const reader = new FileReader();
