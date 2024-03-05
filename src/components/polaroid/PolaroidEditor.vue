@@ -145,8 +145,6 @@ function savePolaroidCanvas(imageURL: string): void {
 	emit('image', imageURL)
 }
 function getFileData(file: File | null): void {
-
-	console.log("test")
 	if (!file) return;
 
 	const reader = new FileReader();
