@@ -50,8 +50,8 @@ const polaroidImageSource = computed(() => {
 .editor {
 
 	position: relative;
-	width: fit-content;
 
+	width: auto;
 	z-index: 200 !important;
 	border-radius: 10px;
 	margin-left: 18px;

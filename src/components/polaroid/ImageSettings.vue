@@ -217,6 +217,7 @@ function inputEnterEvent() {
 
 	background-color: #FFFFFFAA;
 
+
 	font-weight: 400 !important;
 	font-size: 16px !important;
 }
@@ -229,8 +230,10 @@ function inputEnterEvent() {
 }
 
 .rotation-input input {
+	position: relative;
 	height: 40px;
 	outline: none;
+	width: 30px;
 	border: none;
 	text-align: center;
 	font-weight: 400 !important;
@@ -292,10 +295,15 @@ function inputEnterEvent() {
 	margin-right: 4px;
 }
 
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
 	-webkit-appearance: none;
 	margin: 0;
+}
+
+input[type=number] {
+	-moz-appearance: textfield;
 }
 
 .color-selector {
