@@ -7,8 +7,8 @@
 				 src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
 
 		<div class="center-cross" v-if="!loading">
-			<div class="cross-element" />
-			<div class="cross-element" />
+			<div class="cross-element" id="cross-element-horizontal" />
+			<div class="cross-element" id="cross-element-vertical" />
 		</div>
 	</div>
 </template>
@@ -162,7 +162,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 
 				const compressedCanvasImage = await compressedImage(props.config.type, stage);
 				// console.log(compressedCanvasImage)
-				resolve(compressedCanvasImage)
+				// TODO: error handling?
+				resolve(compressedCanvasImage as string)
 			}
 		}
 	});
@@ -178,15 +179,59 @@ const resetBackgroundRect = () => {
 	backgroundRect.absolutePosition({ x: 0, y: 0 });
 	backgroundRect.scaleX(1 / stage.scaleX());
 	backgroundRect.scaleY(1 / stage.scaleY());
+
 }
 
+function checkAndSnap() {
+	// The center of the stage in the stage's coordinate space
+	const stageCenterX = (stage.width() / 2 - stage.x()) / stage.scaleX();
+	const stageCenterY = (stage.height() / 2 - stage.y()) / stage.scaleY();
+
+	// The center of the image in the stage's coordinate space
+	const imageCenterX = image.x();
+	const imageCenterY = image.y();
+
+	// Snap threshold adjusted for stage scale
+	const threshold = 10 / stage.scaleX();
+
+	const deltaX = Math.abs(stageCenterX - imageCenterX);
+	const deltaY = Math.abs(stageCenterY - imageCenterY);
+
+	// Check if the image center is within the threshold distance of the stage center
+	if (deltaX <= threshold) {
+		// Adjust stage.x() to snap image's center to the stage's center
+		const snapXPosition = stage.width() / 2 - imageCenterX * stage.scaleX();
+		stage.x(snapXPosition);
+	}
+	if (deltaY <= threshold) {
+		// Adjust stage.y() to snap image's center to the stage's center
+		const snapYPosition = stage.height() / 2 - imageCenterY * stage.scaleY();
+		stage.y(snapYPosition);
+	}
+
+
+
+	layer.batchDraw();
+}
 
 const addCanvasListeners = () => {
+	// stage.on('transformend', updateHelperLines); // Update lines on transformation end
+	// window.addEventListener('resize', updateHelperLines); // Update lines on window resize
 
 	stage.on('dragmove', resetBackgroundRect);
+	stage.on('dragmove', () => {
+		checkAndSnap();
+	});
+
+	// Also listen to dragend to ensure snapping is checked when dragging stops
+	stage.on('dragend', () => {
+		checkAndSnap();
+	});
+
 
 	// Wheel zoom functionality
 	stage.on('wheel', (e) => {
+
 		resetBackgroundRect()
 		e.evt.preventDefault();
 		const oldScale = stage.scaleX();
@@ -213,6 +258,8 @@ const addCanvasListeners = () => {
 
 	// Multi-touch zoom functionality
 	stage.on('touchmove', (e) => {
+
+
 		e.evt.preventDefault();
 		const touch1 = e.evt.touches[0];
 		const touch2 = e.evt.touches[1];
