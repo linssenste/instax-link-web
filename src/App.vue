@@ -310,9 +310,13 @@ async function finishUpPrinting() {
 
 
 @media only screen and (max-width: 600px) {
-	.printer-variant-settings {
+
+	.printer-variant-settings,
+	.project-links {
 
 		display: none !important;
 	}
+
+
 }
 </style>

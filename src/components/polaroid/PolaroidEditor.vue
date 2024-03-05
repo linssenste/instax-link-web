@@ -4,7 +4,8 @@
 		<DropImageUpload v-on:dropped="getFileData($event)" />
 
 
-		<div class="polaroid-editor">
+		<div class="polaroid-editor"
+			 :style="`width: ${config.type == InstaxFilmVariant.MINI ? 270 : (config.type == InstaxFilmVariant.SQUARE ? 350 : 500)}px`">
 
 
 			<PolaroidFrame :type="config.type" style="z-index: 5" :key="config.type">
@@ -62,7 +63,7 @@ import ImageSettings from './ImageSettings.vue';
 
 import DropImageUpload from '../files/DropImageUpload.vue';
 import SelectImageUpload from '../files/SelectImageUpload.vue';
-import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 const emit = defineEmits(['image'])
 
@@ -180,9 +181,11 @@ props.config;
 
 .polaroid-editor {
 	position: absolute;
+
 	left: 50%;
 	top: calc(50% + 15px);
 	transform: translate(-50%, -50%);
+
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -193,7 +196,7 @@ props.config;
 #expand-container {
 	overflow: hidden;
 	position: relative;
-	width: calc(100% - 10px);
+	width: 100%;
 	padding: 5px;
 }
 

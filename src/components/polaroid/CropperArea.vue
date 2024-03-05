@@ -134,8 +134,12 @@ const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: n
 		fill: props.settings.color ?? '#FFFFFF',
 	});
 
+
+
 	layer.add(backgroundRect);
 	layer.add(image);
+
+
 };
 
 
@@ -160,8 +164,8 @@ async function saveCanvasImage(printable = true): Promise<string> {
 
 			else {
 
-				const compressedCanvasImage = await compressedImage(props.config.type, stage);
-				// console.log(compressedCanvasImage)
+				const compressedCanvasImage = await compressedImage(props.config.type, image, backgroundRect, stage);
+				console.log(compressedCanvasImage)
 				// TODO: error handling?
 				resolve(compressedCanvasImage as string)
 			}

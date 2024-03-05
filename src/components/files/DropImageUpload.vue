@@ -145,8 +145,13 @@ const onDrop = (e: DragEvent) => {
 
 @media only screen and (max-width: 600px) {
 	.drop-image-text {
-		display: none!important;
+		display: none !important;
 	}
 }
 
+@media only screen and (max-height: 700px) {
+	.drop-image-text {
+		display: none !important;
+	}
+}
 </style> 
