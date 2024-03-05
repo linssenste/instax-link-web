@@ -1,31 +1,20 @@
 <template>
-	<div class="editor" >
+	<div class="editor">
 		<div class="inner" id="polaroid-frame" :class="`inner-${type}`">
-			<slot  name="polaroid-area" />
+			<slot name="polaroid-area" />
 
 		</div>
-	
-		<div class="polaroid"  >
-			<img
-				v-show="loadError == false"
-				v-on:load="frameLoaded = true"
-				v-on:error="loadError = true"
-				:src="polaroidImageSource"
-				:alt="`${type} Polaroid-themed frame`"
-				draggable="false"
-				preload
-				:width="polaroidImageWidth"
-				height="440"
-				fetchpriority="high"
-				
-				class="polaroid-frame"
-			/>
-			
+
+		<div class="polaroid">
+			<img v-show="loadError == false" v-on:load="frameLoaded = true" v-on:error="loadError = true"
+				 :src="polaroidImageSource" :alt="`${type} Polaroid-themed frame`" draggable="false" preload
+				 :width="polaroidImageWidth" height="440" fetchpriority="high" class="polaroid-frame" />
+
 		</div>
 
 		<div class="polaroid-text">
-			<slot  name="polaroid-text"/>
-			</div>
+			<slot name="polaroid-text" />
+		</div>
 	</div>
 </template>
 
@@ -40,10 +29,10 @@ const frameLoaded = ref(false);
 const props = defineProps<{
 	type: InstaxFilmVariant
 }>();
-props.type; 
+props.type;
 
 
-const polaroidImageWidth  = computed(() => {
+const polaroidImageWidth = computed(() => {
 	return props.type == InstaxFilmVariant.SQUARE ? 368 : (props.type == InstaxFilmVariant.MINI ? 282 : 522)
 });
 
@@ -63,7 +52,7 @@ const polaroidImageSource = computed(() => {
 	position: relative;
 	width: fit-content;
 
-	z-index: 200!important;
+	z-index: 200 !important;
 	border-radius: 10px;
 	margin-left: 18px;
 	margin-right: 18px;
@@ -85,7 +74,7 @@ const polaroidImageSource = computed(() => {
 }
 
 .inner {
-	height: 325px;
+	height: 328px;
 	background-color: white;
 	z-index: 2000000;
 	overflow: hidden;
@@ -123,7 +112,8 @@ const polaroidImageSource = computed(() => {
 	position: absolute;
 	top: calc(100% + 22px);
 	z-index: 10000;
-	width: 100%;display: flex;
+	width: 100%;
+	display: flex;
 	flex-direction: row;
 	align-items: center;
 	text-align: center;

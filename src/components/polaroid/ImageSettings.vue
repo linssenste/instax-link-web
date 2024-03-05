@@ -48,7 +48,7 @@
 				<!-- Horizontal Scale Button -->
 				<button oncontextmenu="return false" title="align image vertically" data-testid="align-vertical-button"
 						v-on:click="setAlignment('scale', false)" class="icon-button">
-					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-horizontal.svg"
+					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg"
 						 width="16" />
 				</button>
 
@@ -56,7 +56,7 @@
 				<!-- Vertical Scale Button -->
 				<button oncontextmenu="return false" data-testid="align-horizontal-button" title="align image horizontally"
 						v-on:click="setAlignment('scale', true)" class="icon-button">
-					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg"
+					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-horizontal.svg"
 						 width="16" />
 				</button>
 
