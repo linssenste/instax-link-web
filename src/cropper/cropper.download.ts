@@ -55,34 +55,41 @@ function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): stri
 
 }
 
+interface ImageFilter {
+	contrast: number,
+	saturation: number
+	brightness: number,
+	noise: number,
+}
 
-
-function setPolaroidFilter(image: Konva.Image, background: Konva.Rect): void {
+export function setPolaroidFilter(image: Konva.Image, background: Konva.Rect, filter: ImageFilter): void {
 	const filterList = [
 		Konva.Filters.Contrast,
 		Konva.Filters.HSL,
 		Konva.Filters.Brighten,
 		Konva.Filters.Noise
 	]
+
+
 	// Apply filters
 	image.filters(filterList);
-	image.contrast(-1)
-	// image.saturation(-0.2)
-	image.brightness(.05)
-	image.noise(.1)
+	image.contrast(filter.contrast)
+	image.saturation(filter.saturation)
+	image.brightness(filter.brightness)
+	image.noise(filter.noise)
 	image.cache();
 
 
 	background.filters(filterList)
 
-	background.contrast(-1)
-	// backgroundRect.saturation(-0.2)
-	background.brightness(.05)
-	background.noise(.15)
+	background.contrast(filter.contrast);
+	background.saturation(filter.saturation)
+	background.brightness(filter.brightness)
+	background.noise(filter.noise)
 	background.cache();
 }
 
-function removePolaroidFilter(image: Konva.Image, background: Konva.Rect): void {
+export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect): void {
 	image.clearCache();
 	image.filters([]);
 
@@ -92,7 +99,13 @@ function removePolaroidFilter(image: Konva.Image, background: Konva.Rect): void 
 
 
 export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage): Promise<string> {
-	setPolaroidFilter(image, background)
+	const filterConfig = {
+		contrast: -1,
+		saturation: -0.2,
+		brightness: .05,
+		noise: .1
+	}
+	setPolaroidFilter(image, background, filterConfig)
 
 	const canvasUrl = stage.toDataURL({ pixelRatio: 2.4 });
 
