@@ -139,8 +139,13 @@ async function loadMetaData(): Promise<void> {
 async function getPrinterMeta(includeType = false): Promise<void> {
 
 	try {
+		const type = config.value.status?.type;
 		config.value.status = await printer.getInformation(includeType)
 		if (includeType) config.value.type = config.value.status.type
+		else {
+			config.value.status.type = type;
+		}
+
 
 	} catch (error) {
 		return
@@ -182,7 +187,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
-			console.log(imageQueue.value[0].abortController.signal);
+			console.log(imageQueue.value[0].base64);
 
 			await printer.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
 				if (imageQueue.value[0] == null) return;
