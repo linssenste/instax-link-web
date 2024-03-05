@@ -13,11 +13,11 @@ import { ref, onMounted, watchEffect } from 'vue'
 
 // color update event
 const emit = defineEmits<{
+
 	/**
 	 * emits selected color to be updated on printer if connected
 	 * @param {string} color
 	 */
-
 	(e: 'color-change', color: string): void;
 }>();
 
@@ -52,6 +52,21 @@ function changeThemeColor(color: string): void {
 	selectedColor.value = color;
 	localStorage.setItem('theme-color', color)
 	emit('color-change', selectedColor.value)
+
+	// update meta theme color: 
+	const themeColorMetaTag = document.querySelector('meta[name="theme-color"]');
+
+	// Check if the meta tag exists
+	if (themeColorMetaTag) {
+		// Update the content attribute to the new color
+		themeColorMetaTag.setAttribute('content', color);
+	} else {
+		// If the meta tag does not exist, create one and append it to the <head>
+		const newMetaTag = document.createElement('meta');
+		newMetaTag.setAttribute('name', 'theme-color');
+		newMetaTag.setAttribute('content', color);
+		document.head.appendChild(newMetaTag);
+	}
 
 }
 
