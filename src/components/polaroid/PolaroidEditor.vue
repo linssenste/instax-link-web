@@ -7,11 +7,11 @@
 		<div class="polaroid-editor">
 
 
-			<PolaroidFrame :type="config.type" style="z-index: 5">
+			<PolaroidFrame :type="config.type" style="z-index: 5" :key="config.type">
 				<template v-slot:polaroid-area>
 
-					<CropperArea v-if="image" class="cropper-area" :key="config.type && image" ref="cropperAreaRef"
-								 :config="config" :src="image" :loading="loading" v-on:remove-image="removeImageEvent"
+					<CropperArea v-if="image" class="cropper-area" :key="image" ref="cropperAreaRef" :config="config"
+								 :src="image" :loading="loading" v-on:remove-image="removeImageEvent"
 								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />

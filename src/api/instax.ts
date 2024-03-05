@@ -186,9 +186,9 @@ export class InstaxPrinter extends InstaxBluetooth {
 						const response = await this.send(splitChunk, isPacketEnd)
 
 
-						const decodedResponse = this._decode(response as Event);
+						// const decodedResponse = this._decode(response as Event);
 						if (isPacketEnd == true &&
-							(response == null || decodedResponse == null || decodedResponse.status != 0)) {
+							response == null) {
 							throw new Error()
 						}
 
