@@ -1,4 +1,4 @@
-import Konva from "konva";
+
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
 import Compressor from 'compressorjs';
 
@@ -27,44 +27,47 @@ async function compressFile(file: Blob, width: number, height: number, rate: num
 		});
 
 	});
-}
-export async function compressedImage(type: InstaxFilmVariant, stage: Konva.Stage) {
-	return new Promise<string>(async (resolve, reject) => {
-
+} export async function compressedImage(type, stage) {
+	return new Promise(async (resolve, reject) => {
 		try {
-
-			const canvasUrl = stage.toDataURL({ pixelRatio: 2 });
-
-			const canvasImageBlob = await fetch(canvasUrl).then((res) => res.blob());
-
-
+			const canvasUrl = stage.toDataURL({ pixelRatio: 2.5 });
+			const canvasImageBlob = await fetch(canvasUrl).then(res => res.blob());
+			// console.log(canvasUrl)
 			const file = new File([canvasImageBlob], "compressed-image.jpeg", { type: "image/jpeg" });
 			const width = ((type == InstaxFilmVariant.MINI ? 600 : (type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
 			const height = ((type == InstaxFilmVariant.MINI ? 800 : (type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)
+			const maxSize = 1024 * 60;
 
+			let minQuality = 0, maxQuality = 1, quality = 0.5;
+			let result = null;
 
-			let result: Blob | null = null;
-			let redoCounter = 1;
-			while (redoCounter <= 20 && (result == null || result.size > (1024 * 120))) {
-				result = await compressFile(file, width, height, (.95 - ((redoCounter) * 0.025)))
+			while (minQuality <= maxQuality) {
+				quality = (minQuality + maxQuality) / 2;
+				result = await compressFile(file, width, height, quality);
 
-				if (result.size <= (1024 * 120)) break;
-				else redoCounter += 1;
-
+				if (result.size > maxSize) {
+					maxQuality = quality - 0.01;
+				} else {
+					if (maxQuality - minQuality < 0.02) break
+					minQuality = quality + 0.01;
+				}
 			}
 
-			if (result == null) throw new Error()
+			if (!result || result.size > (maxSize + 5000)) {
+				reject('Unable to compress image below target size');
+				return;
+			}
+
+			// console.log(result.width(), result.height())
 			const reader = new FileReader();
 			reader.onloadend = () => {
-				const base64 = reader.result as string;
-				resolve(base64)
 
+				const base64 = reader.result;
+				resolve(base64);
 			};
 			reader.readAsDataURL(result);
-
 		} catch (error) {
-			reject(error)
+			reject(error);
 		}
 	});
-
 }

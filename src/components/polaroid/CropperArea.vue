@@ -18,8 +18,10 @@
 import Konva from 'konva';
 import { onMounted, watch } from 'vue';
 import { type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+
 import { downloadPolaroid } from '../../cropper/cropper.download';
 import { compressedImage } from '../../cropper/cropper.print'
+
 const emit = defineEmits(['save', 'remove-image']);
 
 const props = defineProps<{
@@ -159,6 +161,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 			else {
 
 				const compressedCanvasImage = await compressedImage(props.config.type, stage);
+				// console.log(compressedCanvasImage)
 				resolve(compressedCanvasImage)
 			}
 		}
