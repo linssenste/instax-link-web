@@ -182,6 +182,21 @@ const resetBackgroundRect = () => {
 
 }
 
+function setCenterCross(id: string, idle = true, vertical) {
+	const doc = document.getElementById(id);
+
+	if (!idle) {
+		doc.style[!vertical ? 'height' : 'width'] = '100%'
+		doc.style.backgroundColor = 'var(--dynamic-bg-color)';
+		doc.style.zIndex = '5';
+	} else {
+		doc.style[!vertical ? 'height' : 'width'] = '20px'
+		doc.style.backgroundColor = 'white';
+		doc.style.zIndex = '1';
+	}
+
+}
+let timeoutSnapX, timeoutSnapY = null;
 function checkAndSnap() {
 	// The center of the stage in the stage's coordinate space
 	const stageCenterX = (stage.width() / 2 - stage.x()) / stage.scaleX();
@@ -192,21 +207,42 @@ function checkAndSnap() {
 	const imageCenterY = image.y();
 
 	// Snap threshold adjusted for stage scale
-	const threshold = 10 / stage.scaleX();
+	const threshold = 5 / stage.scaleX();
 
 	const deltaX = Math.abs(stageCenterX - imageCenterX);
 	const deltaY = Math.abs(stageCenterY - imageCenterY);
+
+	clearTimeout(timeoutSnapX)
+	clearTimeout(timeoutSnapY)
+
 
 	// Check if the image center is within the threshold distance of the stage center
 	if (deltaX <= threshold) {
 		// Adjust stage.x() to snap image's center to the stage's center
 		const snapXPosition = stage.width() / 2 - imageCenterX * stage.scaleX();
 		stage.x(snapXPosition);
+
+
+		setCenterCross("cross-element-horizontal", false, false)
+
+		timeoutSnapX = setTimeout(() => {
+			setCenterCross("cross-element-horizontal", true, false)
+		}, 500);
+	} else {
+		setCenterCross("cross-element-horizontal", true, false)
 	}
 	if (deltaY <= threshold) {
 		// Adjust stage.y() to snap image's center to the stage's center
 		const snapYPosition = stage.height() / 2 - imageCenterY * stage.scaleY();
 		stage.y(snapYPosition);
+
+		setCenterCross("cross-element-vertical", false, true)
+
+		timeoutSnapY = setTimeout(() => {
+			setCenterCross("cross-element-vertical", true, true)
+		}, 500);
+	} else {
+		setCenterCross("cross-element-vertical", true, true)
 	}
 
 
@@ -223,10 +259,7 @@ const addCanvasListeners = () => {
 		checkAndSnap();
 	});
 
-	// Also listen to dragend to ensure snapping is checked when dragging stops
-	stage.on('dragend', () => {
-		checkAndSnap();
-	});
+
 
 
 	// Wheel zoom functionality
@@ -383,9 +416,9 @@ watch([() => props.settings.color, () => props.src], setBackgroundColor);
 	position: absolute;
 	top: 50%;
 	left: 50%;
-	background-color: white;
+	background-color: var(--light-grey-color);
 	transform: translate(-50%, -50%);
-	z-index: 10;
+	z-index: 2;
 }
 
 .cross-element:first-of-type {
