@@ -12,7 +12,6 @@ describe('Polaroid size (or type) selector', () => {
 	})
 
 
-
 	it('renders component itself', () => {
 		expect(wrapper.exists()).toBe(true);
 	})
@@ -28,6 +27,7 @@ describe('Polaroid size (or type) selector', () => {
 		const secondPolaroid = wrapper.find('[data-testid="polaroid-selector-mini"]');
 		await secondPolaroid.trigger('click');
 		await nextTick();
+
 		expect(wrapper.vm.selectedType).toBe("mini"); // Assuming the second polaroid corresponds to 800 width
 	});
 

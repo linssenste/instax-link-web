@@ -18,6 +18,7 @@ const selectedType = ref<InstaxFilmVariant>(InstaxFilmVariant.SQUARE);
 
 // events
 const emit = defineEmits<{
+
 	/**
 	 * emits new selected type (mini, square or large)
 	 * @param {InstaxFilmVariant} type new polaroid size type
@@ -63,11 +64,8 @@ watch(selectedType, () => {
 }
 
 .inner-polaroid {
-	background-color: #f5f5f5 !important;
-
+	background-color: var(--light-grey-color) !important;
 	width: 100%;
-
-
 	height: 28px;
 	background-size: cover;
 	background-position: center;

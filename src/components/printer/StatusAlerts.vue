@@ -1,15 +1,15 @@
 <template>
-	<div v-if="status.polaroidCount != null && status.battery.level != null"  style="position: relative; ">
-		
+	<div v-if="status.polaroidCount != null && status.battery.level != null">
+
 		<!-- alert #1: no polaroids left -->
-		<div v-if="status.polaroidCount <= 0" class="error-card">
+		<div v-if="status.polaroidCount <= 0" class="error-card" data-testid="polaroid-count-status">
 			<img src="@/assets/icons/printer/warning.svg" width="22" />
 			<span>Insert new Polaroids</span>
 		</div>
 
 		<!-- alert #2: recharge battery -->
 		<div v-if="(!status.battery.charging && status.battery.level <= 10)" class="error-card"
-			>
+			 data-testid="battery-status">
 			<img src="@/assets/icons/battery/battery-warning.svg" width="22" />
 			<span> Recharge battery </span>
 		</div>
@@ -38,7 +38,7 @@ props.status;
 	align-items: center;
 	justify-content: start;
 	gap: 10px;
-	background-color: var(--dynamic-bg-color); 
+	background-color: var(--dynamic-bg-color);
 
 	padding: 15px;
 	padding-left: 15px;

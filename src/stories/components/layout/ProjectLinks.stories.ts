@@ -1,6 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/vue3';
-import { action } from '@storybook/addon-actions'
-
 import { userEvent, within } from '@storybook/testing-library';
 
 import ProjectLinks from '../../../components/layout/ProjectLinks.vue';
@@ -28,9 +26,9 @@ export const Primary: Story = {
 
 export const References: Story = {
 	play: async ({ canvasElement }) => {
-		
+
 		const canvas = within(canvasElement);
-		
+
 		await userEvent.hover(canvas.getByTestId("github-link"));
 		await userEvent.click(canvas.getByTestId("github-link"));
 
@@ -39,8 +37,8 @@ export const References: Story = {
 
 		await userEvent.hover(canvas.getByTestId("bmc-link"));
 		await userEvent.click(canvas.getByTestId("bmc-link"));
-  
-	  }
+
+	}
 
 }
 
