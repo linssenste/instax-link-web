@@ -148,14 +148,13 @@ export class InstaxPrinter extends InstaxBluetooth {
 				// Use the bigEndianBytes in your command
 				const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_START, [
 					0x02,
+					0x08,
 					0x00,
 					0x00,
 					0x00,
-					0x00,
-					0x00,
+					0x01,
 					...Array.from(bigEndianBytes)
 				]);
-
 
 				if (response == null || response.status != 0) throw new Error()
 
