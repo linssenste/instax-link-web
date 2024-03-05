@@ -13,6 +13,11 @@ import { ref, onMounted, watchEffect } from 'vue'
 
 // color update event
 const emit = defineEmits<{
+	/**
+	 * emits selected color to be updated on printer if connected
+	 * @param {string} color
+	 */
+
 	(e: 'color-change', color: string): void;
 }>();
 

@@ -1,13 +1,13 @@
 
 export enum InstaxFilmVariant {
 
-		MINI = "mini",
-		SQUARE = "square",
-		LARGE = "large",
-	}
+	MINI = "mini",
+	SQUARE = "square",
+	LARGE = "large",
+}
 
 
-interface PrinterBatteryStatus {
+export interface PrinterBatteryStatus {
 	charging: boolean,
 	level: null | number
 }
