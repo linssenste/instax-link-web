@@ -10,7 +10,7 @@
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
 		<div class="printer-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
-			<PrinterSettings :queue="imageQueue" :config="config" />
+			<PrinterConnection :queue="imageQueue" :config="config" />
 		</div>
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
@@ -25,7 +25,7 @@ import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
-import PrinterSettings from './components/printer/PrinterSettings.vue';
+import PrinterConnection from './components/printer/PrinterConnection.vue';
 
 import { InstaxPrinter } from './api/instax';
 
