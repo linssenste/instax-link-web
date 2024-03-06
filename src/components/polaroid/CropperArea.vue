@@ -136,6 +136,7 @@ const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: n
 
 
 
+
 	layer.add(backgroundRect);
 	layer.add(image);
 
@@ -231,7 +232,7 @@ function checkAndSnap() {
 
 		timeoutSnapX = setTimeout(() => {
 			setCenterCross("cross-element-horizontal", true, false)
-		}, 500);
+		}, 350);
 	} else {
 		setCenterCross("cross-element-horizontal", true, false)
 	}
@@ -244,7 +245,7 @@ function checkAndSnap() {
 
 		timeoutSnapY = setTimeout(() => {
 			setCenterCross("cross-element-vertical", true, true)
-		}, 500);
+		}, 350);
 	} else {
 		setCenterCross("cross-element-vertical", true, true)
 	}

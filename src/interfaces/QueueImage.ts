@@ -1,7 +1,7 @@
 export interface QueueImage {
 	quantity: number,
 	base64: string,
-	state: 0 | 1 | 2,
+	state: number,
 	progress: number,
 	abortController?: null | AbortController
 }

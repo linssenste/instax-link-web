@@ -4,9 +4,11 @@
 		<!-- opaque background color in theme color -->
 		<div class="area-background" data-testid="area-bg" />
 
+		<!-- hidden upload input -->
 		<input data-testid="input-file" v-on:change="inputChanged($event)" type="file" name="" accept="image/*" id="upload"
 			   hidden title="Upload image input" placeholder="">
 
+		<!-- centered plus icon -->
 		<img width="50" data-testid="plus-icon" title="Upload or drop an image" class="upload-icon"
 			 src="@/assets/icons/printer/plus.svg" />
 

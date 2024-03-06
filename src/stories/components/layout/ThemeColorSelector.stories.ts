@@ -6,7 +6,11 @@ import { userEvent, within } from '@storybook/testing-library';
 import ThemeColorSelector from '../../../components/layout/ThemeColorSelector.vue';
 
 /**
- * This component sets the theme color for the whole application. The color is set as a CSS variable ```--dynamic-bg-color`` and thereby updates the theme of the app. It also emits the selected color as an event and also saves the selection in local storage to use this selection on the next reload. Most components of the app (buttons, selectors, text, etc.) dynamically change based on this selection. 
+ * This component sets the theme color for the whole application. The color is set as 
+ * a CSS variable ```--dynamic-bg-color`` and thereby updates the theme of the app. 
+ * It also emits the selected color as an event and also saves the selection in local 
+ * storage to use this selection on the next reload. Most components of the app 
+ * (buttons, selectors, text, etc.) dynamically change based on this selection. 
  */
 const meta = {
 	title: 'Layout/Theme selector',
@@ -35,7 +39,7 @@ export const Event: Story = {
 
 		const canvas = within(canvasElement);
 
-		const colors = ['orange', 'yellow', 'green', 'blue', 'pink', 'black', 'red']; 
+		const colors = ['orange', 'yellow', 'green', 'blue', 'pink', 'black', 'red'];
 
 		for (let index = 0; index < colors.length; index++) {
 			const colorElement = canvas.getByTestId(`${colors[index]}-color-item`);
