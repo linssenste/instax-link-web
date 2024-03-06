@@ -29,10 +29,6 @@ const emit = defineEmits<{
 }>();
 
 
-
-const isDraggingOver = ref(false);
-
-
 onMounted(() => {
 	document.addEventListener('dragover', dragOver);
 	document.addEventListener('dragenter', dragEnter);
@@ -50,6 +46,8 @@ onUnmounted(() => {
 
 
 let dragCounter = 0; // debounce drag cursor in edge cases
+const isDraggingOver = ref(false);
+
 
 const updateDragState = (isDragging: boolean) => {
 	isDraggingOver.value = isDragging;
