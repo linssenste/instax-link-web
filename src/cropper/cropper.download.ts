@@ -80,6 +80,7 @@ export function setPolaroidFilter(image: Konva.Image, background: Konva.Rect, fi
 	image.cache();
 
 
+	if (background == null) return;
 	background.filters(filterList)
 
 	background.contrast(filter.contrast);
@@ -93,6 +94,7 @@ export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect)
 	image.clearCache();
 	image.filters([]);
 
+	if (background == null) return;
 	background.filters([]);
 	background.clearCache();
 }
