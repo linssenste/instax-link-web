@@ -4,33 +4,36 @@
 [![codecov](https://codecov.io/gh/linssenste/instax-link-web/branch/production/graph/badge.svg?token=ZU5AONZOVE)](https://codecov.io/gh/linssenste/instax-link-web)
 
 
-✨ TL;DR: [https://instax-link-web.vercel.app/](https://instax-link-web.vercel.app/)
+✨ TL;DR: [https://instax.linssenste.dev](https://instax.linssenste.dev)
 
+Instax Link-Web is a simple web-based tool that connects directly to your INSTAX Link printer and simplifies the way you print Polaroids. There's no software or app to install - just go to the website, connect your printer and start printing. Or don't and just download your Polaroid image - no need for a printer.  
+It has a few advantages over the various official apps. For starters: Queuing. You can queue up photos to print one at a time, and while they're being sent and printed, you can prepare the others. So whether you're printing a batch of holiday snaps or decorating your room with your latest adventures, things run smoothly. Preparing images is easy.  You can upload a photo or simply drag and drop it into the tool. Images automatically adjust to fit the frame perfectly. If you want to tweak things, you can drag or zoom the canvas to make manual adjustments or make sure your photos print just the way you want. There are even guidelines to show you the vertical and horizontal centre marks. You can also get artsy with this tool by changing the background of the image and adding images (or just stickers). Be creative with it.  It's all about giving your prints a personal touch and making each one unique. 
 
-Welcome to ✨ **Instax Link Web** ✨, the rebellious lovechild of the 2450984 existing INSTAX apps for printers. With this open-source web application, you can use Fujifilm's INSTAX link printers ([Mini Link](https://instax.com/mini_link_2/en/), [Square Link](https://instax.com/square_link/en/), and [Wide Link](https://instax.com/link_wide/en/)) directly from your browser, no strings attached! For now, **the square link printer is our star**, but mini and wide are eagerly waiting in the wings. Powered by the Web Bluetooth API, this app is compatible with the [cool kids' club of browsers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility) that embrace cutting-edge tech.
+Don't have a printer? No problem! You can still create charming Polaroid-style images. Just use the tool as if you were going to print, but apart from printing, just download. The Polaroid frame and some vintage themed filters are applied. Best of all, you can add text to the bottom of the Polaroid in a pen-style font that looks just like handwriting. It's the perfect way to add an old-school feel to your digital pictures.
 
-Crafted with Vue 3 and Vite, and sprinkled with vitest for unit testing, this project is as whimsical as it is functional.
+Instax Link Web makes photo printing fun and easy. Try it out and bring your digital memories to life in a creative and fun way!
 
-**Disclaimer:** While I've tested this project and can confirm it won't blow up your printer, I can't take responsibility for any mishaps. But hey, resetting an Instax printer is usually as easy as 1-2-3!
+**Disclaimer:** While I've tested this project and can confirm that it won't blow up your printer, I can't take responsibility for any mishaps. But hey, resetting an Instax printer is easy.
 
 Big shoutout to Jasper (@javl) for his inspiring [work](https://github.com/javl/InstaxBLE) on the Instax mini link! Another high-paw to my dog Jasper, the photogenic furball who kept me smiling during this project:
 ![IMG_4D1B5DC83F55-1](https://user-images.githubusercontent.com/13923365/232333543-868db58e-7537-4260-88fa-5c3a7c601268.jpeg)
 
 ## Why on Earth did I build this?
+I was becoming increasingly frustrated with the number of Instax apps available and decided to develop a streamlined solution that focused solely on allowing users to print photos with their Instax printer - no more, no less. In addition, this project gave me the opportunity to delve into reverse engineering the printer, learn more about the Web Bluetooth API and improve my technical skills. I am happy to report that the endeavour was successful.
 
-Well, I had enough of the countless INSTAX apps and thought I could create something that _just_ lets you print photos with your Instax printer. That's it. Plus, I wanted to see if I could reverse engineer the printer, learn something new, and use the Web Bluetooth API. Spoiler alert: it works!
 
-In the future, I might toy around with more quirky projects, like a "Hub" functionality. Picture this: multiple people sending photos to the printer without needing a direct connection. Instead, they'd send the images to a queue on the Hub (like a computer), which would print them one by one. Why? Because I've been frustrated with the INSTAX app, that's why!
+## How Does It Work?
 
-## What sorcery happens on the website?
+There's no magic behind the scenes - just a simple image cropper that lets you edit (pan, zoom, centre, etc.) and save images in Polaroid sizes (600x800, 800x800, 1260x840).
 
-No magic here. Just a simple image cropper that lets you edit and save Polaroid-sized pictures. When you save an image, the data gets compressed (albeit a bit crudely for now) because, well, it's meant for printing.
+Once you connect your printer via Bluetooth, the app retrieves essential printer information such as battery status, charging level, number of prints remaining and maximum image dimensions (width and height). This information is updated every 2.5 seconds.
 
-Once you connect your printer via Bluetooth, the app fetches specific details like battery status, charging state, remaining prints, and allowed image dimensions (width and height). These updates roll in every 2.5 seconds.
+During these intervals, the app also checks for queued images that are ready to print. If there's an image in the queue, it's divided into chunks and sent to the printer one at a time. The printer acknowledges each chunk it receives with a notification. If no notification is received, the application resends the segment at a slower rate. 
 
-When you print an image, the app slices it into chunks and sends them piece by piece to the printer. The printer sends a notification after each chunk, which the app patiently awaits. If there's no notification, the app tries again—slower this time. The printing process is a no-frills 13-second timeout because that's how long it takes to print a picture.
+## Technical Considerations and Compatibility
 
-So there you have it, Instax Link Web: a fun little side project that doesn't take itself too seriously, just like its README.
+This application utilizes the [Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API), which enables web applications to communicate with Bluetooth devices. Please note that the functionality of this API is not supported on all devices/browsers. For full compatibility details, refer to the [Web Bluetooth API reference](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API).
+
 
 ## Installation
 
