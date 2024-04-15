@@ -253,6 +253,7 @@ async function finishUpPrinting() {
 
 </script>
 
+
 <style scoped lang="scss" >
 .app-area {
 	position: fixed;
@@ -264,6 +265,7 @@ async function finishUpPrinting() {
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
+
 
 	&::before {
 		content: '';
@@ -320,3 +322,5 @@ async function finishUpPrinting() {
 
 }
 </style>
+
+

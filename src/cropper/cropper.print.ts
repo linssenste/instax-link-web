@@ -1,7 +1,6 @@
 
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
 import Compressor from 'compressorjs';
-// import { removePolaroidFilter, setPolaroidFilter } from "./cropper.download";
 
 
 async function compressFile(file: Blob, width: number, height: number, rate: number): Promise<Blob> {
@@ -31,19 +30,11 @@ async function compressFile(file: Blob, width: number, height: number, rate: num
 } export async function compressedImage(type, image, background, stage) {
 	return new Promise(async (resolve, reject) => {
 		try {
-			// const filterConfig = {
-			// 	contrast: -1,
-			// 	saturation: -0.2,
-			// 	brightness: .05,
-			// 	noise: .1
-			// }
-			// setPolaroidFilter(image, background, filterConfig);
 
 			const canvasUrl = stage.toDataURL({ pixelRatio: 2 });
-			// removePolaroidFilter(image, background);
 
 			const canvasImageBlob = await fetch(canvasUrl).then(res => res.blob());
-			// console.log(canvasUrl)
+
 			const file = new File([canvasImageBlob], "compressed-image.jpeg", { type: "image/jpeg" });
 			const width = ((type == InstaxFilmVariant.MINI ? 600 : (type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
 			const height = ((type == InstaxFilmVariant.MINI ? 800 : (type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)

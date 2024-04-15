@@ -16,20 +16,23 @@
 
 html,
 body {
-	font-family: 'Rubik'!important;
+	font-family: 'Rubik' !important;
 	font-weight: 400;
 	position: relative;
+	/* a light color */
+
 	margin: 0px;
 }
 
 input {
-	font-family: 'Rubik'!important;
-font-weight: 500;
-font-size: 15px;
+	font-family: 'Rubik' !important;
+	font-weight: 500;
+	font-size: 15px;
 }
+
 button {
-	
-	font-family: 'Rubik'!important;
+
+	font-family: 'Rubik' !important;
 
 
 	font-size: 15px;
@@ -46,13 +49,13 @@ button {
 	opacity: .85;
 
 
-	display: flex; 
+	display: flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: center;
 	transition: all 100ms ease-in-out;
 	cursor: pointer;
-	background-color: var(--dynamic-bg-color); 
+	background-color: var(--dynamic-bg-color);
 
 }
 
@@ -60,6 +63,7 @@ button {
 button img {
 	margin-right: 8px;
 }
+
 @media (hover: hover) and (pointer: fine) {
 
 	button:hover {
@@ -80,17 +84,20 @@ button img {
 h1 {
 	font-family: 'Keedy Sans';
 
-letter-spacing: 2px;
-color: var(--dynamic-bg-color);
-padding-top: 20px;
-font-size: 24px;
+	letter-spacing: 2px;
+	color: var(--dynamic-bg-color);
+	padding-top: 20px;
+	font-size: 24px;
 }
 
 
 .polaroid-caption {
-	
+
 
 	color: rgba(0, 15, 85, .75);
-	font-size: 25px; padding-top: 3px; width: 100%; font-family: 'biro_script_standardregular'; text-transform: uppercase;
+	font-size: 25px;
+	padding-top: 3px;
+	width: 100%;
+	font-family: 'biro_script_standardregular';
+	text-transform: uppercase;
 }
-
