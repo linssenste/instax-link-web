@@ -1,14 +1,14 @@
 <template>
-	<div class="app-area">
+	<div class="app-area" id="app-area" :class="{ 'transparent-bg': embedMode != null }">
 
 		<!-- bottom-left corner: color selector -->
-		<ThemeColorSelector class="theme-color-selector" v-on:color-change="themeChangeEvent" />
+		<ThemeColorSelector v-if="!embedMode" class="theme-color-selector" v-on:color-change="themeChangeEvent" />
 
 		<!-- bottom-right corner: project github link -->
-		<ProjectLinks class="project-links" />
+		<ProjectLinks v-if="!embedMode" class="project-links" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
-		<div class="printer-variant-settings">
+		<div v-if="!embedMode" class="printer-variant-settings">
 			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
 			<PrinterConnection :queue="imageQueue" :config="config" />
 		</div>
@@ -69,8 +69,17 @@ let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
 const imageQueue = ref<QueueImage[]>([])
 
+const embedMode = ref<string | null>(null)
 onMounted(() => {
 
+	const urlParams = new URLSearchParams(window.location.search);
+	embedMode.value = urlParams.get('embed') ?? null;
+	const appArea = document.getElementById('app-area');
+
+	if (embedMode.value && appArea) {
+		document.documentElement.style.setProperty('--dynamic-bg-color', `var(--${embedMode.value}-color)`);
+		appArea.classList.add('transparent-bg');
+	}
 	window.addEventListener("beforeunload", (event) => {
 		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
 	});
@@ -253,19 +262,16 @@ async function finishUpPrinting() {
 
 </script>
 
-
-<style scoped lang="scss" >
+<style scoped lang="scss">
 .app-area {
 	position: fixed;
 	width: 100vw;
 	height: 100%;
 	overflow: hidden;
 
-
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
-
 
 	&::before {
 		content: '';
@@ -280,6 +286,17 @@ async function finishUpPrinting() {
 	}
 }
 
+.transparent-bg {
+	background-color: transparent !important;
+
+	&::before {
+		content: '';
+
+		background-color: transparent;
+
+	}
+}
+
 .project-links {
 	position: absolute;
 	bottom: 18px;
@@ -290,14 +307,11 @@ async function finishUpPrinting() {
 	transform: scale(1.1);
 }
 
-
 .theme-color-selector {
 	position: absolute;
 	top: 25px;
 	right: 25px;
 }
-
-
 
 .printer-variant-settings {
 	position: absolute;
@@ -307,20 +321,13 @@ async function finishUpPrinting() {
 	top: 25px;
 	left: 25px;
 	gap: 15px;
-
 }
-
 
 @media only screen and (max-width: 600px) {
 
 	.printer-variant-settings,
 	.project-links {
-
 		display: none !important;
 	}
-
-
 }
 </style>
-
-
