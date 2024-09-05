@@ -22,6 +22,11 @@
 		</div>
 
 	</div>
+
+	<a v-else class="no-support-text"
+	   href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
+		Oh no, browser not supported
+	</a>
 </template>
 
 <script setup lang="ts">
@@ -101,5 +106,11 @@ function removeImageEvent(index: number): void {
 
 .connected-printer {
 	position: relative;
+}
+
+.no-support-text {
+	/* letter-spacing: 1px; */
+	font-size: 16px;
+	color: var(--dynamic-bg-color)
 }
 </style>
