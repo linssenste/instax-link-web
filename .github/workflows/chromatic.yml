@@ -1,22 +1,19 @@
-# .github/workflows/chromatic.yml
+name: Storybook to GitHub Pages
 
-name: 'Storybook Publish'
-on: push
- 
+on:
+  push:
+    branches:
+      - production
+
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'yarn'
-      - run: yarn
-      
-      - uses: chromaui/action@v1
-        with:
-          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Build and deploy Storybook
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        publish_dir: ./storybook-static
