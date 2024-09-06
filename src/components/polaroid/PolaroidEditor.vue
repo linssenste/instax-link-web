@@ -127,7 +127,10 @@ async function saveEditorPolaroid(download = false): Promise<void> {
 	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
 	emit("image", { src: imageUrl, download: download })
 
-	loading.value = false
+	setTimeout(() => {
+		loading.value = false
+
+	}, 750);
 
 
 }
@@ -148,15 +151,79 @@ function savePolaroidCanvas(imageURL: string): void {
 function getFileData(file: File | null): void {
 	if (!file) return;
 
-	const reader = new FileReader();
-	reader.readAsDataURL(file);
+	// Resize the image if it's larger than 2MB
+	resizeImage(file, 1024, 1024, (resizedFile: Blob) => {
+		const reader = new FileReader();
+		reader.readAsDataURL(resizedFile);
 
-	reader.onload = async function () {
-		image.value = reader.result as string;
-	};
-	reader.onerror = function (error) {
-		console.log('Error: ', error);
-	};
+		reader.onload = async function () {
+			image.value = reader.result as string;
+		};
+		reader.onerror = function (error) {
+			console.log('Error: ', error);
+		};
+	});
+
+
+
+}
+
+// Function to resize an image
+function resizeImage(file: File, maxWidth: number, maxHeight: number, callback: (resizedFile: Blob) => void): void {
+
+
+	if (file.size < 1.5 * maxWidth * maxHeight) callback(file);
+	else {
+
+		try {
+			const reader = new FileReader();
+
+			reader.onload = function (event: ProgressEvent<FileReader>) {
+				const img = new Image();
+				img.src = event.target?.result as string;
+
+				img.onload = function () {
+					const canvas = document.createElement('canvas');
+					let width = img.width;
+					let height = img.height;
+
+					// Scale down maintaining aspect ratio
+					if (width > maxWidth || height > maxHeight) {
+						const aspectRatio = width / height;
+						if (width > height) {
+							width = maxWidth;
+							height = maxWidth / aspectRatio;
+						} else {
+							height = maxHeight;
+							width = maxHeight * aspectRatio;
+						}
+					}
+
+					// Set canvas size and draw the image
+					canvas.width = width;
+					canvas.height = height;
+					const ctx = canvas.getContext('2d')!;
+					ctx.drawImage(img, 0, 0, width, height);
+
+					canvas.toBlob((blob) => {
+						if (blob) {
+							callback(blob);
+						}
+					}, file.type, 0.85);
+				};
+
+				img.onerror = function () {
+					callback(file);
+				}
+			};
+
+
+			reader.readAsDataURL(file);
+		} catch {
+			callback(file);
+		}
+
+	}
 }
 
 
