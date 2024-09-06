@@ -1,19 +1,13 @@
-name: Storybook to GitHub Pages
+name: Build and Publish storybook to GitHub Pages
 
 on:
   push:
     branches:
-      - production
-
+      - "production"
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Build and deploy Storybook
-      uses: peaceiris/actions-gh-pages@v3
+    - uses: bitovi/github-actions-storybook-to-github-pages@v1.0.0
       with:
-        publish_dir: ./storybook-static
+        path: storybook-static/
