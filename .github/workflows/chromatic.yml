@@ -4,8 +4,15 @@ on:
   push:
     branches:
       - "production"
+
+      
 jobs:
+
+
   deploy:
+    permissions:
+      id-token: write
+      pages: write
     runs-on: ubuntu-latest
     steps:
     - uses: bitovi/github-actions-storybook-to-github-pages@v1.0.0
