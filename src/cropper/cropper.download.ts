@@ -102,11 +102,12 @@ export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect)
 
 export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage): Promise<string> {
 	const filterConfig = {
-		contrast: -1,
-		saturation: -0.2,
+		contrast: 0.75,
+		saturation: 0.5,
 		brightness: .05,
-		noise: .1
+		noise: .15
 	}
+	
 	setPolaroidFilter(image, background, filterConfig)
 
 	const canvasUrl = stage.toDataURL({ pixelRatio: 2.4 });
