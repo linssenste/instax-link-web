@@ -1,13 +1,23 @@
 <template>
-	<div v-if="hasBluetoothAccess" id="printer-settings">
+	<div id="printer-settings">
 
-		<button v-if="!config.connection" v-on:click="config.connect" class="connect-button"
+		<div v-if="!config.connection" class="printer-connection">
+
+			<button :disabled="!hasBluetoothAccess" v-on:click="config.connect" class="connect-button"
 				data-testid="connect-printer-button">
-			<img width="18" height="18" alt="bluetooth icon to connect" src="@/assets/icons/printer/bluetooth.svg" />
-			<span>Connect</span>
-		</button>
+				<img width="18" draggable="false" height="18" alt="bluetooth icon to connect"
+					src="@/assets/icons/printer/bluetooth.svg" />
+				<span>Connect</span>
+			</button>
 
-		<div v-else class="connected-printer" data-testid="connected-printer">
+			<a v-if="!hasBluetoothAccess" class="no-support-text"
+				href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
+				Browser not supported
+			</a>
+		</div>
+
+		<div v-else-if="hasBluetoothAccess && config.connection" class="connected-printer"
+			data-testid="connected-printer">
 
 
 			<PrinterStatusCard :config="config" />
@@ -16,17 +26,14 @@
 
 			<div v-if="config.status != null" class="printing-queue">
 				<QueueElement v-for="(element, index) in queue" :key="index" :element="element"
-							  v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event" />
+					v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event" />
 			</div>
 
 		</div>
 
 	</div>
 
-	<a v-else class="no-support-text"
-	   href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
-		Oh no, browser not supported
-	</a>
+
 </template>
 
 <script setup lang="ts">
@@ -41,8 +48,9 @@ import PrinterStatusCard from './PrinterStatusCard.vue';
 
 const props = defineProps<{
 	config: PrinterStateConfig;
-	queue: QueueImage[],
+	queue: QueueImage[]
 }>();
+props.mobile;
 
 declare global {
 	interface Navigator {
@@ -53,11 +61,18 @@ declare global {
 	}
 }
 
-const hasBluetoothAccess = ref(false);
+const hasBluetoothAccess = ref(true);
 
 onMounted(() => {
 
+	console.log('PrinterConnection mounted');
+	console.log(navigator.bluetooth)
 	try {
+		if (!navigator.bluetooth) {
+			console.error('Bluetooth API not supported');
+			hasBluetoothAccess.value = false;
+			return;
+		}
 		// check bluetooth access
 		navigator.bluetooth?.getAvailability()?.then(available => {
 			if (available) {
@@ -65,6 +80,7 @@ onMounted(() => {
 			}
 		});
 	} catch (error) {
+		console.error('Bluetooth API not supported:', error);
 		hasBluetoothAccess.value = false
 	}
 
@@ -96,6 +112,13 @@ function removeImageEvent(index: number): void {
 	padding-right: 30px;
 }
 
+.connect-button:disabled {
+
+	background-color: var(--grey-color) !important;
+	cursor: not-allowed !important;
+	opacity: 0.4 !important;
+}
+
 
 .printing-queue {
 	position: relative;
@@ -108,9 +131,48 @@ function removeImageEvent(index: number): void {
 	position: relative;
 }
 
+.printer-connection {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	gap: 4px;
+}
+
+
+
 .no-support-text {
-	/* letter-spacing: 1px; */
-	font-size: 16px;
-	color: var(--dynamic-bg-color)
+	text-align: center;
+	color: var(--dynamic-bg-color);
+	margin-top: 5px;
+	font-size: 14px;
+}
+
+.no-support-text:visited {
+	color: black;
+}
+
+@media screen and (max-width: 1000px) {
+	.connect-button {
+		width: 100% !important;
+		height: 50px !important;
+		font-size: larger;
+	}
+
+	.connect-button img {
+		width: 22px;
+		height: 22px;
+		margin-right: 10px;
+	}
+
+
+	.no-support-text {
+
+		margin-top: 10px;
+		font-size: 15px;
+	}
 }
 </style>

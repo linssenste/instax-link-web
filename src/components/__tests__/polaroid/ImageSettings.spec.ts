@@ -44,7 +44,7 @@ describe('ImageSettings Component', () => {
 		});
 
 		it('updates caption maxlength when config.type changes', async () => {
-			await wrapper.setProps({ config: { type: InstaxFilmVariant.LARGE } });
+			await wrapper.setProps({ config: { type: InstaxFilmVariant.WIDE } });
 			expect(wrapper.find('[data-testid="caption-input"]').attributes('maxlength')).toBe('35');
 		});
 	});

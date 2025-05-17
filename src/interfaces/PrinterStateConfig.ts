@@ -3,7 +3,7 @@ export enum InstaxFilmVariant {
 
 	MINI = "mini",
 	SQUARE = "square",
-	LARGE = "large",
+	WIDE = "wide",
 }
 
 
