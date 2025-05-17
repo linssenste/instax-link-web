@@ -2,42 +2,49 @@
 	<div class="app-area" id="app-area" :class="{ 'transparent-bg': embedMode != null }">
 
 		<!-- bottom-left corner: color selector -->
-		<ThemeColorSelector v-if="!embedMode" class="theme-color-selector" v-on:color-change="themeChangeEvent" />
+		<PrinterConnection v-show="!isMobile" class="theme-color-selector" :queue="imageQueue" :config="config" />
 
 		<!-- bottom-right corner: project github link -->
-		<ProjectLinks v-if="!embedMode" class="project-links" />
+		<ThemeColorSelector v-show="!isMobile" v-if="!embedMode" class="project-links"
+			v-on:color-change="themeChangeEvent" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
-		<div v-if="!embedMode" class="printer-variant-settings">
-			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" />
-			<PrinterConnection :queue="imageQueue" :config="config" />
+		<div v-if="!embedMode && !isMobile" class="printer-variant-settings">
+			<PolaroidSizeSelector v-if="!config.connection" v-on:type-change="typeChangeEvent" connected="square" />
+
 		</div>
 
 		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
+
+
+		<MobileOverlay v-show="isMobile" :config="config" v-on:color-change="themeChangeEvent"
+			v-on:type-change="typeChangeEvent" :queue="imageQueue" />
 
 	</div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, onUnmounted } from 'vue';
 
+import MobileOverlay from './components/layout/MobileOverlay.vue'
 import ThemeColorSelector from './components/layout/ThemeColorSelector.vue'
 import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 import PrinterConnection from './components/printer/PrinterConnection.vue';
-
 import { InstaxPrinter } from './api/instax';
 
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
 
 import { QueueImage } from './interfaces/QueueImage';
-import ProjectLinks from './components/layout/ProjectLinks.vue';
+
+
+// if window smaller 1000
+const isMobile = ref<boolean>(window.innerWidth < 1000);
 
 
 const config = ref<PrinterStateConfig>({
 	type: InstaxFilmVariant.SQUARE,
-
 	connection: false,
 	connect: connectBluetoothPrinter,
 	disconnect: disconnectBluetoothPrinter,
@@ -58,7 +65,9 @@ function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 
 // update film type (only if not automatically with printer)
 function typeChangeEvent(filmType: InstaxFilmVariant): void {
-	if (!config.value.connection || !printer) config.value.type = filmType
+	if (!config.value.connection || !printer) {
+		config.value.type = filmType
+	}
 }
 
 
@@ -80,11 +89,29 @@ onMounted(() => {
 		document.documentElement.style.setProperty('--dynamic-bg-color', `var(--${embedMode.value}-color)`);
 		appArea.classList.add('transparent-bg');
 	}
-	window.addEventListener("beforeunload", (event) => {
-		if ((printer != null && imageQueue.value.length > 0 || isPrinting)) event.returnValue = true;
-	});
+	window.addEventListener("beforeunload", unload);
+	window.addEventListener('resize', resize);
 
 })
+
+onUnmounted(() => {
+	window.removeEventListener("beforeunload", unload);
+	window.removeEventListener('resize', resize);
+	if (timeoutHandle) clearInterval(timeoutHandle);
+	if (printer) printer.disconnect();
+})
+
+function resize(): void  {
+		isMobile.value = window.innerWidth < 1000;
+	}
+
+function unload(event): void {
+	if ((printer != null && imageQueue.value.length > 0 || isPrinting)) {
+		event.returnValue = true;
+	}
+}
+
+
 
 async function disconnectBluetoothPrinter(): Promise<void> {
 	if (!printer) return;
@@ -136,8 +163,7 @@ async function loadMetaData(): Promise<void> {
 	if (timeoutHandle) clearInterval(timeoutHandle);
 
 
-	await getPrinterMeta(true);
-	console.log("SET QUEEUEUEUE")
+	await getPrinterMeta(true); 
 	timeoutHandle = setInterval(async () => {
 		await getPrinterMeta();
 		printPolaroidQueue()
@@ -196,12 +222,9 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
-			console.log(imageQueue.value[0].base64);
-
 			await printer.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
 				if (imageQueue.value[0] == null) return;
 				if (imageQueue.value[0].abortController != null && (imageQueue.value[0].abortController.signal.aborted == true && progress == -1)) {
-					console.log("AFTER COM")
 					return;
 				}
 
@@ -224,8 +247,6 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 				const quantity = imageQueue.value[0].quantity ?? 1; // total images
 				imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
-
-				console.log("PRINTING???")
 
 				// begin printing commands
 				await printer.printImage(quantity, (printedImages: number) => {
@@ -281,7 +302,7 @@ async function finishUpPrinting() {
 		width: 100%;
 		height: 100%;
 		background-color: var(--dynamic-bg-color);
-		opacity: 0.2;
+		opacity: .25;
 		z-index: -1;
 	}
 }

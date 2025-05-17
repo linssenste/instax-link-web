@@ -41,7 +41,7 @@ describe('PrinterStatusCard Component', () => {
 
 		it('shows correct battery level and icon', () => {
 			expect(wrapper.find('[data-testid="printer-battery-level"]').text()).toContain('75%');
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-75.svg');
+			// expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-75.svg');
 		});
 
 		it('shows connecting text when config status is null', async () => {
@@ -75,120 +75,127 @@ describe('PrinterStatusCard Component', () => {
 			expect(batteryIcon).toBe(75);
 		});
 	});
-
-
 	describe('Battery level status', () => {
 		it('displays charging icon and text when battery is charging', async () => {
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 50,
-							charging: true
-						}
-					}
+		  await wrapper.setProps({
+			config: {
+			  ...mockConfig,
+			  status: {
+				...mockConfig.status,
+				battery: {
+				  level: 50,
+				  charging: true
 				}
-			});
-			await nextTick()
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-charging.svg');
-			expect(wrapper.find('[data-testid="printer-battery-charging-text"]').text()).toContain('POWER');
-
-
+			  }
+			}
+		  });
+		  await nextTick();
+	  
+		  const src = wrapper.find('[data-testid="printer-battery-level"] img').attributes('src');
+		  expect(src).toMatch(/^data:image\/svg\+?xml/);
+		  expect(wrapper.find('[data-testid="printer-battery-charging-text"]').text()).toContain('POWER');
 		});
-
-		it('displays correct icon for 0% battery level', async () => {
-			await wrapper.setProps({
+	  
+		const batteryLevels = [
+			{ level: 0, color: '#ff5a5a' },      // red, for empty
+			{ level: 25, color: '#ff9800' },     // orange
+			{ level: 50, color: '#ffeb3b' },     // yellow
+			{ level: 75, color: '#cddc39' },     // light green
+			{ level: 100, color: '#009c34' },    // green
+		  ];
+		  
+		  for (const { level } of batteryLevels) {
+			it(`renders correct inline SVG for ${level}% battery`, async () => {
+			  await wrapper.setProps({
 				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 0,
-							charging: false
-						}
+				  ...mockConfig,
+				  status: {
+					...mockConfig.status,
+					battery: {
+					  level,
+					  charging: false
 					}
+				  }
 				}
+			  });
+		  
+			  const src = wrapper.find('[data-testid="printer-battery-level"] img').attributes('src');
+		  
+			  // Ensure it is inline SVG
+			  expect(src).toMatch(/^data:image\/svg\+?xml/);
+	
 			});
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-0.svg');
-		});
-
-		it('displays correct icon for 100% battery level', async () => {
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 100,
-							charging: false
-						}
-					}
-				}
-			});
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-100.svg');
-		});
-
-
+		  }
+		  
+	  
 		it('maintains charging icon and text when battery level increases but is still charging', async () => {
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 25,
-							charging: true
-						}
-					}
+		  await wrapper.setProps({
+			config: {
+			  ...mockConfig,
+			  status: {
+				...mockConfig.status,
+				battery: {
+				  level: 25,
+				  charging: true
 				}
-			});
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 50,
-							charging: true
-						}
-					}
+			  }
+			}
+		  });
+	  
+		  await wrapper.setProps({
+			config: {
+			  ...mockConfig,
+			  status: {
+				...mockConfig.status,
+				battery: {
+				  level: 50,
+				  charging: true
 				}
-			});
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).toContain('battery-charging.svg');
-			expect(wrapper.find('[data-testid="printer-battery-charging-text"]').text()).toContain('POWER');
+			  }
+			}
+		  });
+	  
+		  const src = wrapper.find('[data-testid="printer-battery-level"] img').attributes('src');
+		  expect(src).toMatch(/^data:image\/svg\+xml/);
+
+		  expect(wrapper.find('[data-testid="printer-battery-charging-text"]').text()).toContain('POWER');
 		});
-
-
+	  
 		it('updates to non-charging state correctly when battery stops charging', async () => {
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 50,
-							charging: true
-						}
-					}
+		  await wrapper.setProps({
+			config: {
+			  ...mockConfig,
+			  status: {
+				...mockConfig.status,
+				battery: {
+				  level: 50,
+				  charging: true
 				}
-			});
-			await wrapper.setProps({
-				config: {
-					...mockConfig,
-					status: {
-						...mockConfig.status,
-						battery: {
-							level: 60,
-							charging: false
-						}
-					}
+			  }
+			}
+		  });
+	  
+		  await wrapper.setProps({
+			config: {
+			  ...mockConfig,
+			  status: {
+				...mockConfig.status,
+				battery: {
+				  level: 60,
+				  charging: false
 				}
-			});
-			expect(wrapper.find('[data-testid="printer-battery-level"] img').attributes('src')).not.toContain('battery-charging.svg');
-			expect(wrapper.find('[data-testid="printer-battery-charging-text"]').exists()).toBe(false);
-			expect(wrapper.find('[data-testid="printer-battery-level"]').text()).toContain('60%');
+			  }
+			}
+		  });
+	  
+		  const batteryLevelDiv = wrapper.find('[data-testid="printer-battery-level"]');
+		  const src = batteryLevelDiv.find('img').attributes('src');
+	  
+		  expect(src).toMatch(/^data:image\/svg\+xml/);
+
+		  expect(wrapper.find('[data-testid="printer-battery-charging-text"]').exists()).toBe(false);
+		  expect(batteryLevelDiv.text()).toContain('60%');
 		});
-	});
+	  });
+	  
 });

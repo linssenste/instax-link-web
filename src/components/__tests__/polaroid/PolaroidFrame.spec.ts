@@ -24,7 +24,7 @@ describe('PolaroidFrame Component', () => {
 		const typesAndExpectedValues = [
 			{ type: InstaxFilmVariant.MINI, src: `/polaroids/${InstaxFilmVariant.MINI}.webp`, width: '282' },
 			{ type: InstaxFilmVariant.SQUARE, src: `/polaroids/${InstaxFilmVariant.SQUARE}.webp`, width: '368' },
-			{ type: InstaxFilmVariant.LARGE, src: `/polaroids/${InstaxFilmVariant.LARGE}.webp`, width: '522' }
+			{ type: InstaxFilmVariant.WIDE, src: `/polaroids/${InstaxFilmVariant.WIDE}.webp`, width: '522' }
 		];
 
 		typesAndExpectedValues.forEach(({ type, src, width }) => {
@@ -41,7 +41,7 @@ describe('PolaroidFrame Component', () => {
 		const typesAndExpectedClasses = [
 			{ type: InstaxFilmVariant.MINI, expectedClass: '.inner-mini' },
 			{ type: InstaxFilmVariant.SQUARE, expectedClass: '.inner-square' },
-			{ type: InstaxFilmVariant.LARGE, expectedClass: '.inner-large' }
+			{ type: InstaxFilmVariant.WIDE, expectedClass: '.inner-wide' }
 		];
 
 		typesAndExpectedClasses.forEach(({ type, expectedClass }) => {
@@ -89,9 +89,9 @@ describe('PolaroidFrame Component', () => {
 			await wrapper.setProps({ type: InstaxFilmVariant.MINI });
 			expect(wrapper.find('.inner-mini').exists()).toBe(true);
 
-			await wrapper.setProps({ type: InstaxFilmVariant.LARGE });
+			await wrapper.setProps({ type: InstaxFilmVariant.WIDE });
 			expect(wrapper.find('.inner-mini').exists()).toBe(false);
-			expect(wrapper.find('.inner-large').exists()).toBe(true);
+			expect(wrapper.find('.inner-wide').exists()).toBe(true);
 		});
 	});
 });

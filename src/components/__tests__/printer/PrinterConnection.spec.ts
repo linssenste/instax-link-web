@@ -48,12 +48,29 @@ describe('YourComponent', () => {
 
 	describe('Initial Rendering', () => {
 
-		it('renders nothing if no bluetooth API access is detected', async () => {
+		it('mounts the component', () => {
+			expect(wrapper.exists()).toBe(true);
+		});
+		
+		it('renders the connect button', () => {
+			const button = wrapper.find('[data-testid="connect-printer-button"]');
+			expect(button.exists()).toBe(true);
+		});
+
+		it('disables connection button and renders text underneath if no bluetooth API access is detected', async () => {
+
+			expect(wrapper.find('[data-testid="no-support-text"]').exists()).toBe(false);
 			wrapper.vm.hasBluetoothAccess = false;
+
 			await nextTick()
 
+			const button = wrapper.find('[data-testid="connect-printer-button"]');
+
+			expect(button.exists()).toBe(true);
+			expect(button.element.disabled).toBe(true);
 			expect(wrapper.vm.hasBluetoothAccess).toBe(false)
-			expect(wrapper.find('[data-testid="connect-printer-button"]').exists()).toBe(false);
+
+			expect(wrapper.find('[data-testid="no-support-text"]').exists()).toBe(true);
 		});
 
 

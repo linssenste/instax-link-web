@@ -92,7 +92,7 @@ const polaroidImageSource = computed(() => {
 	aspect-ratio: 800/800;
 }
 
-.inner-large {
+.inner-wide {
 	padding-top: 5px;
 	padding-left: 2px;
 	aspect-ratio: 1260/840;

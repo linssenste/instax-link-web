@@ -61,7 +61,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 			console.log(width)
 			if (width == 1260 && height == 840) {
-				printerStatus.type = InstaxFilmVariant.LARGE
+				printerStatus.type = InstaxFilmVariant.WIDE
 			} else if (width == 800) {
 				printerStatus.type = InstaxFilmVariant.SQUARE
 			} else if (width == 600) {

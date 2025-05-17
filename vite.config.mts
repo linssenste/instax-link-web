@@ -29,7 +29,6 @@ export default defineConfig({
 				'src/router.ts',
 				'main.cjs',
 				'preview.cjs',
-				'.storybook',
 				'dist/**',
 				'public/**',
 				'src/plugins/**',
