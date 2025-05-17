@@ -10,7 +10,7 @@
 				<span>Connect</span>
 			</button>
 
-			<a v-if="!hasBluetoothAccess" class="no-support-text"
+			<a v-if="!hasBluetoothAccess" class="no-support-text" data-testid="no-support-text"
 				href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
 				Browser not supported
 			</a>
@@ -167,7 +167,6 @@ function removeImageEvent(index: number): void {
 		height: 22px;
 		margin-right: 10px;
 	}
-
 
 	.no-support-text {
 

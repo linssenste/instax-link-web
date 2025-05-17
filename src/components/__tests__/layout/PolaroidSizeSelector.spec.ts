@@ -1,88 +1,135 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import PolaroidSizeSelector from '../../../components/layout/PolaroidSizeSelector.vue'
 
-describe('Polaroid size (or type) selector', () => {
+describe('PolaroidSizeSelector', () => {
 	let wrapper
 
 	beforeEach(() => {
-		wrapper = mount(PolaroidSizeSelector);
-	})
-
-
-	it('renders component itself', () => {
-		expect(wrapper.exists()).toBe(true);
-	})
-
-
-	it('renders all three polaroid size types', () => {
-		const polaroids = wrapper.findAll('[data-testid^="polaroid-selector-"]');
-		expect(polaroids.length).toBe(3); // Assuming there are three predefined sizes in your template
+		wrapper = mount(PolaroidSizeSelector, {
+			attachTo: document.body,
+		});
 	});
 
-
-	it('changes selected width on click', async () => {
-		const secondPolaroid = wrapper.find('[data-testid="polaroid-selector-mini"]');
-		await secondPolaroid.trigger('click');
-		await nextTick();
-
-		expect(wrapper.vm.selectedType).toBe("mini"); // Assuming the second polaroid corresponds to 800 width
+	afterEach(() => {
+		wrapper.unmount();
 	});
 
+	describe('Rendering', () => {
+		it('mounts the component', () => {
+			expect(wrapper.exists()).toBe(true);
+		});
 
-	it('emits "square" event on mounted as default', async () => {
-		expect(wrapper.emitted()['type-change']).toBeTruthy(); // type-change event
-		expect(wrapper.emitted()['type-change'][0][0]).toEqual("square");
+		it('renders all three polaroid size types', () => {
+			const polaroids = wrapper.findAll('[data-testid^="polaroid-selector-"]');
+			expect(polaroids.length).toBe(3);
+		});
+
+		it('renders correct titles', () => {
+			const titles = wrapper.findAll('.polaroid').map((el) => el.attributes('title'));
+			expect(titles).toEqual([
+				'Instax Mini (600x800)',
+				'Instax Square (800x800)',
+				'Instax Wide (1260x840)',
+			]);
+		});
 	});
 
+	describe('Selection behavior', () => {
+		const polaroidTypes = ['mini', 'square', 'wide'];
 
-	it('emits "type-change" event on type click', async () => {
+		polaroidTypes.forEach((type) => {
+			it(`selects and emits ${type}`, async () => {
+				const el = wrapper.find(`[data-testid="polaroid-selector-${type}"]`);
+				await el.trigger('click');
+				await nextTick();
 
-		// mini type
-		let polaroidElement = wrapper.find('[data-testid="polaroid-selector-mini"]');
-		await polaroidElement.trigger('click');
-		await nextTick();
+				expect(wrapper.vm.selectedType).toBe(type);
+				expect(wrapper.emitted()['type-change']).toBeTruthy();
+				expect(wrapper.emitted()['type-change'].at(-1)[0]).toBe(type);
+			});
 
-		expect(wrapper.emitted()['type-change']).toBeTruthy(); // type-change event
-		expect(wrapper.emitted()['type-change'][1][0]).toEqual("mini");
+			it(`does not emit again on re-clicking already selected ${type}`, async () => {
+				const el = wrapper.find(`[data-testid="polaroid-selector-${type}"]`);
+				await el.trigger('click');
+				await nextTick();
 
+				const count = wrapper.emitted()['type-change'].length;
+				await el.trigger('click');
+				await nextTick();
 
+				expect(wrapper.emitted()['type-change'].length).toBe(count);
+			});
 
-		// large (or wide) type
-		polaroidElement = wrapper.find('[data-testid="polaroid-selector-large"]');
-		await polaroidElement.trigger('click');
-		await nextTick();
+			it(`applies correct scale style for selected ${type}`, () => {
+				const el = wrapper.find(`[data-testid="polaroid-selector-${type}"]`);
+				expect(el.element.style.transform).toBe('scale(1.15)');
+			});
 
-		expect(wrapper.emitted()['type-change']).toBeTruthy(); // type-change event
-		expect(wrapper.emitted()['type-change'][2][0]).toEqual("large");
-
-
-		// square type
-		polaroidElement = wrapper.find('[data-testid="polaroid-selector-square"]');
-		await polaroidElement.trigger('click');
-		await nextTick();
-
-		expect(wrapper.emitted()['type-change']).toBeTruthy(); // type-change event
-		expect(wrapper.emitted()['type-change'][3][0]).toEqual("square");
+			it(`stores selected type ${type} in localStorage`, () => {
+				expect(localStorage.getItem('polaroid')).toBe(type);
+			});
+		});
 	});
 
+	describe('Image handling', () => {
+		it('only shows image for selected type', () => {
+			const types = ['mini', 'square', 'wide'];
+			const selected = wrapper.vm.selectedType;
 
-	it('does not emit "type change" event when clicking on the already selected polaroid', async () => {
-		const initialResizeCount = wrapper.emitted().resize ? wrapper.emitted()["type-change"].length : 0;
-		const selectedPolaroid = wrapper.find('[data-testid="polaroid-selector-square"]');
-		await selectedPolaroid.trigger('click');
-		await nextTick();
+			types.forEach((type) => {
+				const img = wrapper.find(`[data-testid="image-${type}"]`);
+				if (type === selected) {
+					expect(img.isVisible()).toBe(true);
+					expect(img.attributes('src')).toContain('https://picsum.photos/');
+				} else {
+					expect(img.element.style.display).toBe('none');
+				}
+			});
+		});
 
-		expect(wrapper.emitted().resize ? wrapper.emitted().resize.length : 0).toBe(initialResizeCount);
+		it('sets a valid picsum.photos image URL for selected type', () => {
+			const selected = wrapper.vm.selectedType;
+			const img = wrapper.find(`[data-testid="image-${selected}"]`);
+
+			expect(img.attributes('src')).toMatch(/https:\/\/picsum\.photos\/seed\/.*\/\d+\/\d+/);
+		});
+
+		it('adds "develop-polaroid" class on image load', async () => {
+			const selected = wrapper.vm.selectedType;
+			const img = wrapper.find(`[data-testid="image-${selected}"]`);
+
+			const overlay = document.getElementById(`${selected}-overlay`);
+			expect(overlay).toBeTruthy();
+			if (!overlay) return;
+
+			const spy = vi.spyOn(overlay.classList, 'add');
+			await img.trigger('load');
+			await nextTick();
+
+			expect(spy).toHaveBeenCalledWith('develop-polaroid');
+		});
+
+		it('sets fallback image only after exceeding 5 load errors', async () => {
+			const selected = wrapper.vm.selectedType;
+			const img = wrapper.find(`[data-testid="image-${selected}"]`);
+			const fallbackUrl = `/public/fallback-images/fallback-${selected.charAt(0)}.webp`;
+
+			expect(img.attributes('src')).not.toBe(fallbackUrl);
+			expect(img.attributes('src')).toMatch(/https:\/\/picsum\.photos\/seed\/.*\/\d+\/\d+/);
+
+			for (let i = 0; i < 5; i++) {
+				await img.trigger('error');
+			}
+
+			await img.trigger('error');
+			await nextTick();
+
+			expect(img.attributes('src')).toBe(fallbackUrl);
+		});
 	});
+});
 
 
-	it('renders polaroids with correct titles', () => {
-		const polaroidTitles = wrapper.findAll('.polaroid').map((polaroid) => polaroid.attributes('title'));
-		const expectedTitles = ['Instax Mini (600x800)', 'Instax Square (800x800)', 'Instax Large (1260x840)'];
-		expect(polaroidTitles).toEqual(expectedTitles);
-	});
-
-})
