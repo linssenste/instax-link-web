@@ -1,18 +1,23 @@
 :root {
 	--dynamic-bg-color: #FF5A5A;
-	--blue-color: #4183FF;
-	--pink-color: #F870FF;
-	--orange-color: #FE9C00;
-	--yellow-color: #FEEA00;
-	--green-color: #009C34;
-	--red-color: #FF5A5A;
+
+	--yellow-color: #FFD840;
+	--blue-color: #3FC2C3;
+	--pink-color: #830065;
+
+	--orange-color: #FF8025;
+	--green-color: #01667E;
+	--red-color: #FF4D33;
+
 
 	--error-color: #FF5A5A;
 	--grey-color: #a0a0a0;
-	--light-grey-color: #dadada;
+	--light-grey-color: #e0e0e0;
 	--white-color: #ffffff;
 	--black-color: #000
 }
+
+
 
 html,
 body {
@@ -42,7 +47,7 @@ button {
 	padding-right: 16px;
 	outline: none;
 	border: none;
-	border-radius: 8px;
+	border-radius: 10px;
 	font-weight: 400;
 	text-transform: uppercase;
 	letter-spacing: 2px;
