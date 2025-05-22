@@ -74,26 +74,23 @@ const polaroidClass = (filmType: InstaxFilmVariant) => {
 	}
 }
 
-
-const retryCount = ref(0); // retry count for image loading
-
 // set fallback image (dog jasper) if image loading fails
 function setFallbackImage(e: Event, filmType: InstaxFilmVariant) {
-	if (retryCount.value > 5 || filmType !== selectedType.value) return;
+	if (filmType !== selectedType.value) return;
 
-	const target = e.target as HTMLImageElement;
-	retryCount.value++;
 
+	const target = e.target as HTMLImageElement; 
 	if (!target) return;
-	target.src = `/public/fallback-images/fallback-${selectedType.value.charAt(0)}.webp`;
+	target.src = `/public/fallback-images/fallback-${selectedType.value.charAt(0)}.webp`; 
+	beginImageDevelopment()
 
 }
 
 // start image development on selected polaroid after image loaded (fade-out overlay)
-function beginImageDevelopment() {
-	console.log("begin image development");
+function beginImageDevelopment() { 
 	const overlay = document.getElementById(`${selectedType.value}-overlay`) as HTMLElement;
-	console.log(overlay);
+
+	
 	if (overlay) {
 		overlay.classList.add('develop-polaroid');
 	}
