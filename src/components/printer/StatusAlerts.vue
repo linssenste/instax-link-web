@@ -38,7 +38,7 @@ props.status;
 	align-items: center;
 	justify-content: start;
 	gap: 10px;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 
 	padding: 15px;
 	padding-left: 15px;

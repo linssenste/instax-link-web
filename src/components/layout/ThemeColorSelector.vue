@@ -25,7 +25,7 @@ const emit = defineEmits<{
 const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink']; // yeah, i know... #pride
 const selectedColor = ref(localStorage.getItem('theme-color') ?? 'red'); // default color
 
-const colorStyling = (name: string) => ({ backgroundColor: `var(--${name}-color)` });
+const colorStyling = (name: string) => ({ backgroundColor: `rgb(var(--${name}-color))` });
 const selectedClass = (color: string) => (selectedColor.value == color ? 'color-selected' : '');
 
 onMounted(() => {

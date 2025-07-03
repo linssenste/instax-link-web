@@ -1,21 +1,21 @@
 :root {
-	--dynamic-bg-color: #FF5A5A;
+	--dynamic-bg-color: 255, 90, 90;
 
-	--yellow-color: #FFD840;
-	--blue-color: #3FC2C3;
-	--pink-color: #830065;
+	--yellow-color: 255, 216, 64;
+	--blue-color: 63, 194, 195;
+	--pink-color: 131, 0, 101;
 
-	--orange-color: #FF8025;
-	--green-color: #01667E;
-	--red-color: #FF4D33;
+	--orange-color: 255, 128, 37;
+	--green-color: 1, 102, 126;
+	--red-color: 255, 77, 51;
 
-
-	--error-color: #FF5A5A;
-	--grey-color: #a0a0a0;
-	--light-grey-color: #e0e0e0;
-	--white-color: #ffffff;
-	--black-color: #000
+	--error-color: 255, 90, 90;
+	--grey-color: 160, 160, 160;
+	--light-grey-color: 224, 224, 224;
+	--white-color: 255, 255, 255;
+	--black-color: 0, 0, 0;
 }
+
 
 
 
@@ -47,7 +47,7 @@ button {
 	padding-right: 16px;
 	outline: none;
 	border: none;
-	border-radius: 10px;
+	border-radius: 20px;
 	font-weight: 400;
 	text-transform: uppercase;
 	letter-spacing: 2px;
@@ -60,7 +60,7 @@ button {
 	justify-content: center;
 	transition: all 100ms ease-in-out;
 	cursor: pointer;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 
 }
 
@@ -90,7 +90,7 @@ h1 {
 	font-family: 'Keedy Sans';
 
 	letter-spacing: 2px;
-	color: var(--dynamic-bg-color);
+	color: rgb(var(--dynamic-bg-color));
 	padding-top: 20px;
 	font-size: 24px;
 }

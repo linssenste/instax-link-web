@@ -146,7 +146,7 @@ function removeImageEvent(index: number): void {
 
 .no-support-text {
 	text-align: center;
-	color: var(--dynamic-bg-color);
+	color: rgb(var(--dynamic-bg-color));
 	margin-top: 5px;
 	font-size: 14px;
 }

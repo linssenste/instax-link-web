@@ -130,7 +130,7 @@ const batteryIcon = computed(() => {
 
 .printer-name span {
 	margin-left: 8px;
-	color: var(--dynamic-bg-color);
+	color: rgb(var(--dynamic-bg-color));
 
 }
 

@@ -122,7 +122,7 @@ watch(selectedType, (newType, oldType) => {
 	padding-top: 4px;
 	border-radius: 2px;
 	cursor: pointer;
-	background-color: var(--white-color);
+	background-color: rgb(var(--white-color));
 	transition: transform 250ms;
 	;
 }
@@ -145,7 +145,7 @@ watch(selectedType, (newType, oldType) => {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	background-color: var(--black-color) !important;
+	background-color: rgb(var(--black-color)) !important;
 	opacity: 1;
 }
 
@@ -176,7 +176,7 @@ watch(selectedType, (newType, oldType) => {
 	margin-top: 12px;
 	width: 100%;
 	font-size: 15px;
-	color: var(--black-color);
+	color: rgb(var(--black-color));
 }
 
 

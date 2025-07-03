@@ -78,6 +78,6 @@ function uploadImage(): void {
 	height: 100%;
 	position: absolute;
 	opacity: .5;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 }
 </style>

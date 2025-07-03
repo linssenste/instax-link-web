@@ -77,7 +77,7 @@ function themeChangeEvent(value: string) {
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: var(--dynamic-bg-color);
+        background-color: rgb(var(--dynamic-bg-color));
         opacity: .2;
         z-index: -1;
     }

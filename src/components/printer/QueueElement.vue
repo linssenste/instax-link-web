@@ -132,19 +132,19 @@ function modifyQuantity(value: number): void {
 	height: 10px;
 	position: relative;
 	overflow: hidden;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 
 }
 
 .progress-print {
 	transition: width 15s linear;
-	background-color: var(--dynamic-bg-color) !important;
+	background-color: rgb(var(--dynamic-bg-color)) !important;
 }
 
 
 .progress-step {
 
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 
 	width: 12px !important;
 	height: 10px !important;
@@ -165,7 +165,7 @@ function modifyQuantity(value: number): void {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
 }
