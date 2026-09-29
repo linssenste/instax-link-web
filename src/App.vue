@@ -1,11 +1,11 @@
 <template>
 	<div class="app-area" id="app-area" :class="{ 'transparent-bg': embedMode != null }">
 
-		<!-- bottom-left corner: color selector -->
-		<PrinterConnection v-show="!isMobile" class="theme-color-selector" :queue="imageQueue" :config="config" />
+		<!-- top-right corner: connection, printer status and the print queue -->
+		<PrinterConnection v-show="!isMobile" class="printer-panel" :queue="imageQueue" :config="config" />
 
-		<!-- bottom-right corner: project github link -->
-		<ThemeColorSelector v-show="!isMobile" v-if="!embedMode" class="project-links"
+		<!-- bottom-left corner: theme color selector -->
+		<ThemeColorSelector v-show="!isMobile" v-if="!embedMode" class="theme-colors"
 			v-on:color-change="themeChangeEvent" />
 
 		<!-- top-left corner: polaroid size selector (if no connection) (only square size in preview mode)-->
@@ -36,6 +36,7 @@ import { InstaxPrinter } from './api/instax';
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
 
 import type { QueueImage } from './interfaces/QueueImage';
+import { downloadDataUrl, polaroidFilename } from './cropper/cropper.download';
 
 
 // if window smaller 1000
@@ -148,7 +149,7 @@ async function connectBluetoothPrinter(): Promise<void> {
 			themeChangeEvent();
 		}, 1500);
 
-	} catch (error) {
+	} catch {
 		clearConnection()
 	}
 
@@ -189,29 +190,33 @@ async function getPrinterMeta(includeType = false): Promise<void> {
 		else status.type = type;
 
 
-	} catch (error) {
+	} catch {
 		return
 	}
 
 }
 
-interface ImageData {
+interface RenderedImage {
 	src: string,
-	download: boolean
+	download: boolean,
+	caption: string,
+	type: InstaxFilmVariant
 }
 
-function createdImageEvent(imageData: ImageData) {
+function createdImageEvent(imageData: RenderedImage) {
 
-	// download image if no printer is connected (image + polaroid frame are exported)
+	// queue for printing; the caption is not printed, so it is kept as the title
 	if (imageData.download == false && config.value.connection == true) {
-
-		// add to image queue
-		imageQueue.value.push({ base64: imageData.src, quantity: 1, state: 0, progress: 0 })
+		imageQueue.value.push({
+			base64: imageData.src,
+			quantity: 1,
+			state: 0,
+			progress: 0,
+			type: imageData.type,
+			caption: imageData.caption
+		})
 	} else {
-		const a = document.createElement("a");
-		a.href = imageData.src
-		a.download = "Polaroid.png"; //File name Here
-		a.click(); //Downloaded file
+		downloadDataUrl(imageData.src, polaroidFilename(imageData.caption));
 	}
 }
 
@@ -268,7 +273,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 			}
 
-		} catch (error) {
+		} catch {
 			if (!isRetry && !imageQueue.value[0]?.abortController?.signal) return printPolaroidQueue(true);
 		}
 
@@ -314,7 +319,7 @@ async function finishUpPrinting() {
 		width: 100%;
 		height: 100%;
 		background-color: rgb(var(--dynamic-bg-color));
-		opacity: .25;
+		opacity: .1;
 		z-index: -1;
 	}
 }
@@ -330,20 +335,23 @@ async function finishUpPrinting() {
 	}
 }
 
-.project-links {
+/* bottom left, clear of the print queue that grows down the right hand side */
+.theme-colors {
 	position: absolute;
 	bottom: 18px;
-	right: 25px;
+	left: 25px;
+	z-index: 1;
 }
 
 .github-link:hover {
 	transform: scale(1.1);
 }
 
-.theme-color-selector {
+.printer-panel {
 	position: absolute;
 	top: 25px;
 	right: 25px;
+	z-index: 1;
 }
 
 .printer-variant-settings {
@@ -354,8 +362,11 @@ async function finishUpPrinting() {
 	top: 25px;
 	left: 25px;
 	gap: 15px;
+	z-index: 1;
 }
-/* the editor is the only scroll container: it fills the fixed app area and
+/* the corner controls above sit at z-index 1; the editor stays below them
+
+   the editor is the only scroll container: it fills the fixed app area and
    scrolls when the polaroid plus its settings panel do not fit. min-height: 0
    is what allows a flex item to shrink below its content and actually scroll */
 .editor {
@@ -371,7 +382,7 @@ async function finishUpPrinting() {
 @media only screen and (max-width: 600px) {
 
 	.printer-variant-settings,
-	.project-links {
+	.theme-colors {
 		display: none !important;
 	}
 }

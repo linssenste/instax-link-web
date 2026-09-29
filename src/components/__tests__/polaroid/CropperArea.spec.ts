@@ -491,37 +491,28 @@ describe('CropperArea responsive canvas', () => {
 			compressedImage.mockClear();
 		});
 
-		it('passes the display scale on so the download is rendered at full size', async () => {
-			mountComponent({ displayScale: 0.75 });
-			await loadSource();
-
-			await wrapper.vm.saveCanvasImage(false);
-
-			// type, text, image, background, stage, displayScale
-			expect(downloadPolaroid.mock.calls[0][5]).toBe(0.75);
-		});
-
-		it('defaults the display scale to 1', async () => {
+		it('hands the download the live stage, which derives its own export size', async () => {
 			mountComponent();
 			await loadSource();
 
 			await wrapper.vm.saveCanvasImage(false);
 
-			expect(downloadPolaroid.mock.calls[0][5]).toBe(1);
+			expect(downloadPolaroid).toHaveBeenCalledWith(
+				InstaxFilmVariant.SQUARE, '', lastImage(), lastRect(), lastStage()
+			);
 		});
 
-		it('follows a display scale that changes after mount', async () => {
-			mountComponent({ displayScale: 1 });
+		it('passes the caption through to the export', async () => {
+			mountComponent({ settings: { rotation: 0, color: '#FFFFFF', text: 'holiday 98' } });
 			await loadSource();
 
-			await wrapper.setProps({ displayScale: 0.4 });
 			await wrapper.vm.saveCanvasImage(false);
 
-			expect(downloadPolaroid.mock.calls[0][5]).toBe(0.4);
+			expect(downloadPolaroid.mock.calls[0][1]).toBe('holiday 98');
 		});
 
 		it('hands the printer the live stage, which derives its own resolution', async () => {
-			mountComponent({ displayScale: 0.5 });
+			mountComponent();
 			await loadSource();
 
 			await wrapper.vm.saveCanvasImage(true);

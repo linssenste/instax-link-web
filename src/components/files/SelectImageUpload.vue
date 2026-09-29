@@ -91,7 +91,7 @@ function uploadImage(): void {
 	position: absolute;
 	top: 0;
 	left: 0;
-	opacity: .5;
+	/* opacity: .5; */
 	background-color: rgb(var(--dynamic-bg-color));
 }
 </style>

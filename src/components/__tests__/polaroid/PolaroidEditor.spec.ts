@@ -23,7 +23,7 @@ let cropperSpies: { fit: ReturnType<typeof vi.fn>, saveCanvasImage: ReturnType<t
 
 const CropperAreaStub = {
 	name: 'CropperArea',
-	props: ['src', 'loading', 'config', 'settings', 'displayScale'],
+	props: ['src', 'loading', 'config', 'settings'],
 	emits: ['save', 'remove-image'],
 	template: '<div class="cropper-stub" />',
 	methods: {
@@ -104,12 +104,6 @@ describe('PolaroidEditor', () => {
 				// than the polaroid itself
 				expect(wrapper.find('.polaroid-editor').attributes('style')).toContain(`max-width: ${expected}`);
 			}
-		});
-
-		it('passes the frame display scale to the cropper', async () => {
-			await withImage();
-
-			expect(wrapper.findComponent(CropperAreaStub).props('displayScale')).toBeDefined();
 		});
 
 		it('shows the upload prompt while no image is loaded', () => {
@@ -298,6 +292,55 @@ describe('PolaroidEditor', () => {
 		});
 	})
 
+	describe('Appearing once the frame is ready', () => {
+		const root = () => wrapper.find('[data-testid="editor-root"]');
+
+		it('stays hidden until the frame artwork has settled', () => {
+			expect(root().classes()).not.toContain('ready');
+		});
+
+		it('appears when the frame reports it has loaded', async () => {
+			wrapper.findComponent(PolaroidFrame).vm.$emit('ready');
+			await nextTick();
+
+			expect(root().classes()).toContain('ready');
+		});
+
+		it('appears together with the frame, not before it', async () => {
+			// the crop area and the caption live inside the same box, so one reveal
+			// brings all three at once
+			expect(root().classes()).not.toContain('ready');
+			expect(wrapper.findComponent(PolaroidFrame).exists()).toBe(true);
+			expect(wrapper.find('.polaroid-caption').exists()).toBe(true);
+
+			wrapper.findComponent(PolaroidFrame).vm.$emit('ready');
+			await nextTick();
+
+			expect(root().classes()).toContain('ready');
+		});
+
+		it('appears even when the artwork fails to load', async () => {
+			// PolaroidFrame reports ready on error too
+			const frame = mount(PolaroidFrame, { props: { type: InstaxFilmVariant.SQUARE } });
+			await frame.find('.polaroid-frame').trigger('error');
+
+			expect(frame.emitted('ready')).toHaveLength(1);
+			frame.unmount();
+		});
+
+		it('gives up waiting rather than staying blank for good', async () => {
+			vi.useFakeTimers();
+			const local = mountComponent();
+			expect(local.find('[data-testid="editor-root"]').classes()).not.toContain('ready');
+
+			await vi.advanceTimersByTimeAsync(2000);
+
+			expect(local.find('[data-testid="editor-root"]').classes()).toContain('ready');
+			vi.useRealTimers();
+			local.unmount();
+		});
+	});
+
 	describe('Caption on the polaroid', () => {
 		const captionInput = () => wrapper.find('[data-testid="caption-input"]');
 
@@ -349,6 +392,42 @@ describe('PolaroidEditor', () => {
 				await wrapper.setProps({ config: { connection: false, type } });
 				expect(captionInput().attributes('maxlength')).toBe(expected);
 			}
+		});
+
+		it('cuts the caption back when a smaller film is picked', async () => {
+			await withImage();
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.WIDE } });
+
+			const longCaption = 'a'.repeat(35);
+			await captionInput().setValue(longCaption);
+			expect(wrapper.findComponent(CropperAreaStub).props('settings').text).toBe(longCaption);
+
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.MINI } });
+
+			// maxlength alone would leave the existing 35 characters in place
+			expect(captionInput().element.value).toBe('a'.repeat(18));
+			expect(wrapper.findComponent(CropperAreaStub).props('settings').text).toBe('a'.repeat(18));
+		});
+
+		it('leaves the caption alone when a larger film is picked', async () => {
+			await withImage();
+			await captionInput().setValue('holiday 98');
+
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.WIDE } });
+
+			expect(captionInput().element.value).toBe('holiday 98');
+		});
+
+		it('keeps cutting back across successive size changes', async () => {
+			await withImage();
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.WIDE } });
+			await captionInput().setValue('b'.repeat(35));
+
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.SQUARE } });
+			expect(captionInput().element.value).toBe('b'.repeat(25));
+
+			await wrapper.setProps({ config: { connection: false, type: InstaxFilmVariant.MINI } });
+			expect(captionInput().element.value).toBe('b'.repeat(18));
 		});
 
 		it('is cleared once the image is gone', async () => {
@@ -404,9 +483,12 @@ describe('PolaroidEditor', () => {
 			expect(wrapper.vm.loading).toBe(true);
 
 			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20); // the painted frame
 			await pending;
 
-			expect(wrapper.emitted('image')![0]).toEqual([{ src: 'saved-image-url', download: true }]);
+			expect(wrapper.emitted('image')![0]).toEqual([{
+				src: 'saved-image-url', download: true, caption: '', type: InstaxFilmVariant.SQUARE
+			}]);
 
 			await vi.advanceTimersByTimeAsync(750);
 			expect(wrapper.vm.loading).toBe(false);
@@ -419,6 +501,7 @@ describe('PolaroidEditor', () => {
 
 			const pending = wrapper.findComponent(SettingsExpansion).props('savePolaroid')(false);
 			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20); // the painted frame
 			await pending;
 
 			expect(cropperSpies.saveCanvasImage).toHaveBeenCalledWith(true);
@@ -432,7 +515,93 @@ describe('PolaroidEditor', () => {
 			wrapper.findComponent(SettingsExpansion).props('savePolaroid')(true);
 			await nextTick();
 
-			expect(wrapper.find('.loading-overlay').exists()).toBe(true);
+			expect(wrapper.find('[data-testid="loading-overlay"]').exists()).toBe(true);
+			vi.useRealTimers();
+		});
+
+		it('animates the polaroid stripe and announces itself', async () => {
+			vi.useFakeTimers();
+			await withImage();
+
+			wrapper.findComponent(SettingsExpansion).props('savePolaroid')(true);
+			await nextTick();
+
+			const overlay = wrapper.find('[data-testid="loading-overlay"]');
+			expect(overlay.attributes('role')).toBe('status');
+			// one dot per colour of the polaroid stripe
+			expect(overlay.findAll('.loading-stripes span')).toHaveLength(5);
+			// the dots are decorative, the label carries the meaning
+			expect(overlay.find('.loading-stripes').attributes('aria-hidden')).toBe('true');
+			expect(overlay.find('.loading-label').text()).toBe('Rendering polaroid');
+			vi.useRealTimers();
+		});
+
+		it('tells the panel which action is rendering', async () => {
+			vi.useFakeTimers();
+			await withImage();
+
+			const panel = () => wrapper.findComponent(SettingsExpansion);
+			expect(panel().props('savingAction')).toBeNull();
+
+			panel().props('savePolaroid')(true);
+			await nextTick();
+			expect(panel().props('savingAction')).toBe('download');
+
+			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20);
+			await vi.advanceTimersByTimeAsync(750);
+			expect(panel().props('savingAction')).toBeNull();
+
+			panel().props('savePolaroid')(false);
+			await nextTick();
+			expect(panel().props('savingAction')).toBe('print');
+			vi.useRealTimers();
+		});
+
+		it('emits nothing when the render came back empty', async () => {
+			vi.useFakeTimers();
+			await withImage();
+			cropperSpies.saveCanvasImage.mockResolvedValueOnce(undefined);
+
+			const pending = wrapper.findComponent(SettingsExpansion).props('savePolaroid')(true);
+			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20);
+			await pending;
+
+			// an image removed mid-render would otherwise queue an undefined source
+			expect(wrapper.emitted('image')).toBeUndefined();
+			vi.useRealTimers();
+		});
+
+		it('clears the loading state when the render fails', async () => {
+			vi.useFakeTimers();
+			await withImage();
+			cropperSpies.saveCanvasImage.mockRejectedValueOnce(new Error('canvas gone'));
+
+			const pending = wrapper.findComponent(SettingsExpansion).props('savePolaroid')(true);
+			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20);
+			await pending;
+
+			// otherwise the editor would sit in its loading state for good
+			expect(wrapper.vm.loading).toBe(false);
+			expect(wrapper.find('[data-testid="loading-overlay"]').exists()).toBe(false);
+			vi.useRealTimers();
+		});
+
+		it('ignores a second save while one is already running', async () => {
+			vi.useFakeTimers();
+			await withImage();
+
+			const save = wrapper.findComponent(SettingsExpansion).props('savePolaroid');
+			const first = save(true);
+			await save(true); // returns immediately
+
+			await vi.advanceTimersByTimeAsync(525);
+			await vi.advanceTimersByTimeAsync(20);
+			await first;
+
+			expect(cropperSpies.saveCanvasImage).toHaveBeenCalledTimes(1);
 			vi.useRealTimers();
 		});
 	})

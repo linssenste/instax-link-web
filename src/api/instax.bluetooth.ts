@@ -142,13 +142,13 @@ export class InstaxBluetooth {
 					this._characteristicRef.notify = notificationsCharacteristic
 					this._characteristicRef.write = writeCharacteristic
 
-					console.log('> PRINTER CONNECTED')
+					if (import.meta.env.DEV) console.log('> PRINTER CONNECTED')
 					return true
 				})
 
 			if (connected === true) return deviceHandle!
 			else throw new Error()
-		} catch (error) {
+		} catch {
 			this._characteristicRef.notify = null
 			this._characteristicRef.write = null
 			return false

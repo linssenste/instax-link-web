@@ -3,12 +3,9 @@
 
 		<div v-if="!config.connection" class="printer-connection">
 
-			<button :disabled="!hasBluetoothAccess" v-on:click="config.connect" class="connect-button"
-				data-testid="connect-printer-button">
-				<img width="18" draggable="false" height="18" alt="bluetooth icon to connect"
-					src="@/assets/icons/printer/bluetooth.svg" />
-				<span>Connect</span>
-			</button>
+			<LoadingButton :disabled="!hasBluetoothAccess" :loading="connecting" :icon="bluetoothIcon" :iconSize="18"
+						   label="Connect" loadingLabel="Connecting" class="connect-button"
+						   data-testid="connect-printer-button" v-on:click="connectEvent" />
 
 			<a v-if="!hasBluetoothAccess" class="no-support-text" data-testid="no-support-text"
 				href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
@@ -24,7 +21,7 @@
 
 			<StatusAlerts v-if="config.status != null" :status="config.status" />
 
-			<div v-if="config.status != null" class="printing-queue">
+			<div v-if="config.status != null && queue.length > 0" class="printing-queue">
 				<QueueElement v-for="(element, index) in queue" :key="index" :element="element"
 					v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event" />
 			</div>
@@ -45,20 +42,35 @@ import StatusAlerts from '../printer/StatusAlerts.vue'
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 import type { QueueImage } from '../../interfaces/QueueImage'
 import PrinterStatusCard from './PrinterStatusCard.vue';
+import LoadingButton from '../controls/LoadingButton.vue';
+import bluetoothIcon from '@/assets/icons/printer/bluetooth.svg';
 
 const props = defineProps<{
 	config: PrinterStateConfig;
 	queue: QueueImage[]
 }>();
 
+const connecting = ref(false);
+
+async function connectEvent(): Promise<void> {
+	if (connecting.value) return;
+
+	connecting.value = true;
+	try {
+		await props.config.connect();
+	} catch (error) {
+		// a rejected attempt is already handled upstream; it must not escape here
+		console.error('> could not connect to the printer', error);
+	} finally {
+		connecting.value = false;
+	}
+}
 
 
 const hasBluetoothAccess = ref(true);
 
 onMounted(() => {
 
-	console.log('PrinterConnection mounted');
-	console.log(navigator.bluetooth)
 	try {
 		if (!navigator.bluetooth) {
 			console.error('Bluetooth API not supported');
@@ -78,9 +90,6 @@ onMounted(() => {
 
 
 })
-props.config;
-
-
 
 
 function removeImageEvent(index: number): void {
@@ -104,19 +113,13 @@ function removeImageEvent(index: number): void {
 	padding-right: 30px;
 }
 
-.connect-button:disabled {
-
-	background-color: rgb(var(--grey-color)) !important;
-	cursor: not-allowed !important;
-	opacity: 0.4 !important;
-}
-
 
 .printing-queue {
 	position: relative;
 	width: 100%;
-	height: calc(100vh - 130px);
-	overflow: scroll;
+	max-height: calc(100vh - 130px);
+	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 .connected-printer {
@@ -133,7 +136,6 @@ function removeImageEvent(index: number): void {
 	height: 100%;
 	gap: 4px;
 }
-
 
 
 .no-support-text {

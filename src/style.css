@@ -1,13 +1,13 @@
 :root {
 	--dynamic-bg-color: 255, 90, 90;
 
-	--yellow-color: 255, 216, 64;
-	--blue-color: 63, 194, 195;
-	--pink-color: 131, 0, 101;
+	--yellow-color: 255, 182, 1;
+	--blue-color: 26, 139, 217; 
 
-	--orange-color: 255, 128, 37;
-	--green-color: 1, 102, 126;
-	--red-color: 255, 77, 51;
+	--orange-color: 255, 130, 3;
+	--green-color: 121, 190, 33;
+
+	--red-color: 239, 56, 38;
 
 	--error-color: 255, 90, 90;
 	--grey-color: 160, 160, 160;
@@ -49,7 +49,9 @@ button {
 	font-weight: 400;
 	text-transform: uppercase;
 	letter-spacing: 2px;
-	opacity: .85;
+
+	/* the chosen colour exactly, rather than a faded pass at it */
+	opacity: 1;
 
 
 	display: flex;
@@ -77,14 +79,23 @@ textarea:focus-visible {
 
 @media (hover: hover) and (pointer: fine) {
 
-	button:hover {
-		opacity: 1;
+	/* A disabled button still matches :hover, so it is excluded here: otherwise it
+	   lightens under the cursor and reads as though it can still be pressed.
+
+	   :where() keeps that exclusion free of specificity, so this stays a plain
+	   element rule and any component that sets its own background still wins. */
+	button:hover:where(:not(:disabled)) {
+		/* lightened by mixing white into the chosen colour, so hover reads as a
+		   lift away from the resting state rather than a return to full strength.
+		   Buttons that set their own background keep it: this only has the weight
+		   of an element selector */
+		background-color: color-mix(in srgb, rgb(var(--dynamic-bg-color)) 80%, #ffffff);
 		z-index: 10;
 		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
 
 	}
 
-	button:hover i {
+	button:hover:where(:not(:disabled)) i {
 		opacity: 1;
 	}
 }

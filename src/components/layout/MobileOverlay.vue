@@ -12,7 +12,6 @@
                 v-on:type-change="typeChangeEvent" connected="square" />
 
 
-
             <div class="settings-area">
                 <ThemeColorSelector v-on:color-change="themeChangeEvent" />
                 <PrinterConnection class="connection-button" :queue="queue" :config="config" />
@@ -37,11 +36,10 @@ const emit = defineEmits<{
     (e: 'color-change', value: string): void
 }>()
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
     config: PrinterStateConfig
     queue?: QueueImage[]
 }>(), { queue: () => [] });
-props.config;
 
 const showOverlay = ref<boolean>(false)
 

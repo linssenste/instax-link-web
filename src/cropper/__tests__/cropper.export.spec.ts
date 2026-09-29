@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 
 const mergeImages = vi.hoisted(() => vi.fn(async () => 'merged-data-url'))
 const Compressor = vi.hoisted(() => vi.fn())
@@ -12,7 +12,7 @@ vi.mock('konva', () => ({
 import { downloadPolaroid } from '../cropper.download'
 import { compressedImage } from '../cropper.print'
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig'
-import { PRINT_RESOLUTION } from '../../polaroid/frame.geometry'
+import { POLAROID_EXPORT_WIDTH, PRINT_RESOLUTION } from '../../polaroid/frame.geometry'
 
 // the crop window of a square frame rendered at its intrinsic width
 const REFERENCE_STAGE = 331.2
@@ -49,47 +49,49 @@ describe('Export resolution', () => {
 	});
 
 	describe('downloadPolaroid', () => {
-		const render = async (stageWidth: number, displayScale: number) => {
+		const ratioFor = async (type: InstaxFilmVariant, stageWidth: number) => {
 			const stage = fakeStage(stageWidth);
-			await downloadPolaroid(
-				InstaxFilmVariant.SQUARE, 'caption', fakeNode() as never, fakeNode() as never, stage as never, displayScale
-			);
+			await downloadPolaroid(type, 'caption', fakeNode() as never, fakeNode() as never, stage as never);
 			return stage.toDataURL.mock.calls[0][0].pixelRatio;
 		};
 
-		it('renders at the tuned ratio when the frame is at full size', async () => {
-			expect(await render(REFERENCE_STAGE, 1)).toBeCloseTo(2.4);
+		it('renders at the export width the frame artwork is aligned to', async () => {
+			const stageWidth = REFERENCE_STAGE;
+			const ratio = await ratioFor(InstaxFilmVariant.SQUARE, stageWidth);
+
+			expect(stageWidth * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH.square);
 		});
 
-		it('scales the ratio up by however much the frame is scaled down', async () => {
-			// a frame at 0.75x has a 0.75x canvas, so it needs 1/0.75 the ratio
-			expect(await render(REFERENCE_STAGE * 0.75, 0.75)).toBeCloseTo(3.2);
-		});
-
-		it('produces the same absolute pixel size at any display scale', async () => {
+		it('produces the same absolute pixel size however the frame is scaled', async () => {
+			// this is the whole point: the exported bitmap never changes size
 			for (const scale of [1, 0.75, 0.5, 0.31]) {
 				const stageWidth = REFERENCE_STAGE * scale;
-				const ratio = await render(stageWidth, scale);
+				const ratio = await ratioFor(InstaxFilmVariant.SQUARE, stageWidth);
 
-				// this is the whole point: the exported bitmap never changes size
-				expect(stageWidth * ratio).toBeCloseTo(REFERENCE_STAGE * 2.4, 4);
+				expect(stageWidth * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH.square);
 				mergeImages.mockClear();
 			}
 		});
 
-		it('falls back to the tuned ratio for an unmeasured scale', async () => {
-			expect(await render(REFERENCE_STAGE, 0)).toBeCloseTo(2.4);
-			mergeImages.mockClear();
-			expect(await render(REFERENCE_STAGE, NaN)).toBeCloseTo(2.4);
+		it('renders a queue rebuild at that same size, from a print resolution stage', async () => {
+			// the queue rebuilds its stage at print resolution rather than on screen
+			const ratio = await ratioFor(InstaxFilmVariant.SQUARE, PRINT_RESOLUTION.square.width);
+
+			expect(PRINT_RESOLUTION.square.width * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH.square);
 		});
 
-		it('defaults to full size when no scale is given', async () => {
-			const stage = fakeStage(REFERENCE_STAGE);
-			await downloadPolaroid(
-				InstaxFilmVariant.SQUARE, '', fakeNode() as never, fakeNode() as never, stage as never
-			);
+		it("uses each variant's own export width", async () => {
+			for (const type of [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.WIDE]) {
+				const stageWidth = 240;
+				const ratio = await ratioFor(type, stageWidth);
 
-			expect(stage.toDataURL.mock.calls[0][0].pixelRatio).toBeCloseTo(2.4);
+				expect(stageWidth * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH[type]);
+				mergeImages.mockClear();
+			}
+		});
+
+		it('does not divide by a collapsed stage', async () => {
+			expect(await ratioFor(InstaxFilmVariant.SQUARE, 0)).toBe(1);
 		});
 
 		it('composites onto the frame artwork of the requested variant', async () => {
@@ -152,6 +154,121 @@ describe('Export resolution', () => {
 
 		it('does not divide by a collapsed stage', () => {
 			expect(ratioFor(InstaxFilmVariant.SQUARE, 0)).toBe(2);
+		});
+
+		describe('Offloading to a worker', () => {
+			const fakeStage = (width: number) => ({
+				width: () => width,
+				height: () => width,
+				toDataURL: vi.fn(() => 'data:image/png;base64,canvas'),
+				toCanvas: vi.fn(() => ({}))
+			});
+
+			// the worker is created once and reused, so the stub delegates to these
+			// rather than capturing per instance
+			let workerPost: ReturnType<typeof vi.fn>
+			let workerHandlers: Record<string, ((event: unknown) => void)[]>
+
+			const dispatch = (type: string, event: unknown) =>
+				(workerHandlers[type] ?? []).slice().forEach((handler) => handler(event));
+
+			const reply = (data: unknown) => dispatch('message', { data });
+
+			const enableWorker = () => {
+				workerPost = vi.fn();
+				workerHandlers = {};
+
+				vi.stubGlobal('OffscreenCanvas', class { });
+				vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ close: vi.fn() })));
+				vi.stubGlobal('Worker', class {
+					postMessage(...args: unknown[]) { return workerPost(...args) }
+					addEventListener(type: string, handler: (event: unknown) => void) {
+						(workerHandlers[type] ??= []).push(handler);
+					}
+					removeEventListener(type: string, handler: (event: unknown) => void) {
+						workerHandlers[type] = (workerHandlers[type] ?? []).filter((existing) => existing !== handler);
+					}
+				});
+			};
+
+			afterEach(() => vi.unstubAllGlobals());
+
+			it('rasterises without a data URL round trip when a worker is available', async () => {
+				enableWorker();
+
+				const stage = fakeStage(REFERENCE_STAGE);
+				const pending = compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), stage);
+
+				await vi.waitFor(() => expect(workerPost).toHaveBeenCalled());
+
+				// the canvas goes over as a bitmap, so no base64 is built on the main thread
+				expect(stage.toCanvas).toHaveBeenCalledWith({ pixelRatio: PRINT_RESOLUTION.square.width / REFERENCE_STAGE });
+				expect(stage.toDataURL).not.toHaveBeenCalled();
+
+				const [message, transfer] = workerPost.mock.calls[0];
+				expect(message).toMatchObject({ width: 800, height: 800, maxSize: 1024 * 60 });
+				expect(transfer).toHaveLength(1);
+
+				reply({ id: message.id, dataUrl: 'data:image/jpeg;base64,done' });
+				await expect(pending).resolves.toBe('data:image/jpeg;base64,done');
+			});
+
+			it('surfaces a failure reported by the worker', async () => {
+				enableWorker();
+
+				const pending = compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE));
+				await vi.waitFor(() => expect(workerPost).toHaveBeenCalled());
+
+				reply({ id: workerPost.mock.calls[0][0].id, error: 'too big' });
+
+				await expect(pending).rejects.toThrow('too big');
+			});
+
+			it('ignores a reply meant for an earlier request', async () => {
+				enableWorker();
+
+				const pending = compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE));
+				await vi.waitFor(() => expect(workerPost).toHaveBeenCalled());
+
+				const { id } = workerPost.mock.calls[0][0];
+				reply({ id: id - 1, dataUrl: 'data:image/jpeg;base64,stale' });
+				reply({ id, dataUrl: 'data:image/jpeg;base64,current' });
+
+				await expect(pending).resolves.toBe('data:image/jpeg;base64,current');
+			});
+
+			it('rejects rather than hanging when the worker fails to start', async () => {
+				enableWorker();
+
+				const pending = compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE));
+				await vi.waitFor(() => expect(workerPost).toHaveBeenCalled());
+
+				// an unstarted worker never answers, which would leave the editor
+				// stuck showing its loading overlay
+				dispatch('error', new Event('error'));
+
+				await expect(pending).rejects.toThrow('stopped responding');
+			});
+
+			it('rejects when a reply cannot be deserialised', async () => {
+				enableWorker();
+
+				const pending = compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE));
+				await vi.waitFor(() => expect(workerPost).toHaveBeenCalled());
+
+				dispatch('messageerror', new Event('messageerror'));
+
+				await expect(pending).rejects.toThrow('stopped responding');
+			});
+
+			it('falls back to the main thread where OffscreenCanvas is missing', () => {
+				// this is the path jsdom takes, and the one older browsers take
+				const stage = fakeStage(REFERENCE_STAGE);
+				compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), stage).catch(() => { /* expected */ });
+
+				expect(stage.toDataURL).toHaveBeenCalled();
+				expect(stage.toCanvas).not.toHaveBeenCalled();
+			});
 		});
 	});
 });

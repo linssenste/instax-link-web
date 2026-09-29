@@ -1,23 +1,27 @@
 <template>
-	<div>
+	<div class="editor-root" :class="{ ready: frameReady }" data-testid="editor-root">
 
-		<DropImageUpload v-on:dropped="getFileData($event)" />
+		<DropImageUpload :hasImage="image != null" v-on:dropped="getFileData($event)" />
 
 
 		<!-- the editor is capped at the frame's intrinsic width so the settings
 			 panel below can never end up wider than the polaroid itself -->
 		<div class="polaroid-editor" :style="{ maxWidth: `${POLAROID_FRAME_WIDTH[config.type]}px` }">
 
-			<PolaroidFrame :type="config.type" class="frame">
-				<template v-slot:polaroid-area="{ displayScale }">
+			<PolaroidFrame :type="config.type" class="frame" v-on:ready="frameReady = true">
+				<template v-slot:polaroid-area>
 
 					<CropperArea v-if="image" ref="cropperAreaRef" :config="config" :src="image" :loading="loading"
-						:settings="imageSettings" :displayScale="displayScale" v-on:remove-image="removeImageEvent"
+						:settings="imageSettings" v-on:remove-image="removeImageEvent"
 						v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
-					<div v-if="loading" class="loading-overlay" role="status" aria-live="polite">
-						<div class="loading-text">LOADING ...</div>
+					<div v-if="loading" class="loading-overlay" role="status" aria-live="polite"
+						 data-testid="loading-overlay">
+						<span class="loading-label">Rendering polaroid</span>
+						<div class="loading-stripes" aria-hidden="true">
+							<span /><span /><span /><span /><span />
+						</div>
 					</div>
 
 				</template>
@@ -36,8 +40,8 @@
 			</PolaroidFrame>
 
 			<SettingsExpansion :config="config" :queueLength="queueLength" :hasImage="image != null"
-							   :savePolaroid="saveEditorPolaroid" v-on:change="updatedSettingsEvent"
-							   v-on:scale="fitImageEvent" />
+							   :savingAction="savingAction" :savePolaroid="saveEditorPolaroid"
+							   v-on:change="updatedSettingsEvent" v-on:scale="fitImageEvent" />
 
 		</div>
 	</div>
@@ -45,7 +49,7 @@
 
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, ref, type Ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import PolaroidFrame from './PolaroidFrame.vue';
 import CropperArea from './CropperArea.vue';
 import DropImageUpload from '../files/DropImageUpload.vue';
@@ -63,10 +67,23 @@ const props = defineProps<{
 
 
 const cropperAreaRef: Ref<typeof CropperArea | null> = ref(null);
-props.config;
 
 
-const loading = ref(false)
+// which action is rendering, so the panel can show progress on just that button
+const savingAction = ref<'print' | 'download' | null>(null)
+const loading = computed(() => savingAction.value != null)
+
+// nothing is shown until the frame artwork has settled, so the polaroid does not
+// assemble itself piece by piece on screen
+const frameReady = ref(false);
+let frameReadyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+onMounted(() => {
+	// never leave the editor hidden if the load event never arrives
+	frameReadyTimeout = setTimeout(() => { frameReady.value = true }, 2000);
+});
+
+onBeforeUnmount(() => clearTimeout(frameReadyTimeout));
 
 // how the image is placed in the frame, owned by the settings panel
 const adjustments = ref({ rotation: 0, color: '#FFFFFF' })
@@ -77,6 +94,12 @@ const caption = ref('')
 const captionLength = computed(() => {
 	if (props.config.type === InstaxFilmVariant.MINI) return 18;
 	return props.config.type === InstaxFilmVariant.SQUARE ? 25 : 35;
+})
+
+// maxlength only stops further typing, so a caption written for a wider film has
+// to be cut back when a smaller one is picked
+watch(captionLength, (limit) => {
+	if (caption.value.length > limit) caption.value = caption.value.slice(0, limit);
 })
 
 const imageSettings = computed(() => ({ ...adjustments.value, text: caption.value }))
@@ -106,18 +129,29 @@ function updatedSettingsEvent(settings: { rotation: number; color: string }) {
 
 
 async function saveEditorPolaroid(download = false): Promise<void> {
+	if (savingAction.value != null) return;
 
-	loading.value = true;
+	savingAction.value = download ? 'download' : 'print';
 
 	await new Promise((r) => setTimeout(r, 525)) // await the panel collapse animation
 
+	// hand the browser a frame to paint the overlay before the capture blocks it
+	await new Promise((r) => requestAnimationFrame(() => r(null)))
 
-	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
-	emit("image", { src: imageUrl, download: download })
+	try {
+		const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
+
+		// the cropper is gone if the image was removed while it rendered
+		if (imageUrl) emit("image", { src: imageUrl, download, caption: caption.value, type: props.config.type })
+	} catch (error) {
+		// otherwise the editor would stay stuck in its loading state
+		console.error('> could not render the polaroid', error)
+		savingAction.value = null;
+		return;
+	}
 
 	setTimeout(() => {
-		loading.value = false
-
+		savingAction.value = null
 	}, 750);
 
 }
@@ -206,11 +240,38 @@ function resizeImage(file: File, maxWidth: number, maxHeight: number, callback: 
 }
 
 
-props.config;
 </script>
 
 
 <style scoped>
+/* the whole editor arrives at once, once the frame artwork is there to arrive in.
+   It owns a stacking context at level 0 so the z-indexes inside it stay inside,
+   and the corner controls sit above it */
+.editor-root {
+	position: relative;
+	z-index: 0;
+
+	opacity: 0;
+	transform: translateY(10px) scale(.985);
+	transition: opacity 450ms ease-out, transform 450ms ease-out;
+	will-change: opacity, transform;
+}
+
+.editor-root.ready {
+	opacity: 1;
+	transform: none;
+
+	/* the reveal is over; keeping the layer promoted would only cost memory */
+	will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.editor-root {
+		transition: none;
+		transform: none;
+	}
+}
+
 .loading-overlay {
 	position: absolute;
 	width: 100%;
@@ -225,14 +286,94 @@ props.config;
 
 }
 
-.loading-text {
+/* the label is for screen readers; the dots carry it visually */
+.loading-label {
 	position: absolute;
-	bottom: 30px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.loading-stripes {
+	position: absolute;
+	top: 50%;
 	left: 50%;
-	transform: translateX(-50%);
-	color: black;
-	opacity: .35;
-	letter-spacing: 1px;
+	transform: translate(-50%, -50%);
+	display: flex;
+	align-items: flex-end;
+}
+
+/* The bars sit edge to edge like the theme strip and rise in a wave.
+   Height comes from scaleY rather than the height property, so the browser keeps
+   this on the compositor: the wave carries on while the main thread is busy
+   rasterising the canvas.
+
+   The five colours and their order are the Polaroid stripe. */
+.loading-stripes span {
+	width: 14px;
+	height: 24px;
+	transform-origin: bottom center;
+	transform: scaleY(.28);
+	will-change: transform;
+	animation: loading-wave 1.3s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+
+/* only the outer ends are rounded, so the bars read as one strip */
+.loading-stripes span:first-child {
+	border-top-left-radius: 2px;
+	border-bottom-left-radius: 2px;
+}
+
+.loading-stripes span:last-child {
+	border-top-right-radius: 2px;
+	border-bottom-right-radius: 2px;
+}
+
+.loading-stripes span:nth-child(1) {
+	background-color: rgb(var(--blue-color));
+}
+
+.loading-stripes span:nth-child(2) {
+	background-color: rgb(var(--green-color));
+	animation-delay: .09s;
+}
+
+.loading-stripes span:nth-child(3) {
+	background-color: rgb(var(--yellow-color));
+	animation-delay: .18s;
+}
+
+.loading-stripes span:nth-child(4) {
+	background-color: rgb(var(--orange-color));
+	animation-delay: .27s;
+}
+
+.loading-stripes span:nth-child(5) {
+	background-color: rgb(var(--red-color));
+	animation-delay: .36s;
+}
+
+/* each bar grows up from the baseline, holds, then settles back */
+@keyframes loading-wave {
+
+	0%,
+	62%,
+	100% {
+		transform: scaleY(.28);
+	}
+
+	28% {
+		transform: scaleY(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loading-stripes span {
+		animation: none;
+		transform: scaleY(.5);
+	}
 }
 
 .polaroid-editor {
@@ -285,7 +426,7 @@ props.config;
 	/* a fixed box, so the padding below shifts the text inside it rather than
 	   growing the field. An input centres its text in the content box, so the
 	   8px of top padding moves the text down by half that */
-	height: calc(40px * var(--polaroid-scale, 1));
+	height: calc(45px * var(--polaroid-scale, 1));
 	padding: calc(8px * var(--polaroid-scale, 1)) calc(10px * var(--polaroid-scale, 1)) 0;
 
 	border-radius: calc(12px * var(--polaroid-scale, 1));

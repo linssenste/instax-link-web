@@ -7,6 +7,9 @@
 
 			<div class="image-status-info">
 
+				<!-- the caption is not printed, so it serves as the title here -->
+				<div v-if="caption" class="queue-caption" data-testid="queue-caption" :title="caption">{{ caption }}</div>
+
 				<div class="status-text" data-testid="status-text">
 					<span v-if="element.state > 0 && isCanceling == true">CANCELING...</span>
 					<span v-else-if="element.state == 0">IN QUEUE</span>
@@ -16,6 +19,12 @@
 							{{ Math.round(element.progress / (100 / element.quantity)) }}/{{ element.quantity }}
 						</span>
 					</span>
+
+					<!-- download the framed keepsake, which is not what gets printed -->
+					<LoadingButton :loading="preparingDownload" :icon="downloadIcon" :iconSize="12"
+								   class="queue-icon-button" data-testid="queue-download-button"
+								   aria-label="Download this polaroid" title="Download this polaroid"
+								   v-on:click="downloadPolaroidEvent()" />
 
 					<!-- remove/cancel button -->
 					<button type="button" data-testid="canceling-button" class="remove-button"
@@ -76,8 +85,11 @@
 
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { QueueImage } from '../../interfaces/QueueImage';
+import LoadingButton from '../controls/LoadingButton.vue';
+import downloadIcon from '@/assets/icons/controls/download.svg';
+import { downloadDataUrl, polaroidFilename, polaroidFromPrintImage } from '../../cropper/cropper.download';
 
 const emit = defineEmits(['cancel', 'quantity-change'])
 
@@ -85,10 +97,28 @@ const props = defineProps<{
 	element: QueueImage;
 }>();
 
-props.element;
 
 const quantityInput = ref(props.element.quantity ?? 1);
 const isCanceling = ref(false);
+const preparingDownload = ref(false);
+
+const caption = computed(() => props.element.caption?.trim() ?? '');
+
+// the queue only keeps the photo that went to the printer, so the frame, caption
+// and film filter are applied now rather than rendered twice up front
+async function downloadPolaroidEvent(): Promise<void> {
+	if (preparingDownload.value) return;
+
+	preparingDownload.value = true;
+	try {
+		const polaroid = await polaroidFromPrintImage(props.element.type, caption.value, props.element.base64);
+		downloadDataUrl(polaroid, polaroidFilename(caption.value));
+	} catch (error) {
+		console.error('> could not build the polaroid for download', error);
+	} finally {
+		preparingDownload.value = false;
+	}
+}
 
 
 watch(quantityInput, () => modifyQuantity(quantityInput.value));
@@ -173,6 +203,41 @@ function modifyQuantity(value: number): void {
 	transition: opacity 150ms ease-in-out;
 }
 
+.queue-caption {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: 'biro_script_standardregular';
+	font-size: 17px;
+	color: rgba(0, 15, 85, .75);
+}
+
+.queue-icon-button {
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	padding: 0;
+	flex: none;
+	border-radius: 50%;
+	margin-left: auto;
+	margin-right: 4px;
+	color: white;
+}
+
+/* a little more to aim at where there is no mouse */
+@media (pointer: coarse) {
+
+	.queue-icon-button,
+	.quantity-icon-button,
+	.remove-button {
+		width: 38px;
+		height: 38px;
+		min-width: 38px;
+	}
+}
+
+.queue-icon-button:focus-visible,
 .quantity-icon-button:focus-visible,
 .remove-button:focus-visible {
 	outline: 2px solid rgb(var(--dynamic-bg-color));

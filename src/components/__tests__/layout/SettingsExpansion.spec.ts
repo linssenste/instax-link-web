@@ -250,6 +250,77 @@ describe('SettingsExpansion drawer', () => {
 			expect(savePolaroid).toHaveBeenCalledWith(true);
 		});
 
+		it('disables the download and shows a spinner while rendering', async () => {
+			expect(wrapper.find('[data-testid="download-image-button"]').attributes('disabled')).toBeUndefined();
+
+			await wrapper.setProps({ savingAction: 'download' });
+
+			const download = wrapper.find('[data-testid="download-image-button"]');
+			expect(download.attributes('disabled')).toBeDefined();
+			expect(download.find('.button-spinner').exists()).toBe(true);
+			expect(download.find('img').exists()).toBe(false);
+		});
+
+		it('does not start a second render while one is running', async () => {
+			await wrapper.setProps({ savingAction: 'download' });
+
+			await wrapper.find('[data-testid="download-image-button"]').trigger('click');
+
+			expect(savePolaroid).not.toHaveBeenCalled();
+		});
+
+		describe('With a printer connected', () => {
+			beforeEach(async () => {
+				await wrapper.setProps({ config: { connection: true, type: InstaxFilmVariant.SQUARE } });
+			});
+
+			const printButton = () => wrapper.find('[data-testid="print-image-button"]');
+			const downloadIconButton = () => wrapper.find('[data-testid="download-image-icon-button"]');
+
+			it('spins only the download when the download was pressed', async () => {
+				await wrapper.setProps({ savingAction: 'download' });
+
+				expect(downloadIconButton().find('.button-spinner').exists()).toBe(true);
+				expect(printButton().find('.button-spinner').exists()).toBe(false);
+
+				// the print is out of action, but it is not the one reporting progress
+				expect(printButton().attributes('disabled')).toBeDefined();
+			});
+
+			it('spins only the print when the print was pressed', async () => {
+				await wrapper.setProps({ savingAction: 'print' });
+
+				expect(printButton().find('.button-spinner').exists()).toBe(true);
+				expect(downloadIconButton().find('.button-spinner').exists()).toBe(false);
+				expect(downloadIconButton().attributes('disabled')).toBeDefined();
+			});
+
+			it('leaves both usable when nothing is rendering', () => {
+				expect(printButton().attributes('disabled')).toBeUndefined();
+				expect(downloadIconButton().attributes('disabled')).toBeUndefined();
+				expect(wrapper.find('.button-spinner').exists()).toBe(false);
+			});
+		});
+
+		it('disables the grab handle while rendering', async () => {
+			expect(handle().attributes('disabled')).toBeUndefined();
+
+			await wrapper.setProps({ savingAction: 'download' });
+
+			expect(handle().attributes('disabled')).toBeDefined();
+		});
+
+		it('cannot be expanded by click or drag while rendering', async () => {
+			await wrapper.setProps({ savingAction: 'download' });
+
+			await handle().trigger('click');
+			expect(wrapper.vm.isExpanded).toBe(false);
+
+			await drag([40, 120]);
+			expect(wrapper.vm.isExpanded).toBe(false);
+			expect(marginTop()).toBe(`${COLLAPSED_OFFSET}px`);
+		});
+
 		it('disables printing while the queue is full', async () => {
 			await wrapper.setProps({ config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 3 });
 
@@ -397,6 +468,61 @@ describe('SettingsExpansion drawer', () => {
 			expect(marginTop()).toBe(`${EXPANDED_OFFSET}px`);
 		});
 
+		describe('Sliding back out of sight', () => {
+			// the reverse of the reveal: it has to stay on screen for the slide
+			const removeImage = async () => {
+				await wrapper.setProps({ hasImage: false });
+				await flush();
+			};
+
+			it('stays visible while it slides back behind the frame', async () => {
+				await removeImage();
+
+				expect(panel().isVisible()).toBe(true);
+				expect(marginTop()).toBe(`${HIDDEN_OFFSET}px`);
+			});
+
+			it('animates rather than snapping away', async () => {
+				await removeImage();
+
+				expect(panel().classes()).not.toContain('no-transition');
+			});
+
+			it('leaves the layout once the slide has finished', async () => {
+				vi.useFakeTimers();
+				wrapper.setProps({ hasImage: false });
+				await flush();
+
+				await vi.advanceTimersByTimeAsync(250);
+				await flush();
+
+				expect(panel().isVisible()).toBe(false);
+				vi.useRealTimers();
+			});
+
+			it('does not linger when the panel was never on screen', async () => {
+				wrapper.unmount();
+				mockHeights(0, 0);
+				mountComponent({ hasImage: false });
+
+				await wrapper.setProps({ hasImage: false });
+				await flush();
+
+				expect(panel().isVisible()).toBe(false);
+			});
+
+			it('abandons the slide when a new image arrives mid-way', async () => {
+				wrapper.setProps({ hasImage: false });
+				await nextTick();
+
+				await wrapper.setProps({ hasImage: true });
+				await flush();
+
+				expect(panel().isVisible()).toBe(true);
+				expect(marginTop()).toBe(`${COLLAPSED_OFFSET}px`);
+			});
+		});
+
 		it('collapses when the image is removed', async () => {
 			await handle().trigger('click');
 			expect(wrapper.vm.isExpanded).toBe(true);
@@ -404,7 +530,6 @@ describe('SettingsExpansion drawer', () => {
 			await wrapper.setProps({ hasImage: false });
 
 			expect(wrapper.vm.isExpanded).toBe(false);
-			expect(marginTop()).toBe(`${COLLAPSED_OFFSET}px`);
 		});
 
 		it('stays collapsed for a replacement image', async () => {
@@ -419,19 +544,23 @@ describe('SettingsExpansion drawer', () => {
 		});
 
 		it('abandons the reveal if the image is removed again mid-animation', async () => {
+			vi.useFakeTimers();
 			wrapper.unmount();
 			mountComponent({ hasImage: false });
 
 			wrapper.setProps({ hasImage: true });
 			await nextTick();
 			// removed again before the reveal finished
-			await wrapper.setProps({ hasImage: false });
+			wrapper.setProps({ hasImage: false });
+			await flush();
+			await vi.advanceTimersByTimeAsync(250);
 			await flush();
 
 			expect(wrapper.vm.isExpanded).toBe(false);
 			expect(panel().isVisible()).toBe(false);
 			// not left stuck without a transition for the next reveal
 			expect(panel().classes()).not.toContain('no-transition');
+			vi.useRealTimers();
 		});
 
 		it('still settles correctly for the image that follows an abandoned reveal', async () => {

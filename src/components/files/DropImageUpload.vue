@@ -8,8 +8,8 @@
 			 src="@/assets/icons/printer/plus.svg" />
 
 	</div>
-	<div class="drop-image-text">
-		... or drop it here!</div>
+	<!-- <div v-if="!hasImage" class="drop-image-text">
+		... or drop it here!</div> -->
 </template>
 
 
@@ -26,6 +26,11 @@ const emit = defineEmits<{
 	 */
 	(e: 'dropped', type: File): void;
 }>();
+
+withDefaults(defineProps<{
+	/** the hint only helps while there is nothing on the polaroid yet */
+	hasImage?: boolean;
+}>(), { hasImage: false });
 
 
 onMounted(() => {

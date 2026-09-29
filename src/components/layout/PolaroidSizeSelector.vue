@@ -75,7 +75,7 @@ const imageWidth = (filmType: InstaxFilmVariant) => {
 const polaroidClass = (filmType: InstaxFilmVariant) => {
 	return {
 		width: `${imageWidth(filmType)}px`,
-		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .25 : 0})`,
+		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .5 : .25})`,
 		transform: filmType === selectedType.value ? 'scale(1.15)' : "",
 	}
 }
@@ -125,13 +125,14 @@ watch(selectedType, (newType, oldType) => {
 	position: relative;
 	box-sizing: content-box;
 	padding: 3px;
-	height: 48px;
+	height: 42px;
 	padding-top: 4px;
 	border-radius: 2px;
 	cursor: pointer;
 	background-color: rgb(var(--white-color));
 	transition: transform 250ms;
 	border: none;
+	padding-bottom: 12px;
 	opacity: 1;
 	display: block;
 }
@@ -184,7 +185,7 @@ watch(selectedType, (newType, oldType) => {
 	position: relative;
 	display: flex;
 	flex-direction: row;
-	gap: 10px;
+	gap: 13px;
 	justify-content: center;
 }
 

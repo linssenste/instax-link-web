@@ -20,11 +20,10 @@
 <script lang="ts" setup>
 import type { PrinterStatus } from '../../interfaces/PrinterStateConfig';
 
-const props = defineProps<{
+defineProps<{
 	status: PrinterStatus;
 }>();
 
-props.status;
 </script>
 
 <style scoped>

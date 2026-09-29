@@ -19,6 +19,7 @@ describe('Drag & Drop area', () => {
 	})
 
 
+
 	it('displays overlay when dragging over', async () => {
 		expect(wrapper.find('[data-testid="drop-area"]').exists()).toBe(false);
 

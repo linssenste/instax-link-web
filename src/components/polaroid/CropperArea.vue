@@ -26,7 +26,7 @@ import { compressedImage } from '../../cropper/cropper.print'
 
 const emit = defineEmits(['save', 'remove-image']);
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
 	src: string,
 	loading: boolean;
 	config: PrinterStateConfig
@@ -35,12 +35,7 @@ const props = withDefaults(defineProps<{
 		color: string,
 		text?: string;
 	}
-	/**
-	 * How far the surrounding frame is scaled down. The canvas follows the frame,
-	 * so the export has to scale back up to full resolution.
-	 */
-	displayScale?: number;
-}>(), { displayScale: 1 });
+}>();
 
 type Point = { x: number, y: number };
 
@@ -298,7 +293,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 
 			if (!printable) {
 				// TODO: error handling?
-				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text ?? '', image, backgroundRect, stage, props.displayScale);
+				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text ?? '', image, backgroundRect, stage);
 				resolve(polaroidImage);
 
 			}

@@ -1,13 +1,13 @@
 <template>
 	<div ref="frameRef" class="editor" :class="`polaroid-${type}`" :style="{ '--polaroid-scale': displayScale }">
 		<div class="inner" id="polaroid-frame" :class="`inner-${type}`">
-			<slot name="polaroid-area" :displayScale="displayScale" />
+			<slot name="polaroid-area" />
 		</div>
 
 		<!-- polaroid image frame; intrinsic size is kept so the browser can
 			 reserve the correct box before the image arrives (no layout shift),
 			 while the actual rendering size is driven by CSS -->
-		<img v-show="!loadError" v-on:load="frameLoaded = true" v-on:error="loadError = true"
+		<img v-show="!loadError" v-on:load="frameReadyEvent(true)" v-on:error="frameReadyEvent(false)"
 			 :src="polaroidImageSource" :alt="`${type} Polaroid-themed frame`" draggable="false"
 			 :width="polaroidImageWidth" :height="POLAROID_FRAME_HEIGHT" fetchpriority="high" class="polaroid-frame"
 			 :style="{ opacity: frameLoaded ? 1 : 0 }" />
@@ -23,13 +23,26 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 import { POLAROID_FRAME_HEIGHT, POLAROID_FRAME_WIDTH } from '../../polaroid/frame.geometry';
 
+const emit = defineEmits<{
+	/** the artwork has settled, either because it loaded or because it never will */
+	(e: 'ready'): void;
+}>();
+
 const loadError = ref(false)
 const frameLoaded = ref(false);
 
 const props = defineProps<{
 	type: InstaxFilmVariant
 }>();
-props.type;
+
+// the editor waits for this before it appears, so the frame, the caption and the
+// crop area all arrive together rather than assembling themselves on screen
+function frameReadyEvent(loaded: boolean): void {
+	if (loaded) frameLoaded.value = true;
+	else loadError.value = true;
+
+	emit('ready');
+}
 
 const frameRef = ref<HTMLDivElement | null>(null);
 
@@ -72,7 +85,7 @@ onBeforeUnmount(() => {
 	resizeObserver = null;
 });
 
-defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded });
+defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameReadyEvent });
 </script>
 
 <style scoped>
@@ -88,11 +101,6 @@ defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded });
 	max-height: 440px;
 	width: 100%;
 	border-radius: 10px;
-
-	/* stand-in paper, visible until the frame artwork has decoded and again if it
-	   never arrives: together with the white crop window it reads as a blank
-	   polaroid instead of an empty gap */
-	background-color: #ECECEC;
 
 	/* box-shadow on the (fully opaque) frame box instead of a filter:
 	   drop-shadow, which would be re-rasterized on every resize step */

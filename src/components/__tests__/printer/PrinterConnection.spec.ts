@@ -1,6 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+// the queue card reaches the download module, which pulls in Konva
+vi.mock('konva', async () => ({ default: (await import('../polaroid/konva.mock')).konvaMock }));
+
 import PrinterConnection from '../../printer/PrinterConnection.vue';
 import PrinterStatusCard from '../../printer/PrinterStatusCard.vue';
 // import StatusAlerts from '../../printer/StatusAlerts.vue';
@@ -106,5 +109,98 @@ describe('YourComponent', () => {
 			expect(statusCard.props('config')).toEqual(connectedConfig);
 		});
 
+	});
+
+	describe('Connecting', () => {
+		const mountWith = (config = {}, queue = []) => mount(PrinterConnection, {
+			props: {
+				config: { type: InstaxFilmVariant.SQUARE, connection: false, disconnect: vi.fn(), status: null, ...config },
+				queue
+			},
+			global: { stubs: { PrinterStatusCard: true, StatusAlerts: true, QueueElement: true } }
+		});
+
+		const connectButton = (w) => w.find('[data-testid="connect-printer-button"]');
+
+		it('shows the device picker as pending while the attempt runs', async () => {
+			let settle: () => void = () => { };
+			const connect = vi.fn(() => new Promise<void>((resolve) => { settle = resolve }));
+			const local = mountWith({ connect });
+
+			await connectButton(local).trigger('click');
+			await nextTick();
+
+			expect(connect).toHaveBeenCalled();
+			expect(connectButton(local).find('.button-spinner').exists()).toBe(true);
+			expect(connectButton(local).attributes('disabled')).toBeDefined();
+			expect(connectButton(local).text()).toBe('Connecting');
+
+			settle();
+			await nextTick();
+			await nextTick();
+
+			// the picker closed, so the button is offered again
+			expect(connectButton(local).find('.button-spinner').exists()).toBe(false);
+			expect(connectButton(local).text()).toBe('Connect');
+		});
+
+		it('stops pending when the picker is cancelled', async () => {
+			// a cancelled picker rejects inside config.connect, which resolves anyway
+			const connect = vi.fn(async () => { /* cancelled, handled upstream */ });
+			const local = mountWith({ connect });
+
+			await connectButton(local).trigger('click');
+			await nextTick();
+			await nextTick();
+
+			expect(connectButton(local).find('.button-spinner').exists()).toBe(false);
+			expect(connectButton(local).text()).toBe('Connect');
+		});
+
+		it('stops pending even when the attempt throws', async () => {
+			const connect = vi.fn(async () => { throw new Error('no device') });
+			const logged = vi.spyOn(console, 'error').mockImplementation(() => { });
+			const local = mountWith({ connect });
+
+			await connectButton(local).trigger('click');
+			await nextTick();
+			await nextTick();
+
+			// the failure is contained, rather than escaping as an unhandled rejection
+			expect(connectButton(local).find('.button-spinner').exists()).toBe(false);
+			expect(logged).toHaveBeenCalled();
+			logged.mockRestore();
+		});
+
+		it('does not start a second attempt while one is pending', async () => {
+			const connect = vi.fn(() => new Promise<void>(() => { /* never settles */ }));
+			const local = mountWith({ connect });
+
+			await connectButton(local).trigger('click');
+			await nextTick();
+			await connectButton(local).trigger('click');
+
+			expect(connect).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe('Print queue', () => {
+		const mountWith = (queue) => mount(PrinterConnection, {
+			props: {
+				config: { ...mockConfig, connection: true, status: mockStatus },
+				queue
+			},
+			global: { stubs: { PrinterStatusCard: true, StatusAlerts: true, QueueElement: true } }
+		});
+
+		it('is not rendered while nothing is queued, so it cannot show empty scrollbars', () => {
+			expect(mountWith([]).find('.printing-queue').exists()).toBe(false);
+		});
+
+		it('is rendered once something is queued', () => {
+			const queued = mountWith([{ base64: 'x', state: 0, quantity: 1, progress: 0 }]);
+
+			expect(queued.find('.printing-queue').exists()).toBe(true);
+		});
 	});
 });

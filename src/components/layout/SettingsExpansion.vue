@@ -1,8 +1,8 @@
 <template>
 	<!-- there is nothing to configure without an image, so the panel is taken out
-		 of the layout entirely rather than just dimmed -->
-	<div v-show="hasImage" class="settings-panel" ref="panelRef" :class="{ 'no-transition': isDragging || isPositioning }"
-		 :style="{ marginTop: `${panelOffset}px` }">
+		 of the layout entirely once it has slid back behind the frame -->
+	<div v-show="isVisible" class="settings-panel" ref="panelRef"
+		 :class="{ 'no-transition': isDragging || isPositioning }" :style="{ marginTop: `${panelOffset}px` }">
 
 		<!-- the collapsible part: how the image sits in the frame -->
 		<ImageSettings :hasImage="hasImage" v-on:change="$emit('change', $event)"
@@ -15,40 +15,34 @@
 			<div class="print-download-action-buttons">
 
 				<!-- print image button if connected -->
-				<button v-if="config.connection" type="button" :style="awaitingQueue" v-on:click="saveEvent(false)"
-						data-testid="print-image-button" title="print image with instax printer" class="action-button">
-					<span>
-						Print Image
-					</span>
-				</button>
+				<LoadingButton v-if="config.connection" :style="awaitingQueue" :loading="savingAction === 'print'"
+							   :disabled="savingAction === 'download'" label="Print Image" loadingLabel="Rendering"
+							   class="action-button" data-testid="print-image-button"
+							   title="print image with instax printer" v-on:click="saveEvent(false)" />
 
 
 				<!-- download image as polaroid button if not connected -->
-				<button v-else type="button" v-on:click="saveEvent(true)" class="action-button"
-						data-testid="download-image-button">
-					<img draggable="false" alt="" src="@/assets/icons/controls/download.svg" width="14" height="14" />
-					Download
-				</button>
+				<LoadingButton v-else :loading="savingAction === 'download'" label="Download" loadingLabel="Rendering"
+							   :icon="downloadIcon" class="action-button" data-testid="download-image-button"
+							   v-on:click="saveEvent(true)" />
 
 
 				<!-- icon button to download (without subtitle) -->
-				<button v-if="config.connection" type="button" v-on:click="saveEvent(true)" class="download-icon-button"
-						data-testid="download-image-icon-button" aria-label="Download the polaroid"
-						title="Download the polaroid">
-					<img draggable="false" alt="" src="@/assets/icons/controls/download.svg" width="14" height="14" />
-				</button>
+				<LoadingButton v-if="config.connection" :loading="savingAction === 'download'"
+							   :disabled="savingAction === 'print'" :icon="downloadIcon"
+							   class="download-icon-button" data-testid="download-image-icon-button"
+							   aria-label="Download the polaroid" title="Download the polaroid"
+							   v-on:click="saveEvent(true)" />
 			</div>
 
 			<!-- grab handle: click to toggle, drag vertically to slide the panel
 				 out from behind the polaroid frame -->
 			<button type="button" class="expand-button" data-testid="expand-handle" :aria-expanded="isExpanded"
-					:title="`${isExpanded ? 'Hide' : 'Show'} image settings`" v-on:click="toggleClickEvent"
-					v-on:pointerdown="dragStartEvent" v-on:pointermove="dragMoveEvent" v-on:pointerup="dragEndEvent"
-					v-on:pointercancel="dragEndEvent">
-				<img width="15" height="15" alt="" :draggable="false"
-					 :style="{ transform: `rotate(${isExpanded ? -180 : 0}deg)` }"
-					 :title="`${isExpanded ? 'Hide' : 'Show'} image settings`"
-					 src="@/assets/icons/controls/chevron-down.svg" />
+					:disabled="saving" :title="`${isExpanded ? 'Hide' : 'Show'} image settings`"
+					v-on:click="toggleClickEvent" v-on:pointerdown="dragStartEvent" v-on:pointermove="dragMoveEvent"
+					v-on:pointerup="dragEndEvent" v-on:pointercancel="dragEndEvent">
+				<span class="chevron" aria-hidden="true"
+					  :style="{ transform: `rotate(${isExpanded ? -180 : 0}deg)` }" />
 			</button>
 		</div>
 	</div>
@@ -57,6 +51,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ImageSettings from '../polaroid/ImageSettings.vue';
+import LoadingButton from '../controls/LoadingButton.vue';
+import downloadIcon from '@/assets/icons/controls/download.svg';
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 defineEmits<{
@@ -64,12 +60,16 @@ defineEmits<{
 	(e: 'scale', type: string): void;
 }>();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	config: PrinterStateConfig;
 	hasImage: boolean;
 	queueLength: number;
 	savePolaroid: (download: boolean) => void;
-}>();
+	/** which action is rendering, so only that button reports progress */
+	savingAction?: 'print' | 'download' | null;
+}>(), { savingAction: null });
+
+const saving = computed(() => props.savingAction != null);
 
 // the printer only takes so many images at a time
 const awaitingQueue = computed(() => {
@@ -83,6 +83,8 @@ const FALLBACK_FOOTER_HEIGHT = 35;
 const EXPANDED_OFFSET = -20;
 // a pointer movement below this is treated as a click, not a drag
 const DRAG_CLICK_THRESHOLD = 6;
+// how long the panel takes to slide; matches the transition on .settings-panel
+const PANEL_TRANSITION_MS = 250;
 
 const panelRef = ref<HTMLDivElement | null>(null);
 const footerRef = ref<HTMLDivElement | null>(null);
@@ -95,9 +97,14 @@ const isDragging = ref(false);
 // animate towards
 const isPositioning = ref(false);
 
-// set while the panel is sliding out from behind the frame, so the resting
+// set while the panel is sliding in or out from behind the frame, so the resting
 // position does not get applied on top of the animation
-const isRevealing = ref(false);
+const isAnimating = ref(false);
+
+// kept visible while it slides back behind the frame, before leaving the layout
+const isHiding = ref(false);
+
+const isVisible = computed(() => props.hasImage || isHiding.value);
 
 // The panel is pulled up behind the polaroid frame by a negative margin, leaving
 // only its bottom edge showing. Both heights are measured rather than assumed,
@@ -129,7 +136,7 @@ function measurePanel(): void {
 
 // keep the resting position in sync with the measured height
 watch(restingOffset, () => {
-	if (isDragging.value || isRevealing.value) return;
+	if (isDragging.value || isAnimating.value) return;
 	panelOffset.value = restingOffset.value;
 }, { immediate: true });
 
@@ -137,22 +144,52 @@ watch(restingOffset, () => {
 // changes again cannot finish and open a panel that should be gone
 let revealToken = 0;
 
-// the panel comes up collapsed, so a new image shows only its action button
+// the panel comes up collapsed, so a new image shows only its action button, and
+// slides back out of sight when the image is removed
 watch(() => props.hasImage, (hasImage) => {
 	revealToken++;
-	isExpanded.value = false;
 
-	if (!hasImage) {
-		endReveal();
+	isExpanded.value = false;
+	if (hasImage) isHiding.value = false;
+
+	if (hasImage) revealFromBehindFrame(revealToken);
+	else hideBehindFrame(revealToken);
+});
+
+function endAnimation(): void {
+	isPositioning.value = false;
+	isAnimating.value = false;
+}
+
+/**
+ * Slide the panel back under the polaroid, then drop it out of the layout.
+ *
+ * The reverse of the reveal, so removing an image is as smooth as adding one. It
+ * has to stay visible for the length of the slide, which is why the panel is
+ * shown on `isVisible` rather than on `hasImage` alone.
+ */
+async function hideBehindFrame(token: number): Promise<void> {
+	if (panelHeight.value <= 0) {
+		// never measured, so there is nothing on screen to animate away
+		isHiding.value = false;
+		endAnimation();
 		return;
 	}
 
-	revealFromBehindFrame(revealToken);
-});
+	isHiding.value = true;
+	isAnimating.value = true;
+	isPositioning.value = false; // transitions stay on, this one animates
 
-function endReveal(): void {
-	isPositioning.value = false;
-	isRevealing.value = false;
+	await nextTick();
+	if (token !== revealToken) return;
+
+	panelOffset.value = hiddenOffset.value;
+
+	await new Promise((resolve) => setTimeout(resolve, PANEL_TRANSITION_MS));
+	if (token !== revealToken) return;
+
+	isHiding.value = false;
+	endAnimation();
 }
 
 /**
@@ -168,17 +205,17 @@ function endReveal(): void {
  */
 async function revealFromBehindFrame(token: number): Promise<void> {
 	isPositioning.value = true;
-	isRevealing.value = true;
+	isAnimating.value = true;
 
 	// let v-show give the panel a box, then measure it
 	await nextTick();
-	if (token !== revealToken) return endReveal();
+	if (token !== revealToken) return endAnimation();
 	measurePanel();
 
 	// start fully tucked away behind the frame
 	panelOffset.value = hiddenOffset.value;
 	await nextTick();
-	if (token !== revealToken) return endReveal();
+	if (token !== revealToken) return endAnimation();
 
 	// Commit that starting position while transitions are still off. Doing this
 	// after switching them back on would make the panel animate *towards* the
@@ -188,14 +225,16 @@ async function revealFromBehindFrame(token: number): Promise<void> {
 	// transitions back on, starting offset unchanged so nothing moves yet
 	isPositioning.value = false;
 	await nextTick();
-	if (token !== revealToken) return endReveal();
+	if (token !== revealToken) return endAnimation();
 
 	// and slide out to the collapsed resting position
-	isRevealing.value = false;
+	isAnimating.value = false;
 	panelOffset.value = collapsedOffset.value;
 }
 
 function toggleClickEvent(): void {
+	if (saving.value) return;
+
 	// swallow the click that terminates a drag gesture
 	if (didDrag) {
 		didDrag = false;
@@ -206,7 +245,7 @@ function toggleClickEvent(): void {
 }
 
 function dragStartEvent(event: PointerEvent): void {
-	if (!props.hasImage) return;
+	if (!props.hasImage || saving.value) return;
 	if (event.pointerType === 'mouse' && event.button !== 0) return;
 
 	didDrag = false;
@@ -248,6 +287,7 @@ function dragEndEvent(event: PointerEvent): void {
 // collapse before handing over, so the panel is out of the way while the
 // polaroid is rendered
 function saveEvent(download: boolean): void {
+	if (saving.value) return;
 	isExpanded.value = false;
 	props.savePolaroid(download);
 }
@@ -274,7 +314,7 @@ onBeforeUnmount(() => {
 	width: calc(100% - 6px);
 	-webkit-backdrop-filter: blur(8px);
 	backdrop-filter: blur(8px);
-	background-color: rgba(255, 255, 255, 0.5);
+	background-color: rgba(var(--dynamic-bg-color), .1);
 	border-bottom-right-radius: 10px;
 	border-bottom-left-radius: 10px;
 	z-index: 0;
@@ -298,8 +338,9 @@ onBeforeUnmount(() => {
 	flex-direction: column;
 
 	/* the top padding is measured as part of the footer, so it becomes a gap
-	   between the polaroid's edge and the action button while collapsed */
-	padding: 12px 10px 0;
+	   between the polaroid's edge and the action button while collapsed. No
+	   horizontal padding here: the grab handle runs the full width */
+	padding: 12px 0 0;
 }
 
 .print-download-action-buttons {
@@ -308,6 +349,8 @@ onBeforeUnmount(() => {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	padding: 0 10px;
+	box-sizing: border-box;
 }
 
 .action-button {
@@ -318,15 +361,16 @@ onBeforeUnmount(() => {
 .download-icon-button {
 	margin-left: 5px;
 	width: 40px;
+	padding: 0;
 	position: relative;
-}
 
-.download-icon-button img {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	margin-right: 0;
+	/* the action button beside it asks for 100% width, so this one has to refuse
+	   to shrink or it stops being a circle */
+	flex: none;
+	border-radius: 50%;
+
+	/* the spinner inside draws in currentColor */
+	color: white;
 }
 
 .expand-button {
@@ -339,6 +383,7 @@ onBeforeUnmount(() => {
 	border: none;
 	width: 100%;
 	height: 30px;
+	margin-top: 6px;
 	padding: 5px;
 	cursor: pointer;
 
@@ -354,18 +399,40 @@ onBeforeUnmount(() => {
 	user-select: none;
 }
 
-.expand-button:focus-visible {
-	outline: 2px solid rgb(var(--dynamic-bg-color));
-	outline-offset: -2px;
+
+.chevron {
+	width: 15px;
+	height: 15px;
+	background-color: rgb(var(--black-color));
+	opacity: .4;
+
+	/* masked rather than an <img>, so the arrow can take the theme colour */
+	-webkit-mask: url('../../assets/icons/controls/chevron-down.svg') center / contain no-repeat;
+	mask: url('../../assets/icons/controls/chevron-down.svg') center / contain no-repeat;
+
+	transition: opacity 250ms ease, transform 250ms ease, background-color 250ms ease;
 }
 
-.expand-button img {
-	margin-right: 0;
-	opacity: 0.3;
-	transition: opacity 250ms ease, transform 250ms ease;
+@media (hover: hover) and (pointer: fine) {
+
+	/* the handle carries the panel's own tint, so hovering pulls more of the
+	   theme colour through rather than lifting the button off the surface */
+	.expand-button:hover:not(:disabled) {
+		background-color: rgba(var(--dynamic-bg-color), .2);
+		box-shadow: none;
+	}
+
+	.expand-button:hover:not(:disabled) .chevron {
+		background-color: rgb(var(--dynamic-bg-color));
+		opacity: 1;
+	}
 }
 
-.expand-button:hover img {
-	opacity: 1;
+.expand-button:disabled {
+	cursor: progress;
+}
+
+.expand-button:disabled .chevron {
+	opacity: .12;
 }
 </style>

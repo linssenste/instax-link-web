@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { h, nextTick } from 'vue'
+import { nextTick } from 'vue'
 import PolaroidFrame from '../../../components/polaroid/PolaroidFrame.vue'
 import { InstaxFilmVariant } from '../../../interfaces/PrinterStateConfig'
 
@@ -151,20 +151,6 @@ describe('PolaroidFrame Component', () => {
 			expect(wrapper.find('.editor').attributes('style')).toContain('--polaroid-scale: 0.5');
 		});
 
-		it('exposes the scale to the polaroid-area slot', async () => {
-			renderAt(184);
-			const wrapperWithSlot = mount(PolaroidFrame, {
-				props: { type: InstaxFilmVariant.SQUARE },
-				slots: {
-					'polaroid-area': (slotProps: { displayScale: number }) =>
-						h('span', { class: 'scale' }, String(slotProps.displayScale))
-				}
-			});
-			await nextTick();
-
-			expect(wrapperWithSlot.find('.scale').text()).toBe('0.5');
-		});
-
 		it('ignores a collapsed box instead of reporting a zero scale', async () => {
 			renderAt(368);
 			mountComponentWithProps(InstaxFilmVariant.SQUARE);
@@ -188,7 +174,7 @@ describe('PolaroidFrame Component', () => {
 			expect(wrapper.vm.frameLoaded).toBe(true);
 		});
 
-		it('hides the artwork on error, leaving the stand-in paper', async () => {
+		it('hides the artwork when it cannot be loaded', async () => {
 			await wrapper.find('.polaroid-frame').trigger('error');
 
 			expect(wrapper.find('.polaroid-frame').isVisible()).toBe(false);
@@ -198,7 +184,7 @@ describe('PolaroidFrame Component', () => {
 			await wrapper.setProps({ type: InstaxFilmVariant.MINI });
 			await wrapper.find('.polaroid-frame').trigger('error');
 
-			// the paper stand-in has to keep the polaroid's proportions
+			// the frame box keeps its proportions so the layout does not collapse
 			expect(wrapper.find('.editor').classes()).toContain('polaroid-mini');
 		});
 

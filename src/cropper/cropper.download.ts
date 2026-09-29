@@ -1,6 +1,7 @@
 import Konva from "konva";
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
 import mergeImages from 'merge-images';
+import { POLAROID_EXPORT_WIDTH, PRINT_RESOLUTION } from "../polaroid/frame.geometry";
 
 function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): string {
 	// Create a new canvas element
@@ -56,12 +57,6 @@ function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): stri
 
 }
 
-// guard against a not yet measured or collapsed frame
-export function clampDisplayScale(displayScale: number): number {
-	if (!Number.isFinite(displayScale) || displayScale <= 0) return 1;
-	return displayScale;
-}
-
 interface ImageFilter {
 	contrast: number,
 	saturation: number
@@ -107,16 +102,15 @@ export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect)
 }
 
 
-// pixel ratio that renders the crop area at the size the exported frame artwork
-// and the text offsets below are aligned to
-const EXPORT_PIXEL_RATIO = 2.4;
-
 /**
- * @param displayScale how far the frame is currently scaled down on screen. The
- *   export has to compensate for it, otherwise a canvas shown at 0.75x would be
- *   composited onto the full size frame artwork at three quarters of its size.
+ * Render the polaroid keepsake: the framed photo with its caption, filtered to
+ * look like film.
+ *
+ * The stage may be any size - the editor scales it to fit the viewport, and the
+ * queue rebuilds one at print resolution - so the pixel ratio is derived from the
+ * export width the frame artwork is aligned to rather than from the stage.
  */
-export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage, displayScale = 1): Promise<string> {
+export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage): Promise<string> {
 	const filterConfig = {
 		contrast: 0.75,
 		saturation: 0.5,
@@ -126,7 +120,10 @@ export async function downloadPolaroid(type: InstaxFilmVariant, text: string, im
 
 	setPolaroidFilter(image, background, filterConfig)
 
-	const canvasUrl = stage.toDataURL({ pixelRatio: EXPORT_PIXEL_RATIO / clampDisplayScale(displayScale) });
+	const exportWidth = POLAROID_EXPORT_WIDTH[type] ?? POLAROID_EXPORT_WIDTH[InstaxFilmVariant.SQUARE];
+	const pixelRatio = stage.width() > 0 ? (exportWidth / stage.width()) : 1;
+
+	const canvasUrl = stage.toDataURL({ pixelRatio });
 
 	removePolaroidFilter(image, background); // remove all Konva filters
 
@@ -136,4 +133,66 @@ export async function downloadPolaroid(type: InstaxFilmVariant, text: string, im
 		{ src: createPolaroidText(type, text), x: 20, y: (Math.random() * 10) + 835 }
 	])
 
+}
+
+
+/** Name the downloaded file after the caption when there is one. */
+export function polaroidFilename(caption?: string): string {
+	const trimmed = caption?.trim();
+	if (!trimmed) return 'Polaroid.png';
+
+	// keep it to characters every file system accepts
+	const safe = trimmed.replace(/[^\p{L}\p{N} _-]/gu, '').replace(/\s+/g, '-').slice(0, 60);
+	return safe.length > 0 ? `${safe}.png` : 'Polaroid.png';
+}
+
+/** Hand a rendered image to the browser as a file. */
+export function downloadDataUrl(dataUrl: string, filename: string): void {
+	const link = document.createElement('a');
+	link.href = dataUrl;
+	link.download = filename;
+	link.click();
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+	return new Promise<HTMLImageElement>((resolve, reject) => {
+		const image = new window.Image();
+		image.onload = () => resolve(image);
+		image.onerror = () => reject(new Error('Could not load the queued image'));
+		image.src = src;
+	});
+}
+
+/**
+ * Rebuild the keepsake for an image that is already on the print queue.
+ *
+ * Only the photo that went to the printer is kept, so the frame, caption and film
+ * filter are applied here rather than rendering a second copy up front. It runs
+ * the same code as the editor's download, so the two match.
+ */
+export async function polaroidFromPrintImage(
+	type: InstaxFilmVariant,
+	caption: string,
+	printImageSource: string
+): Promise<string> {
+	const photo = await loadImage(printImageSource);
+	const { width, height } = PRINT_RESOLUTION[type] ?? PRINT_RESOLUTION[InstaxFilmVariant.SQUARE];
+
+	// an offscreen stage, never added to the document
+	const container = document.createElement('div');
+	const stage = new Konva.Stage({ container, width, height });
+	const layer = new Konva.Layer();
+	stage.add(layer);
+
+	const background = new Konva.Rect({ x: 0, y: 0, width, height, fill: '#FFFFFF' });
+	const image = new Konva.Image({ image: photo, x: 0, y: 0, width, height });
+
+	layer.add(background);
+	layer.add(image);
+
+	try {
+		return await downloadPolaroid(type, caption, image, background, stage);
+	} finally {
+		stage.destroy();
+	}
 }
