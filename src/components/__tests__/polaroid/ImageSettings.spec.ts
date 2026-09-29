@@ -19,21 +19,6 @@ describe('ImageSettings Component', () => {
 	});
 
 	describe('Rotation Controls', () => {
-		it('updates rotation on clockwise button click', async () => {
-			const button = wrapper.find('[data-testid="rotate-clockwise-button"]');
-			await button.trigger('click');
-			expect(wrapper.vm.settings.rotation).toBe(359);
-
-			await button.trigger('click');
-			expect(wrapper.vm.settings.rotation).toBe(358);
-		});
-
-		it('updates rotation on counter-clockwise button click', async () => {
-			const button = wrapper.find('[data-testid="rotate-counter-clockwise-button"]');
-			await button.trigger('click');
-			expect(wrapper.vm.settings.rotation).toBe(1);
-		});
-
 		it('rotation input is bound to settings.rotation with v-model', async () => {
 			const input = wrapper.find('[data-testid="rotation-input"]');
 			await input.setValue('90');
@@ -83,15 +68,10 @@ describe('ImageSettings Component', () => {
 			expect(wrapper.vm.settings.rotation).toBe(0);
 		});
 
-		it('wraps around the full turn when stepping past the bounds', async () => {
-			const input = wrapper.find('[data-testid="rotation-input"]');
-			await input.setValue('359');
+		it('takes a quarter turn straight from the dial', async () => {
+			await wrapper.find('[data-testid="rotate-snap-270"]').trigger('click');
 
-			await wrapper.find('[data-testid="rotate-counter-clockwise-button"]').trigger('click');
-			expect(wrapper.vm.settings.rotation).toBe(0);
-
-			await wrapper.find('[data-testid="rotate-clockwise-button"]').trigger('click');
-			expect(wrapper.vm.settings.rotation).toBe(359);
+			expect(wrapper.vm.settings.rotation).toBe(270);
 		});
 	});
 
@@ -184,10 +164,9 @@ describe('ImageSettings Component', () => {
 	describe('Accessibility', () => {
 		it('names every control', () => {
 			const labels = {
-				'rotate-clockwise-button': 'Rotate image clockwise',
-				'rotate-counter-clockwise-button': 'Rotate image counter-clockwise',
 				'align-vertical-button': 'Fit image to the frame height',
 				'align-horizontal-button': 'Fit image to the frame width',
+				'rotate-dial': 'Image rotation in degrees',
 				'rotation-input': 'Image rotation in degrees',
 				'color-selector-input': 'Background color behind the image'
 			};
@@ -207,6 +186,57 @@ describe('ImageSettings Component', () => {
 			wrapper.findAll('.icon-button').forEach((button) => {
 				expect(button.attributes('type')).toBe('button');
 			});
+		});
+	});
+
+	describe('Background color icon', () => {
+		const icon = () => wrapper.find('[data-testid="color-selector-icon"]');
+
+		const iconColorFor = async (color: string) => {
+			await wrapper.find('[data-testid="color-selector-input"]').setValue(color);
+			return icon().attributes('style');
+		};
+
+		it('is drawn over the swatch and does not swallow the click', () => {
+			expect(icon().exists()).toBe(true);
+			expect(icon().attributes('aria-hidden')).toBe('true');
+		});
+
+		it('goes dark on light colors', async () => {
+			for (const light of ['#ffffff', '#ffd840', '#f0f0f0', '#00ff00']) {
+				expect(await iconColorFor(light), light).toContain('rgb(0, 0, 0)');
+			}
+		});
+
+		it('goes light on dark colors', async () => {
+			for (const dark of ['#000000', '#830065', '#01667e', '#3f3f3f']) {
+				expect(await iconColorFor(dark), dark).toContain('rgb(255, 255, 255)');
+			}
+		});
+
+		it('weighs the channels rather than averaging them', async () => {
+			// a saturated blue and a saturated yellow average to the same brightness,
+			// but the eye reads blue as dark and yellow as light
+			expect(await iconColorFor('#0000ff')).toContain('rgb(255, 255, 255)');
+			expect(await iconColorFor('#ffff00')).toContain('rgb(0, 0, 0)');
+		});
+
+		it('falls back to dark for a value it cannot read', async () => {
+			// the native input normalises its value, so this goes in directly
+			wrapper.vm.settings.color = 'not-a-color';
+			await nextTick();
+
+			expect(icon().attributes('style')).toContain('rgb(0, 0, 0)');
+		});
+
+		it('handles the shorthand form', async () => {
+			wrapper.vm.settings.color = '#fff';
+			await nextTick();
+			expect(icon().attributes('style')).toContain('rgb(0, 0, 0)');
+
+			wrapper.vm.settings.color = '#000';
+			await nextTick();
+			expect(icon().attributes('style')).toContain('rgb(255, 255, 255)');
 		});
 	});
 });

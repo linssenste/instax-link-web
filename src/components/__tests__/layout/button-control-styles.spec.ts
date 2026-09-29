@@ -161,4 +161,23 @@ describe('Controls converted from div to button', () => {
 		// and nothing overrides it per button
 		expect(read('printer/PrinterConnection.vue')).not.toContain('connect-button:disabled')
 	})
+
+	it('keeps the rotation dial geometry in one place', () => {
+		// the ring radius used to be written both in the script and in the
+		// stylesheet, which is how the anchor dots drifted off the band
+		const dial = read('polaroid/RotateSelector.vue')
+
+		expect(dial).not.toMatch(/const RADIUS/)
+		expect(ruleFor(dial, '.dial')).toContain('--ring-radius: calc(var(--dial-size) / 2 - var(--ring-inset) - var(--ring-width) / 2)')
+		expect(dial).toContain('translateY(calc(-1 * var(--ring-radius)))')
+	})
+
+	it('centres the anchor dots without relying on margins', () => {
+		// a button is a flex container here, which folds a top margin into its own
+		// centring and pulls the dot off the ring
+		const rule = ruleFor(read('polaroid/RotateSelector.vue'), '.snap::before')
+
+		expect(rule).toContain('position: absolute')
+		expect(rule).toContain('margin: -3px 0 0 -3px')
+	})
 })
