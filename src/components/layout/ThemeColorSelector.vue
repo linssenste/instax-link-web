@@ -84,8 +84,8 @@ function changeThemeColor(color: string): void {
 }
 
 .color-item {
-	width: 30px;
-	height: 20px;
+	width: 40px;
+	height: 15px;
 	cursor: pointer!important;
 	padding: 0;
 	margin: 0;
@@ -109,14 +109,14 @@ function changeThemeColor(color: string): void {
 }
 
 .color-selected {
-	width: 60px;
+	width: 70px;
 }
 
 /* the active segment is out of reach of hover, so clicking the one under the
    cursor settles at its selected width instead of sticking at the hover width */
 @media (hover: hover) and (pointer: fine) {
 	.color-item:not(.color-selected):hover {
-		width: 45px;
+		width: 50px;
 	}
 }
 

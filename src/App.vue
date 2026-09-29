@@ -319,7 +319,7 @@ async function finishUpPrinting() {
 		width: 100%;
 		height: 100%;
 		background-color: rgb(var(--dynamic-bg-color));
-		opacity: .1;
+		opacity: .2;
 		z-index: -1;
 	}
 }
