@@ -20,6 +20,32 @@ describe('Theme color selection', () => {
     })
   })
 
+  describe('Accessibility', () => {
+    it('exposes every swatch as a named button', () => {
+      const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'pink']
+
+      colors.forEach(color => {
+        const swatch = wrapper.find(`[data-testid="${color}-color-item"]`)
+        expect(swatch.element.tagName).toBe('BUTTON')
+        expect(swatch.attributes('aria-label')).toBe(`Theme color ${color}`)
+      })
+    })
+
+    it('marks the active swatch as pressed', async () => {
+      wrapper.vm.changeThemeColor('blue')
+      await nextTick()
+
+      expect(wrapper.find('[data-testid="blue-color-item"]').attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find('[data-testid="red-color-item"]').attributes('aria-pressed')).toBe('false')
+    })
+
+    it('groups the swatches under a label', () => {
+      const group = wrapper.find('[role="group"]')
+      expect(group.exists()).toBe(true)
+      expect(group.attributes('aria-label')).toBe('Theme color')
+    })
+  })
+
   it('ensures only one color is selected at a time', async () => {
     const firstColor = 'red'
     const secondColor = 'blue'

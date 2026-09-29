@@ -9,7 +9,23 @@ const oneByteInt = (offset: number, byteArray: number[]) => {
 }
 
 
-export function parse(eventCode: number, command: number, payload: number[], status: number): any {
+export interface InstaxParsedResponse {
+	company?: string
+	printerTypeId?: string
+	serialNumber?: string
+	width?: number
+	height?: number
+	packet?: number
+	isCharging?: number
+	battery?: number
+	photosLeft?: number
+	eventCode?: number
+	command?: number
+	payload?: number[]
+	status?: number
+}
+
+export function parse(eventCode: number, command: number, payload: number[], status: number): InstaxParsedResponse | undefined {
 	if (eventCode === INSTAX_OPCODES.DEVICE_INFO_SERVICE) {
 		const asciiResponse = String.fromCharCode(...payload.filter((code) => code !== 8))
 		switch (command) {
@@ -43,7 +59,7 @@ export function parse(eventCode: number, command: number, payload: number[], sta
 			case 2:
 				return {
 					photosLeft: payload[0] & 15,
-					isCharging: (1 << 7) & (payload[0] >= 1)
+					isCharging: (payload[0] & (1 << 7)) === 0 ? 0 : 1
 				}
 
 			default:

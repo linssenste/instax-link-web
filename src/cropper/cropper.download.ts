@@ -16,6 +16,7 @@ function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): stri
 
 	// Get 2D context
 	const ctx = canvas.getContext("2d");
+	if (ctx == null) return '';
 
 	// Draw content
 	// Clear the canvas (optional, if you want to clear previous drawings)

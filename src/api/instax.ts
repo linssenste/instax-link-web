@@ -1,9 +1,9 @@
 import { INSTAX_OPCODES } from './events'
 import { InstaxBluetooth } from './instax.bluetooth'
-import { parse } from './instax.parser'
+import { parse, type InstaxParsedResponse } from './instax.parser'
 import { Buffer } from 'buffer'
 import { encodeColor } from './instax.color'
-import { InstaxFilmVariant } from '../interfaces/PrinterStateConfig'
+import { InstaxFilmVariant, type PrinterBatteryStatus } from '../interfaces/PrinterStateConfig'
 
 
 
@@ -29,7 +29,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 
 	// Sends a command to the printer
-	async sendCommand(opCode: number, command: number[], awaitResponse = true): Promise<void> {
+	async sendCommand(opCode: number, command: number[], awaitResponse = true): Promise<InstaxParsedResponse | undefined> {
 		// Encode the command into the Instax packet format
 		const instaxCommandData: Uint8Array = this.encode(opCode, command);
 
@@ -37,14 +37,18 @@ export class InstaxPrinter extends InstaxBluetooth {
 		console.log('>', this._printableHex(instaxCommandData))
 
 		const response = await this.send(instaxCommandData, awaitResponse)
-		return this._decode(response as Event)
+		return this._decode(response)
 	}
 
 
 
 	async getInformation(includeType = false) {
 
-		const printerStatus = {
+		const printerStatus: {
+			battery: PrinterBatteryStatus
+			polaroidCount: number | null
+			type: InstaxFilmVariant | null
+		} = {
 			battery: {
 				charging: false,
 				level: null
@@ -52,14 +56,16 @@ export class InstaxPrinter extends InstaxBluetooth {
 			polaroidCount: null,
 			type: null
 		}
-		let response = null;
+		let response: InstaxParsedResponse | undefined;
 		if (includeType == true) {
-			response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]) as any;
+			response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [0]);
 
-			const width = parseInt(String(response.width != 600 && response.width != 800 && response.width != 1260 ? 800 : response.width)) as (600 | 800 | 1260);
-			const height = parseInt(String(response.height != 800 && response.height != 840 ? 800 : response.height)) as (800 | 840);
+			const reportedWidth = response?.width;
+			const reportedHeight = response?.height;
 
-			console.log(width)
+			const width = (reportedWidth != 600 && reportedWidth != 800 && reportedWidth != 1260) ? 800 : reportedWidth;
+			const height = (reportedHeight != 800 && reportedHeight != 840) ? 800 : reportedHeight;
+
 			if (width == 1260 && height == 840) {
 				printerStatus.type = InstaxFilmVariant.WIDE
 			} else if (width == 800) {
@@ -72,24 +78,23 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 
 
-		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]) as any;
+		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1]);
 
-		printerStatus.battery.charging = response.isCharging > 5;
-		printerStatus.battery.level = response.battery;
+		printerStatus.battery.charging = (response?.isCharging ?? 0) > 5;
+		printerStatus.battery.level = response?.battery ?? null;
 
-		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2]) as any;
-		printerStatus.polaroidCount = response.photosLeft;
-		console.log(printerStatus)
+		response = await this.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2]);
+		printerStatus.polaroidCount = response?.photosLeft ?? null;
 		return printerStatus;
 	}
 
 	async printImage(
 		printCount: number = 1,
-		callback: (imageId: any) => void,
+		callback: (imageId: number) => void,
 		signal: AbortSignal
 	): Promise<void> {
 		await new Promise((r) => setTimeout(r, 500))
-		let aborted = false
+		let aborted: boolean = false
 		signal.addEventListener('abort', () => {
 			aborted = true
 		})
@@ -102,7 +107,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 			// console.log(index)
 			await new Promise((r) => setTimeout(r, 15000))
 
-			if (aborted === true) {
+			if (aborted) {
 				callback(-1);
 			} else {
 				callback(index + 1)
@@ -114,7 +119,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		imageUrl: string,
 		print = false,
 		type: InstaxFilmVariant,
-		callback: (event: any) => void,
+		callback: (progress: number) => void,
 		signal: AbortSignal
 	): Promise<void> {
 		console.log("SEND IAMGE")
@@ -123,7 +128,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		console.log("IMAGE DATA: ", Array.from(imageData))
 		const chunks = this.imageToChunks(imageData, type == InstaxFilmVariant.SQUARE ? 1808 : 900)
 
-		let isSendingImage = true
+		let isSendingImage: boolean = true
 		let printTimeout = 15
 		let abortedPrinting = false
 
@@ -173,7 +178,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 				console.log("SENDING PACKETS...")
 				for (let packetId = 0; packetId < chunks.length; packetId++) {
 
-					if (isSendingImage == false) {
+					if (!isSendingImage) {
 						await new Promise((r) => setTimeout(r, 500))
 
 						await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
@@ -204,7 +209,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 						const response = await this.send(splitChunk, isPacketEnd)
 
 
-						if (isPacketEnd) console.log(this._decode(response as Event).status)
+						if (isPacketEnd) console.log(this._decode(response)?.status)
 						if (isPacketEnd == true &&
 							response == null) {
 							throw new Error()
@@ -242,10 +247,8 @@ export class InstaxPrinter extends InstaxBluetooth {
 				printTimeout += 25
 
 				let resp = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], true)
-				// console.log(resp)
-				if (resp.status = !0) {
+				if (resp?.status !== 0) {
 					resp = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], true)
-
 				}
 
 
@@ -331,9 +334,11 @@ export class InstaxPrinter extends InstaxBluetooth {
 		return imgDataChunks
 	}
 
-	private _decode(event: Event): any {
+	private _decode(event: Event | void): InstaxParsedResponse | undefined {
 		if (event == null || event.target == null) return
-		const packet = Array.from(new Uint8Array((event.target as any).value.buffer))
+		const characteristic = event.target as { value?: DataView }
+		if (characteristic.value == null) return
+		const packet = Array.from(new Uint8Array(characteristic.value.buffer))
 
 		// Validate the packet length and checksum
 		const packetLength = (packet[2] << 8) | packet[3]
@@ -393,8 +398,5 @@ export class InstaxPrinter extends InstaxBluetooth {
 		return new Uint8Array([...commandPacket, checksum ^ 0xff])
 	}
 
-
-	connect;
-	disconnect;
 
 }

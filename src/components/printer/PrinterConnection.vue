@@ -50,16 +50,8 @@ const props = defineProps<{
 	config: PrinterStateConfig;
 	queue: QueueImage[]
 }>();
-props.mobile;
 
-declare global {
-	interface Navigator {
-		bluetooth?: {
-			getAvailability(): Promise<boolean>;
-			// Add other Bluetooth API methods here if needed
-		};
-	}
-}
+
 
 const hasBluetoothAccess = ref(true);
 
@@ -93,8 +85,8 @@ props.config;
 
 function removeImageEvent(index: number): void {
 
-	if (index == 0 && props.config.status.polaroidCount > 0) {
-		props.queue[0].abortController.abort();
+	if (index == 0 && (props.config.status?.polaroidCount ?? 0) > 0) {
+		props.queue[0].abortController?.abort();
 	}
 
 }

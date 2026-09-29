@@ -1,5 +1,6 @@
 // instax.bluetooth.ts
 import { INSTAX_PRINTER_NAME_PREFIX, INSTAX_PRINTER_SERVICES } from './instax.config'
+import type { CHARACTERISTIC_REF } from './instax.types'
 
 export class InstaxBluetooth {
 	protected _characteristicRef: CHARACTERISTIC_REF = {
@@ -12,7 +13,7 @@ export class InstaxBluetooth {
 	/**
 	 * manually disconnects the printer
 	 */
-	protected async disconnect(): Promise<void> {
+	public async disconnect(): Promise<void> {
 		try {
 			if (this._characteristicRef.notify !== null) {
 				await this._characteristicRef.notify.stopNotifications()
@@ -24,13 +25,13 @@ export class InstaxBluetooth {
 		}
 	}
 
-	protected async notifications(callback: (event: any) => void): Promise<void> {
+	protected async notifications(callback: (event: Event) => void): Promise<void> {
 		if (this._characteristicRef.notify == null) return
 
 		const va = await this._characteristicRef.notify.startNotifications()
 
 		await new Promise<void>(() => {
-			va.addEventListener('characteristicvaluechanged', (e: any) => {
+			va.addEventListener('characteristicvaluechanged', (e: Event) => {
 				// Do something with the event data here...
 				callback(e)
 			})
@@ -43,14 +44,15 @@ export class InstaxBluetooth {
 		let timeout: ReturnType<typeof setTimeout> | null = null
 
 		// console.log('SEND', Array.from(command))
-		let notificationHandle = null
-		let notificationPromise = null
-		let timeoutPromise = null
+		let notificationHandle: BluetoothRemoteGATTCharacteristic | null = null
+		let notificationPromise: Promise<Event> | null = null
+		let timeoutPromise: Promise<Event> | null = null
 		if (response === true) {
-			notificationHandle = await this._characteristicRef.notify!.startNotifications()
+			const handle = await this._characteristicRef.notify!.startNotifications()
+			notificationHandle = handle
 
 			notificationPromise = new Promise<Event>((resolve) => {
-				notificationHandle.addEventListener(
+				handle.addEventListener(
 					'characteristicvaluechanged',
 					(e: Event) => {
 						if (timeout) clearTimeout(timeout)
@@ -63,13 +65,13 @@ export class InstaxBluetooth {
 
 			timeoutPromise = new Promise<Event>((resolve, reject) => {
 				timeout = setTimeout(() => {
-					notificationHandle.removeEventListener('characteristicvaluechanged', () => { })
+					handle.removeEventListener('characteristicvaluechanged', () => { })
 					reject(new Error('Notification timeout'))
 				}, 500)
 			})
 		}
 
-		await this._characteristicRef.write!.writeValueWithoutResponse(command)
+		await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
 		this.isBusy = false
 		if (response != true) return
 
@@ -82,14 +84,14 @@ export class InstaxBluetooth {
 			}
 		} finally {
 			if (timeout) clearTimeout(timeout)
-			await notificationHandle.stopNotifications()
+			await notificationHandle?.stopNotifications()
 		}
 	}
 
 	/**
 	 * Connects to the printer.
 	 */
-	protected async connect(): Promise<boolean | BluetoothDevice> {
+	public async connect(): Promise<boolean | BluetoothDevice> {
 		try {
 			let deviceHandle: BluetoothDevice | null = null
 			const connected = await navigator.bluetooth

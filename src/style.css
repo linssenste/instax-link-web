@@ -67,6 +67,14 @@ button img {
 	margin-right: 8px;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
 	button:hover {

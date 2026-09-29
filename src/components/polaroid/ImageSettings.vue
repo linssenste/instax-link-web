@@ -7,33 +7,34 @@
 			<div class="rotation-controls">
 
 				<!-- rotate left icon button -->
-				<button oncontextmenu="return false" title="rotate image clockwise" v-on:click="updateRotation(-1)"
-						class="icon-button " data-testid="rotate-clockwise-button">
-					<img draggable="false" title="rotate image clockwise" src="@/assets/icons/controls/rotate-left.svg"
-						 width="16" />
+				<button oncontextmenu="return false" type="button" title="rotate image clockwise"
+						aria-label="Rotate image clockwise" v-on:click="updateRotation(-1)" class="icon-button"
+						data-testid="rotate-clockwise-button">
+					<img draggable="false" alt="" src="@/assets/icons/controls/rotate-left.svg" width="16" />
 				</button>
 
 
 				<!-- input; values are handled in updateRotation function -->
 				<div class="rotation-input">
-					<input id="rotation-input" data-testid="rotation-input" title="image roation degree input form"
-						   v-model="settings.rotation" v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*"
-						   min="0" max="360">
+					<input id="rotation-input" data-testid="rotation-input" title="image rotation degree input form"
+						   aria-label="Image rotation in degrees" v-model="settings.rotation"
+						   v-on:keyup.enter="inputEnterEvent" type="number" pattern="\d*" min="0" max="360">
 					<span class="rotation-degree">°</span>
 				</div>
 
 				<!-- rotate right icon button -->
-				<button oncontextmenu="return false" title="rotate image counter-clockwise" v-on:click="updateRotation(1)"
-						class="icon-button" data-testid="rotate-counter-clockwise-button">
-					<img draggable="false" title="rotate image counter-clockwise"
-						 src="@/assets/icons/controls/rotate-right.svg" width="16" />
+				<button oncontextmenu="return false" type="button" title="rotate image counter-clockwise"
+						aria-label="Rotate image counter-clockwise" v-on:click="updateRotation(1)" class="icon-button"
+						data-testid="rotate-counter-clockwise-button">
+					<img draggable="false" alt="" src="@/assets/icons/controls/rotate-right.svg" width="16" />
 				</button>
 
 
 				<div>
 					<!-- color selector -->
-					<input title="select background color" data-testid="color-selector-input" type="color"
-						   class="color-selector" v-model="settings.color" />
+					<input title="select background color" aria-label="Background color behind the image"
+						   data-testid="color-selector-input" type="color" class="color-selector"
+						   v-model="settings.color" />
 				</div>
 			</div>
 
@@ -41,18 +42,18 @@
 			<div class="alignment-buttons">
 
 				<!-- Horizontal Scale Button -->
-				<button oncontextmenu="return false" title="align image vertically" data-testid="align-vertical-button"
+				<button oncontextmenu="return false" type="button" title="align image vertically"
+						aria-label="Fit image to the frame height" data-testid="align-vertical-button"
 						v-on:click="setAlignment('scale', false)" class="icon-button">
-					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-vertical.svg"
-						 width="16" />
+					<img draggable="false" alt="" src="@/assets/icons/controls/align-vertical.svg" width="16" />
 				</button>
 
 
 				<!-- Vertical Scale Button -->
-				<button oncontextmenu="return false" data-testid="align-horizontal-button" title="align image horizontally"
+				<button oncontextmenu="return false" type="button" data-testid="align-horizontal-button"
+						title="align image horizontally" aria-label="Fit image to the frame width"
 						v-on:click="setAlignment('scale', true)" class="icon-button">
-					<img draggable="false" title="align image vertically" src="@/assets/icons/controls/align-horizontal.svg"
-						 width="16" />
+					<img draggable="false" alt="" src="@/assets/icons/controls/align-horizontal.svg" width="16" />
 				</button>
 
 			</div>
@@ -164,6 +165,7 @@ function inputEnterEvent() {
 
 
 .icon-button img {
+	margin-right: 0;
 	position: absolute;
 	opacity: .95;
 	top: 50%;
@@ -182,6 +184,11 @@ function inputEnterEvent() {
 
 	font-weight: 400 !important;
 	font-size: 16px !important;
+}
+
+.rotation-input input:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: -2px;
 }
 
 .rotation-degree {
@@ -204,6 +211,12 @@ function inputEnterEvent() {
 	background-color: transparent;
 }
 
+
+.icon-button:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+	z-index: 10;
+}
 
 @media (hover: hover) and (pointer: fine) {
 	.icon-button:hover {
@@ -257,6 +270,11 @@ input[type=number]::-webkit-inner-spin-button {
 
 input[type=number] {
 	-moz-appearance: textfield;
+}
+
+.color-selector:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color)) !important;
+	outline-offset: 2px;
 }
 
 .color-selector {

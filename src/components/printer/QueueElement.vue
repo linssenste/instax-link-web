@@ -3,7 +3,7 @@
 		<div class="image-status">
 
 			<!-- image to be printed -->
-			<img :src="element.base64" draggable="false" height="90" />
+			<img :src="element.base64" draggable="false" height="90" alt="Queued polaroid" />
 
 			<div class="image-status-info">
 
@@ -18,9 +18,10 @@
 					</span>
 
 					<!-- remove/cancel button -->
-					<button data-testid="canceling-button" class="remove-button" :class="isCanceling ? 'disabled' : ''"
-							v-on:click="cancelPrinting()">
-						<img src="@/assets/icons/controls/xmark.svg" width="12" />
+					<button type="button" data-testid="canceling-button" class="remove-button"
+							:class="isCanceling ? 'disabled' : ''" aria-label="Cancel printing this image"
+							title="Cancel printing this image" v-on:click="cancelPrinting()">
+						<img src="@/assets/icons/controls/xmark.svg" width="12" alt="" />
 					</button>
 				</div>
 
@@ -28,21 +29,23 @@
 				<div v-if="element.state < 2" class="print-quantity" data-testid="quantity-setter">
 
 					<!-- decrease input -->
-					<button data-testid="quantity-button-minus" v-on:click="modifyQuantity(element.quantity - 1)"
-							:class="element.quantity <= 1 ? 'disabled' : ''" class="quantity-icon-button">
-						<img src="@/assets/icons/printer/minus.svg" draggable="false" width="12" />
-
+					<button type="button" data-testid="quantity-button-minus"
+							v-on:click="modifyQuantity(element.quantity - 1)" :class="element.quantity <= 1 ? 'disabled' : ''"
+							class="quantity-icon-button" aria-label="Print one copy fewer" title="Print one copy fewer">
+						<img src="@/assets/icons/printer/minus.svg" draggable="false" width="12" alt="" />
 					</button>
 
 
-					<input data-testid="quantity-input-field" v-model="quantityInput" v-on:keyup.enter="verifyQuantityInput"
+					<input data-testid="quantity-input-field" aria-label="Number of copies to print"
+						   v-model="quantityInput" v-on:keyup.enter="verifyQuantityInput"
 						   v-on:blur="verifyQuantityInput" class="quantity-input" type="number" pattern="\d*" :min="1"
 						   :max="10" />
 
 					<!-- increase button -->
-					<button data-testid="quantity-button-plus" v-on:click="modifyQuantity(element.quantity + 1)"
-							:class="element.quantity >= 10 ? 'disabled' : ''" class="quantity-icon-button">
-						<img src="@/assets/icons/printer/plus.svg" draggable="false" width="12" />
+					<button type="button" data-testid="quantity-button-plus"
+							v-on:click="modifyQuantity(element.quantity + 1)" :class="element.quantity >= 10 ? 'disabled' : ''"
+							class="quantity-icon-button" aria-label="Print one more copy" title="Print one more copy">
+						<img src="@/assets/icons/printer/plus.svg" draggable="false" width="12" alt="" />
 					</button>
 
 
@@ -74,7 +77,7 @@
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
-import { QueueImage } from '../../interfaces/QueueImage';
+import type { QueueImage } from '../../interfaces/QueueImage';
 
 const emit = defineEmits(['cancel', 'quantity-change'])
 
@@ -170,6 +173,12 @@ function modifyQuantity(value: number): void {
 	transition: opacity 150ms ease-in-out;
 }
 
+.quantity-icon-button:focus-visible,
+.remove-button:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
 .quantity-icon-button img {
 	position: absolute;
 	top: 50%;
@@ -208,6 +217,11 @@ function modifyQuantity(value: number): void {
 	background-color: rgb(var(--light-grey-color));
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
+}
+
+.quantity-input:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: -2px;
 }
 
 .quantity-input:hover {

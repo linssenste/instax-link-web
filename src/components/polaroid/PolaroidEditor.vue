@@ -16,10 +16,8 @@
 						v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
-					<div v-if="loading" class="loading-overlay">
-						<div
-							style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;">
-							LOADING ...</div>
+					<div v-if="loading" class="loading-overlay" role="status" aria-live="polite">
+						<div class="loading-text">LOADING ...</div>
 					</div>
 
 				</template>
@@ -29,7 +27,7 @@
 						 it will occupy on the print -->
 					<input v-if="image" id="caption-input" class="polaroid-caption caption-input"
 						   data-testid="caption-input" spellcheck="false" placeholder="add a caption"
-						   :maxlength="captionLength" v-model="caption" />
+						   aria-label="Caption printed on the polaroid" :maxlength="captionLength" v-model="caption" />
 
 					<div v-else class="polaroid-caption">
 						<span>Choose an image!</span>
@@ -47,7 +45,7 @@
 
 <script setup lang="ts">
 
-import { computed, onBeforeUnmount, ref, Ref } from 'vue'
+import { computed, onBeforeUnmount, ref, type Ref } from 'vue'
 import PolaroidFrame from './PolaroidFrame.vue';
 import CropperArea from './CropperArea.vue';
 import DropImageUpload from '../files/DropImageUpload.vue';
@@ -227,6 +225,16 @@ props.config;
 
 }
 
+.loading-text {
+	position: absolute;
+	bottom: 30px;
+	left: 50%;
+	transform: translateX(-50%);
+	color: black;
+	opacity: .35;
+	letter-spacing: 1px;
+}
+
 .polaroid-editor {
 	position: relative;
 
@@ -284,6 +292,9 @@ props.config;
 	caret-color: rgba(0, 15, 85, .45);
 	transition: background-color 150ms ease-in-out;
 
+	/* the focus ring replaces the tint as the focus cue, so keep both */
+	outline-offset: calc(-2px * var(--polaroid-scale, 1));
+
 	/* Tint of the field. Transparent at rest, so what is on screen is what gets
 	   printed - the italic placeholder is what makes it discoverable - and tinted
 	   only while pointed at or focused.
@@ -304,6 +315,10 @@ props.config;
 
 /* .caption-input:focus {
 	background-color: rgba(var(--caption-tint), .22);
+}
+
+.caption-input:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
 }
 
 @media (hover: hover) and (pointer: fine) {

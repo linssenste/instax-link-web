@@ -180,4 +180,33 @@ describe('ImageSettings Component', () => {
 			expect(emitted[emitted.length - 1]).toEqual([{ rotation: 0, color: '#00ff00' }]);
 		});
 	});
+
+	describe('Accessibility', () => {
+		it('names every control', () => {
+			const labels = {
+				'rotate-clockwise-button': 'Rotate image clockwise',
+				'rotate-counter-clockwise-button': 'Rotate image counter-clockwise',
+				'align-vertical-button': 'Fit image to the frame height',
+				'align-horizontal-button': 'Fit image to the frame width',
+				'rotation-input': 'Image rotation in degrees',
+				'color-selector-input': 'Background color behind the image'
+			};
+
+			for (const [testId, label] of Object.entries(labels)) {
+				expect(wrapper.find(`[data-testid="${testId}"]`).attributes('aria-label')).toBe(label);
+			}
+		});
+
+		it('keeps the button icons out of their accessible names', () => {
+			wrapper.findAll('.icon-button img').forEach((icon) => {
+				expect(icon.attributes('alt')).toBe('');
+			});
+		});
+
+		it('declares the icon buttons as buttons that do not submit', () => {
+			wrapper.findAll('.icon-button').forEach((button) => {
+				expect(button.attributes('type')).toBe('button');
+			});
+		});
+	});
 });

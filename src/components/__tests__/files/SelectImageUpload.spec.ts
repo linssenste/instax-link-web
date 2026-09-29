@@ -74,4 +74,18 @@ describe('SelectImageUpload Component', () => {
 			expect(wrapper.emitted('selected')[0]).toEqual([mockFile]);
 		});
 	});
+
+	describe('Accessibility', () => {
+		it('exposes the upload area as a named button', () => {
+			const area = wrapper.find('[data-testid="upload-area"]');
+
+			expect(area.element.tagName).toBe('BUTTON');
+			expect(area.attributes('aria-label')).toBe('Choose an image to print');
+		});
+
+		it('keeps the plus icon out of the accessible name', () => {
+			expect(wrapper.find('[data-testid="plus-icon"]').attributes('alt')).toBe('');
+		});
+
+	});
 });

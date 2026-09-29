@@ -15,7 +15,7 @@ export interface PrinterBatteryStatus {
 
 export interface PrinterStatus {
 
-	type: InstaxFilmVariant,
+	type: InstaxFilmVariant | null,
 
 	battery: PrinterBatteryStatus,
 	polaroidCount: number | null

@@ -1,9 +1,10 @@
 <template>
 	<div>
-		<div oncontextmenu="return false" class="size-selector">
-			<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.WIDE]"
-				:key="filmType" :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)"
-				@click="selectedType = filmType" class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
+		<div oncontextmenu="return false" class="size-selector" role="group" aria-label="Polaroid film size">
+			<button v-for="filmType in FILM_VARIANTS" :key="filmType" type="button" :title="polaroidTitle(filmType)"
+				:style="polaroidClass(filmType)" :aria-label="polaroidTitle(filmType)"
+				:aria-pressed="selectedType === filmType" @click="selectedType = filmType" class="polaroid"
+				:data-testid="`polaroid-selector-${filmType}`">
 
 				<!-- inner polaroid develops (fade-in) and shows random image if selected -->
 				<div class="inner-polaroid">
@@ -14,7 +15,7 @@
 
 					<div class="overlay" :id="`${filmType}-overlay`"></div>
 				</div>
-			</div>
+			</button>
 
 		</div>
 
@@ -29,7 +30,12 @@
 import { ref, watch } from 'vue';
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 
-const selectedType = ref<InstaxFilmVariant>(localStorage.getItem("polaroid") ?? InstaxFilmVariant.SQUARE);
+const FILM_VARIANTS = [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.WIDE];
+
+const storedType = localStorage.getItem('polaroid') as InstaxFilmVariant | null;
+const selectedType = ref<InstaxFilmVariant>(
+	storedType != null && FILM_VARIANTS.includes(storedType) ? storedType : InstaxFilmVariant.SQUARE
+);
 
 // events
 const emit = defineEmits<{
@@ -117,6 +123,7 @@ watch(selectedType, (newType, oldType) => {
 <style scoped>
 .polaroid {
 	position: relative;
+	box-sizing: content-box;
 	padding: 3px;
 	height: 48px;
 	padding-top: 4px;
@@ -124,7 +131,18 @@ watch(selectedType, (newType, oldType) => {
 	cursor: pointer;
 	background-color: rgb(var(--white-color));
 	transition: transform 250ms;
-	;
+	border: none;
+	opacity: 1;
+	display: block;
+}
+
+.polaroid:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
+.polaroid img {
+	margin-right: 0;
 }
 
 .inner-polaroid {

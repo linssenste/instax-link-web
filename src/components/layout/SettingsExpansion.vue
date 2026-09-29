@@ -15,7 +15,7 @@
 			<div class="print-download-action-buttons">
 
 				<!-- print image button if connected -->
-				<button v-if="config.connection" :style="awaitingQueue" v-on:click="saveEvent(false)"
+				<button v-if="config.connection" type="button" :style="awaitingQueue" v-on:click="saveEvent(false)"
 						data-testid="print-image-button" title="print image with instax printer" class="action-button">
 					<span>
 						Print Image
@@ -24,18 +24,18 @@
 
 
 				<!-- download image as polaroid button if not connected -->
-				<button v-else v-on:click="saveEvent(true)" class="action-button" data-testid="download-image-button">
-					<img draggable="false" title="download whole image" src="@/assets/icons/controls/download.svg"
-						 width="14" height="14" />
+				<button v-else type="button" v-on:click="saveEvent(true)" class="action-button"
+						data-testid="download-image-button">
+					<img draggable="false" alt="" src="@/assets/icons/controls/download.svg" width="14" height="14" />
 					Download
 				</button>
 
 
 				<!-- icon button to download (without subtitle) -->
-				<button v-if="config.connection" v-on:click="saveEvent(true)" class="download-icon-button"
-						data-testid="download-image-icon-button">
-					<img draggable="false" title="download whole image" src="@/assets/icons/controls/download.svg"
-						 width="14" height="14" />
+				<button v-if="config.connection" type="button" v-on:click="saveEvent(true)" class="download-icon-button"
+						data-testid="download-image-icon-button" aria-label="Download the polaroid"
+						title="Download the polaroid">
+					<img draggable="false" alt="" src="@/assets/icons/controls/download.svg" width="14" height="14" />
 				</button>
 			</div>
 
@@ -45,9 +45,10 @@
 					:title="`${isExpanded ? 'Hide' : 'Show'} image settings`" v-on:click="toggleClickEvent"
 					v-on:pointerdown="dragStartEvent" v-on:pointermove="dragMoveEvent" v-on:pointerup="dragEndEvent"
 					v-on:pointercancel="dragEndEvent">
-				<img width="15" height="15" :style="{ transform: `rotate(${isExpanded ? -180 : 0}deg)` }"
-					 :draggable="false" :title="`${isExpanded ? 'Hide' : 'Show'} image settings`"
-					 src="@/assets/icons/controls/chevron-down.svg" alt="" />
+				<img width="15" height="15" alt="" :draggable="false"
+					 :style="{ transform: `rotate(${isExpanded ? -180 : 0}deg)` }"
+					 :title="`${isExpanded ? 'Hide' : 'Show'} image settings`"
+					 src="@/assets/icons/controls/chevron-down.svg" />
 			</button>
 		</div>
 	</div>
@@ -351,6 +352,11 @@ onBeforeUnmount(() => {
 	touch-action: none;
 	-webkit-user-select: none;
 	user-select: none;
+}
+
+.expand-button:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: -2px;
 }
 
 .expand-button img {

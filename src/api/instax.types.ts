@@ -1,6 +1,4 @@
-
-
-interface CHARACTERISTIC_REF {
+export interface CHARACTERISTIC_REF {
   server: BluetoothRemoteGATTServer | null
   notify: BluetoothRemoteGATTCharacteristic | null
   write: BluetoothRemoteGATTCharacteristic | null

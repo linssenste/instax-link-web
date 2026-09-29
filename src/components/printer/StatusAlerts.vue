@@ -3,14 +3,14 @@
 
 		<!-- alert #1: no polaroids left -->
 		<div v-if="status.polaroidCount <= 0" class="error-card" data-testid="polaroid-count-status">
-			<img src="@/assets/icons/printer/warning.svg" width="22" />
+			<img src="@/assets/icons/printer/warning.svg" width="22" alt="" />
 			<span>Insert new Polaroids</span>
 		</div>
 
 		<!-- alert #2: recharge battery -->
 		<div v-if="(!status.battery.charging && status.battery.level <= 10)" class="error-card"
 			 data-testid="battery-status">
-			<img src="@/assets/icons/battery/battery-warning.svg" width="22" />
+			<img src="@/assets/icons/battery/battery-warning.svg" width="22" alt="" />
 			<span> Recharge battery </span>
 		</div>
 

@@ -1,4 +1,5 @@
 
+import type Konva from "konva";
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
 import { PRINT_RESOLUTION } from "../polaroid/frame.geometry";
 import Compressor from 'compressorjs';
@@ -28,8 +29,13 @@ async function compressFile(file: Blob, width: number, height: number, rate: num
 	});
 }
 
-export async function compressedImage(type, image, background, stage) {
-	return new Promise(async (resolve, reject) => {
+export async function compressedImage(
+	type: InstaxFilmVariant,
+	image: Konva.Image,
+	background: Konva.Rect,
+	stage: Konva.Stage
+): Promise<string> {
+	return new Promise<string>(async (resolve, reject) => {
 		try {
 
 			const { width, height } = PRINT_RESOLUTION[type] ?? PRINT_RESOLUTION[InstaxFilmVariant.SQUARE];
@@ -67,8 +73,7 @@ export async function compressedImage(type, image, background, stage) {
 			const reader = new FileReader();
 			reader.onloadend = () => {
 
-				const base64 = reader.result;
-				resolve(base64);
+				resolve(reader.result as string);
 			};
 			reader.readAsDataURL(result);
 		} catch (error) {

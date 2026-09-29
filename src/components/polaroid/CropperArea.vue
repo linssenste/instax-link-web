@@ -2,8 +2,9 @@
 	<div id="cropper-area">
 		<div ref="containerRef" class="container" />
 
-		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon"
-				src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
+		<button v-if="!loading" type="button" v-on:click="removeImage()" class="remove-button"
+				data-testid="remove-image-button" aria-label="Remove image" title="Remove image"><img draggable="false"
+				alt="" src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></button>
 
 		<!-- centre guides; they stretch and take the theme colour while the image
 			 snaps to the middle of the frame -->
@@ -40,6 +41,8 @@ const props = withDefaults(defineProps<{
 	 */
 	displayScale?: number;
 }>(), { displayScale: 1 });
+
+type Point = { x: number, y: number };
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 5.0;
@@ -295,7 +298,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 
 			if (!printable) {
 				// TODO: error handling?
-				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text, image, backgroundRect, stage, props.displayScale);
+				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text ?? '', image, backgroundRect, stage, props.displayScale);
 				resolve(polaroidImage);
 
 			}
@@ -394,60 +397,63 @@ const addCanvasListeners = () => {
 	if (!stage || listenersAttached) return;
 	listenersAttached = true;
 
-	stage.on('dragmove', resetBackgroundRect);
-	stage.on('dragmove', () => {
+	const canvasStage = stage;
+
+	canvasStage.on('dragmove', resetBackgroundRect);
+	canvasStage.on('dragmove', () => {
 		checkAndSnap();
 	});
 
 
 	// Wheel zoom functionality
-	stage.on('wheel', (e) => {
+	canvasStage.on('wheel', (e) => {
 
 		e.evt.preventDefault();
-		const oldScale = stage.scaleX();
-		const pointer = stage.getPointerPosition();
+		const oldScale = canvasStage.scaleX();
+		const pointer = canvasStage.getPointerPosition();
+		if (pointer == null) return;
 
 		const mousePointTo = {
-			x: (pointer.x - stage.x()) / oldScale,
-			y: (pointer.y - stage.y()) / oldScale,
+			x: (pointer.x - canvasStage.x()) / oldScale,
+			y: (pointer.y - canvasStage.y()) / oldScale,
 		};
 
 		const newScale = clampZoom(e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale * 1.05);
 
-		stage.scale({ x: newScale, y: newScale });
+		canvasStage.scale({ x: newScale, y: newScale });
 
 		const newPos = {
 			x: pointer.x - mousePointTo.x * newScale,
 			y: pointer.y - mousePointTo.y * newScale,
 		};
-		stage.position(newPos);
+		canvasStage.position(newPos);
 
 
 		resetBackgroundRect()
 	});
 
-	let lastCenter: any = null;
+	let lastCenter: Point | null = null;
 	let lastDist = 0;
 	let dragStopped = false;
 
 	// Multi-touch zoom functionality
-	stage.on('touchmove', (e) => {
+	canvasStage.on('touchmove', (e) => {
 
 
 		e.evt.preventDefault();
 		const touch1 = e.evt.touches[0];
 		const touch2 = e.evt.touches[1];
 
-		if (touch1 && !touch2 && !stage.isDragging() && dragStopped) {
-			stage.startDrag();
+		if (touch1 && !touch2 && !canvasStage.isDragging() && dragStopped) {
+			canvasStage.startDrag();
 			dragStopped = false;
 		}
 
 		if (touch1 && touch2) {
 
-			if (stage.isDragging()) {
+			if (canvasStage.isDragging()) {
 				dragStopped = true;
-				stage.stopDrag();
+				canvasStage.stopDrag();
 			}
 
 			const p1 = {
@@ -473,14 +479,14 @@ const addCanvasListeners = () => {
 
 			// local coordinates of center point
 			const pointTo = {
-				x: (newCenter.x - stage.x()) / stage.scaleX(),
-				y: (newCenter.y - stage.y()) / stage.scaleX(),
+				x: (newCenter.x - canvasStage.x()) / canvasStage.scaleX(),
+				y: (newCenter.y - canvasStage.y()) / canvasStage.scaleX(),
 			};
 
-			const scale = clampZoom(stage.scaleX() * (dist / lastDist));
+			const scale = clampZoom(canvasStage.scaleX() * (dist / lastDist));
 
-			stage.scaleX(scale);
-			stage.scaleY(scale);
+			canvasStage.scaleX(scale);
+			canvasStage.scaleY(scale);
 
 			// calculate new position of the stage
 			const dx = newCenter.x - lastCenter.x;
@@ -491,7 +497,7 @@ const addCanvasListeners = () => {
 				y: newCenter.y - pointTo.y * scale + dy,
 			};
 
-			stage.position(newPos);
+			canvasStage.position(newPos);
 
 			lastDist = dist;
 			lastCenter = newCenter;
@@ -500,18 +506,18 @@ const addCanvasListeners = () => {
 		}
 	});
 
-	stage.on('touchend', () => {
+	canvasStage.on('touchend', () => {
 		lastDist = 0;
 		lastCenter = null;
 	});
 };
 
 
-const getDistance = (p1, p2) => {
+const getDistance = (p1: Point, p2: Point) => {
 	return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
 };
 
-const getCenter = (p1, p2) => {
+const getCenter = (p1: Point, p2: Point): Point => {
 	return {
 		x: (p1.x + p2.x) / 2,
 		y: (p1.y + p2.y) / 2,
@@ -607,6 +613,16 @@ watch([() => props.settings.color, () => props.src], setBackgroundColor);
 	border-radius: 50%;
 	cursor: pointer;
 	transition: background-color 150ms linear;
+	padding: 0;
+	border: none;
+	opacity: 1;
+	display: block;
+	z-index: 3;
+}
+
+.remove-button:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
 }
 
 .remove-button:hover {
@@ -619,6 +635,7 @@ watch([() => props.settings.color, () => props.src], setBackgroundColor);
 }
 
 .remove-button img {
+	margin-right: 0;
 	opacity: .75;
 
 

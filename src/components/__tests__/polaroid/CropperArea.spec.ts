@@ -544,9 +544,25 @@ describe('CropperArea responsive canvas', () => {
 			mountComponent();
 			await loadSource();
 
-			await wrapper.find('.remove-button').trigger('click');
+			await wrapper.find('[data-testid="remove-image-button"]').trigger('click');
 
 			expect(wrapper.emitted('remove-image')).toHaveLength(1);
+		});
+
+		it('exposes the close control as a named button', async () => {
+			mountComponent();
+			await loadSource();
+
+			const remove = wrapper.find('[data-testid="remove-image-button"]');
+			expect(remove.element.tagName).toBe('BUTTON');
+			expect(remove.attributes('aria-label')).toBe('Remove image');
+		});
+
+		it('keeps the close icon out of the accessible name', async () => {
+			mountComponent();
+			await loadSource();
+
+			expect(wrapper.find('[data-testid="remove-image-button"] img').attributes('alt')).toBe('');
 		});
 
 		it('hides the controls while loading', () => {

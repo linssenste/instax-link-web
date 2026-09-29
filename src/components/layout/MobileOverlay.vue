@@ -28,8 +28,8 @@ import ThemeColorSelector from './ThemeColorSelector.vue'
 import PolaroidSizeSelector from './PolaroidSizeSelector.vue';
 import PrinterConnection from '../printer/PrinterConnection.vue';
 
-import { type PrinterStateConfig } from './interfaces/PrinterStateConfig';
-import { QueueImage } from './interfaces/QueueImage';
+import { type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { type QueueImage } from '../../interfaces/QueueImage';
 
 import { ref } from 'vue';
 const emit = defineEmits<{
@@ -38,12 +38,9 @@ const emit = defineEmits<{
 }>()
 
 const props = withDefaults(defineProps<{
-    config?: PrinterStateConfig
+    config: PrinterStateConfig
     queue?: QueueImage[]
-}>(), {
-    config: () => (null),
-    queue: () => []
-})
+}>(), { queue: () => [] });
 props.config;
 
 const showOverlay = ref<boolean>(false)

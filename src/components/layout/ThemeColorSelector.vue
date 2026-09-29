@@ -1,9 +1,10 @@
 <template>
-	<div oncontextmenu="return false" class="selector-row">
+	<div oncontextmenu="return false" class="selector-row" role="group" aria-label="Theme color">
 
-		<div v-for="color in colors" :key="color" v-on:click="changeThemeColor(color)" :class="selectedClass(color)"
-			 :data-testid="`${color}-color-item`" :title="`Theme color '${color}''`" :style="colorStyling(color)"
-			 class="color-item" />
+		<button v-for="color in colors" :key="color" type="button" v-on:click="changeThemeColor(color)"
+				:class="selectedClass(color)" :data-testid="`${color}-color-item`" :title="`Theme color '${color}''`"
+				:aria-label="`Theme color ${color}`" :aria-pressed="selectedColor === color" :style="colorStyling(color)"
+				class="color-item" />
 
 	</div>
 </template> 
@@ -29,15 +30,6 @@ const colorStyling = (name: string) => ({ backgroundColor: `rgb(var(--${name}-co
 const selectedClass = (color: string) => (selectedColor.value == color ? 'color-selected' : '');
 
 onMounted(() => {
-	// const params = new Proxy(new URLSearchParams(window.location.search), {
-	// 	get: (searchParams: any, prop: any) => searchParams.get(prop),
-	// });
-
-	// if (params.random === "true") {
-	// 	const randomIndex = Math.floor(Math.random() * (colors.length - 1)) + 1;
-	// 	selectedColor.value = colors[randomIndex]
-	// }
-
 	// emit default color on loaded to make sure everything is setup correctly
 	changeThemeColor(selectedColor.value);
 })
@@ -84,6 +76,10 @@ function changeThemeColor(color: string): void {
 	width: 20px;
 	cursor: pointer;
 	height: 20px;
+	padding: 0;
+	border: none;
+	opacity: 1;
+	display: block;
 
 	-moz-transition: all 100ms linear;
 	-webkit-transition: all 100ms linear;
@@ -101,5 +97,10 @@ function changeThemeColor(color: string): void {
 
 .color-selected {
 	border-radius: 50% !important;
+}
+
+.color-item:focus-visible {
+	outline: 2px solid rgb(var(--black-color));
+	outline-offset: 2px;
 }
 </style>

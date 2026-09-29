@@ -27,7 +27,7 @@
 				 class="printer-status-polaroids" data-testid="printer-polaroid-count">
 
 				<img :title="`${remainingPolaroids} Polaroids left`" draggable="false"
-					 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" />
+					 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" alt="" />
 				<span style="letter-spacing: 2px">{{ config.status.polaroidCount }}/10</span>
 			</div>
 
@@ -36,16 +36,16 @@
 				 class="printer-status-battery" data-testid="printer-battery-level">
 
 				<img v-if="config.status.battery.charging" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-charging.svg" />
-				<img v-else-if="batteryIcon == 0" draggable="false" width="25" src="@/assets/icons/battery/battery-0.svg" />
+					 src="@/assets/icons/battery/battery-charging.svg" alt="" />
+				<img v-else-if="batteryIcon == 0" draggable="false" width="25" src="@/assets/icons/battery/battery-0.svg" alt="" />
 				<img v-else-if="batteryIcon == 25" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-25.svg" />
+					 src="@/assets/icons/battery/battery-25.svg" alt="" />
 				<img v-else-if="batteryIcon == 50" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-50.svg" />
+					 src="@/assets/icons/battery/battery-50.svg" alt="" />
 				<img v-else-if="batteryIcon == 75" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-75.svg" />
+					 src="@/assets/icons/battery/battery-75.svg" alt="" />
 				<img v-else-if="batteryIcon == 100" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-100.svg" />
+					 src="@/assets/icons/battery/battery-100.svg" alt="" />
 
 				<span v-if="config.status.battery.charging" data-testid="printer-battery-charging-text"
 					  class="printer-chargingin-text">POWER</span>
@@ -65,7 +65,7 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 
 const props = defineProps<{

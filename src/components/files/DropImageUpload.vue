@@ -4,7 +4,7 @@
 		<!-- opaque background color in theme color -->
 		<div data-testid="color-overlay" class="color-overlay" />
 
-		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image"
+		<img width="60" class="plus-icon" data-testid="plus-icon" alt=""
 			 src="@/assets/icons/printer/plus.svg" />
 
 	</div>

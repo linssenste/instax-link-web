@@ -35,7 +35,7 @@ import { InstaxPrinter } from './api/instax';
 
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
 
-import { QueueImage } from './interfaces/QueueImage';
+import type { QueueImage } from './interfaces/QueueImage';
 
 
 // if window smaller 1000
@@ -71,9 +71,9 @@ function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 }
 
 // update film type (only if not automatically with printer)
-function typeChangeEvent(filmType: InstaxFilmVariant): void {
+function typeChangeEvent(filmType: string): void {
 	if (!config.value.connection || !printer) {
-		config.value.type = filmType
+		config.value.type = filmType as InstaxFilmVariant
 	}
 }
 
@@ -111,7 +111,7 @@ function resize(): void  {
 		isMobile.value = window.innerWidth < 1000;
 	}
 
-function unload(event): void {
+function unload(event: BeforeUnloadEvent): void {
 	if ((printer != null && imageQueue.value.length > 0 || isPrinting)) {
 		event.returnValue = true;
 	}
@@ -132,7 +132,7 @@ async function connectBluetoothPrinter(): Promise<void> {
 		printer = new InstaxPrinter();
 
 		const device = await printer.connect();
-		if (!device) return; // cancelled connection
+		if (!device || device === true) return; // cancelled connection
 
 		config.value.connection = true;
 
@@ -178,13 +178,15 @@ async function loadMetaData(): Promise<void> {
 
 async function getPrinterMeta(includeType = false): Promise<void> {
 
+	if (!printer) return;
+
 	try {
-		const type = config.value.status?.type;
-		config.value.status = await printer.getInformation(includeType)
-		if (includeType) config.value.type = config.value.status.type
-		else {
-			config.value.status.type = type;
-		}
+		const type = config.value.status?.type ?? null;
+		const status = await printer.getInformation(includeType)
+		config.value.status = status;
+
+		if (includeType && status.type != null) config.value.type = status.type
+		else status.type = type;
 
 
 	} catch (error) {
@@ -217,7 +219,9 @@ function createdImageEvent(imageData: ImageData) {
 // process (send + print) first image in queue
 async function printPolaroidQueue(isRetry = false): Promise<void> {
 
-	if (config.value.status == null || config.value.status.polaroidCount == null || config.value.status.polaroidCount <= 0 || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
+	if (printer == null || config.value.status == null || config.value.status.polaroidCount == null || config.value.status.polaroidCount <= 0 || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
+	const connectedPrinter = printer;
+
 	if (imageQueue.value[0].state == 0) {
 
 		try {
@@ -227,7 +231,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			imageQueue.value[0].state = 1
 			imageQueue.value[0].abortController = new AbortController();
 
-			await printer.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
+			await connectedPrinter.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
 				if (imageQueue.value[0] == null) return;
 				if (imageQueue.value[0].abortController != null && (imageQueue.value[0].abortController.signal.aborted == true && progress == -1)) {
 					return;
@@ -254,7 +258,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 				imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
 
 				// begin printing commands
-				await printer.printImage(quantity, (printedImages: number) => {
+				await connectedPrinter.printImage(quantity, (printedImages: number) => {
 
 					if (printedImages < quantity) {
 						imageQueue.value[0].progress = (((printedImages + 1) / quantity) * 100)
@@ -265,7 +269,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 			}
 
 		} catch (error) {
-			if (!isRetry && !imageQueue.value[0].abortController.signal) return printPolaroidQueue(true);
+			if (!isRetry && !imageQueue.value[0]?.abortController?.signal) return printPolaroidQueue(true);
 		}
 
 		finishUpPrinting()
