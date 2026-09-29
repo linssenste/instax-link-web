@@ -1,22 +1,23 @@
 <template>
 	<div id="cropper-area">
-
-		<div id="container" class="container" />
+		<div ref="containerRef" class="container" />
 
 		<div v-if="!loading" v-on:click="removeImage()" class="remove-button"><img draggable="false" alt="close icon"
-				 src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
+				src="@/assets/icons/controls/xmark.svg" width="16" height="16" /></div>
 
+		<!-- centre guides; they stretch and take the theme colour while the image
+			 snaps to the middle of the frame -->
 		<div class="center-cross" v-if="!loading">
-			<div class="cross-element" id="cross-element-horizontal" />
-			<div class="cross-element" id="cross-element-vertical" />
+			<div class="cross-element cross-x" :class="{ snapped: snappedX }" data-testid="cross-horizontal" />
+			<div class="cross-element cross-y" :class="{ snapped: snappedY }" data-testid="cross-vertical" />
 		</div>
 	</div>
 </template>
-  
+
 <script lang="ts" setup>
 
 import Konva from 'konva';
-import { onMounted, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 import { downloadPolaroid } from '../../cropper/cropper.download';
@@ -24,7 +25,7 @@ import { compressedImage } from '../../cropper/cropper.print'
 
 const emit = defineEmits(['save', 'remove-image']);
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	src: string,
 	loading: boolean;
 	config: PrinterStateConfig
@@ -33,20 +34,144 @@ const props = defineProps<{
 		color: string,
 		text?: string;
 	}
-}>();
+	/**
+	 * How far the surrounding frame is scaled down. The canvas follows the frame,
+	 * so the export has to scale back up to full resolution.
+	 */
+	displayScale?: number;
+}>(), { displayScale: 1 });
 
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 5.0;
+
+const containerRef = ref<HTMLDivElement | null>(null);
+
+// whether the image currently sits on the horizontal / vertical centre line
+const snappedX = ref(false);
+const snappedY = ref(false);
+
+// keep wheel and pinch zoom within the same bounds
+const clampZoom = (scale: number) => Math.max(MIN_ZOOM, Math.min(scale, MAX_ZOOM));
 
 let stage: Konva.Stage | null = null;
 let layer: Konva.Layer | null = null;
 let image: Konva.Image | null = null;
 let backgroundRect: Konva.Rect | null = null;
 
+// the decoded source, kept so the image can be re-fitted at any time
+let sourceImage: HTMLImageElement | null = null;
+
+// last known container box, used to rescale the framing when the box changes
+let containerSize = { width: 0, height: 0 };
+let resizeObserver: ResizeObserver | null = null;
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+
+
+// the container is sized by CSS (aspect-ratio per film type + fluid width), so
+// every layout change - window resize, film type switch, settings panel - is
+// observed on the element itself rather than guessed from window events
+function syncStageToContainer(): void {
+	if (!stage || !layer || !containerRef.value) return;
+
+	const { width, height } = containerRef.value.getBoundingClientRect();
+	if (width <= 0 || height <= 0) return;
+
+	const previous = containerSize;
+	containerSize = { width, height };
+
+	// first usable measurement: nothing to preserve, but an image that arrived
+	// before the container had a box still needs its initial fit
+	if (previous.width <= 0 || previous.height <= 0) {
+		stage.width(width);
+		stage.height(height);
+
+		if (refitSourceImage()) addCanvasListeners();
+		else resizeBackgroundRect();
+
+		layer.batchDraw();
+		return;
+	}
+
+	// ignore sub-pixel jitter
+	if (Math.abs(previous.width - width) < 0.5 && Math.abs(previous.height - height) < 0.5) return;
+
+	const ratioX = width / previous.width;
+	const ratioY = height / previous.height;
+
+	// zoom has to stay uniform, so take the smaller factor: the framing shrinks
+	// with the container instead of overflowing it
+	const zoomRatio = Math.min(ratioX, ratioY);
+
+	const position = stage.position();
+
+	stage.width(width);
+	stage.height(height);
+	stage.scale({ x: stage.scaleX() * zoomRatio, y: stage.scaleY() * zoomRatio });
+	stage.position({ x: position.x * ratioX, y: position.y * ratioY });
+
+	resizeBackgroundRect();
+	layer.batchDraw();
+}
+
+
+// observe the container box; fall back to window resize where
+// ResizeObserver is unavailable
+function observeContainer(): void {
+	if (!containerRef.value) return;
+
+	if (typeof ResizeObserver !== 'undefined') {
+		resizeObserver = new ResizeObserver(() => {
+			clearTimeout(resizeTimer);
+			resizeTimer = setTimeout(syncStageToContainer, 50); // debounce to minimize redraws
+		});
+		resizeObserver.observe(containerRef.value);
+		return;
+	}
+
+	window.addEventListener('resize', onWindowResize);
+}
+
+function onWindowResize(): void {
+	clearTimeout(resizeTimer);
+	resizeTimer = setTimeout(syncStageToContainer, 50);
+}
+
+
+// cover the stage with the source image at its current rotation. Returns false
+// while the stage has no box yet, in which case the sync retries once it has one
+function refitSourceImage(): boolean {
+	if (!stage || !sourceImage) return false;
+	if (stage.width() <= 0 || stage.height() <= 0) return false;
+
+	const { width, height } = getRotatedBoundingBox(sourceImage);
+	const containerRatio = stage.width() / stage.height();
+
+	fitImage(sourceImage, { width, height }, ((width / height) < containerRatio));
+	return image != null;
+}
+
+
+// (re)load the source image into the stage
+function loadImage(src: string): void {
+	const konvaImage = new window.Image();
+
+	konvaImage.onload = () => {
+		sourceImage = konvaImage;
+		if (!stage || !layer) return;
+
+		// fitImage places the image and its background on the layer
+		if (refitSourceImage()) addCanvasListeners(); // initialize event listeners
+	};
+
+	konvaImage.src = src;
+}
+
 
 onMounted(() => {
-	const containerDoc = document.getElementById('container') as HTMLDivElement;
-	const containerRect = containerDoc?.getBoundingClientRect();
+	const containerDoc = containerRef.value;
+	if (containerDoc == null) return;
 
-	if (containerRect == null) return;
+	const containerRect = containerDoc.getBoundingClientRect();
 
 	Konva.hitOnDragEnabled = true;
 
@@ -61,29 +186,42 @@ onMounted(() => {
 	layer = new Konva.Layer();
 	stage.add(layer);
 
+	containerSize = { width: containerRect.width, height: containerRect.height };
 
-	// load image & add to stage
-	const konvaImage = new window.Image();
-
-	konvaImage.onload = () => {
-
-		// fit image into stage
-		const { width, height } = getRotatedBoundingBox(konvaImage);
-		const containerRatio = stage.width() / stage.height();
-
-		fitImage(konvaImage, { width, height }, ((width / height) < containerRatio));
-
-		// add image into stage
-		if (layer && image) {
-			layer.add(image);
-			addCanvasListeners(); // initialize image/stage event listeners
-		}
-
-	};
-
-	konvaImage.src = props.src;
+	loadImage(props.src);
+	observeContainer();
 });
 
+
+onBeforeUnmount(() => {
+	clearTimeout(resizeTimer);
+	clearTimeout(timeoutSnapX);
+	clearTimeout(timeoutSnapY);
+
+	resizeObserver?.disconnect();
+	resizeObserver = null;
+	window.removeEventListener('resize', onWindowResize);
+
+	stage?.destroy();
+	stage = null;
+	listenersAttached = false;
+	layer = null;
+	image = null;
+	backgroundRect = null;
+	sourceImage = null;
+});
+
+
+// reload whenever a different image is selected without the component
+// being torn down in between
+watch(() => props.src, (src) => {
+	if (!stage || !layer) return;
+	layer.removeChildren();
+	image = null;
+	backgroundRect = null;
+	sourceImage = null;
+	loadImage(src);
+});
 
 
 // calculate the rotated bounding box dimensions
@@ -102,6 +240,7 @@ const getRotatedBoundingBox = (img: HTMLImageElement) => {
 
 const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: number }, horizontally: boolean): void => {
 	if (!stage || !layer) return;
+	if (boundingBox.width <= 0 || boundingBox.height <= 0) return;
 
 	// remove existing image
 	layer.removeChildren();
@@ -110,7 +249,7 @@ const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: n
 	stage.position({ x: 0, y: 0 }); // Reset stage position
 
 	// calculate scaling
-	const scale = (horizontally ? (stage.width() / boundingBox.width) : (stage.height() / boundingBox.height)) ?? 1;
+	const scale = horizontally ? (stage.width() / boundingBox.width) : (stage.height() / boundingBox.height);
 
 	// create new image object and scale
 	image = new Konva.Image({
@@ -135,8 +274,6 @@ const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: n
 	});
 
 
-
-
 	layer.add(backgroundRect);
 	layer.add(image);
 
@@ -145,9 +282,9 @@ const fitImage = (img: HTMLImageElement, boundingBox: { width: number, height: n
 
 
 function fit(horizontal: boolean): void {
-	if (!image || !layer) return
-	const boundingBox = getRotatedBoundingBox(image.attrs.image)
-	fitImage(image.attrs.image, boundingBox, horizontal);
+	if (!layer || !sourceImage) return
+	fitImage(sourceImage, getRotatedBoundingBox(sourceImage), horizontal);
+	layer.batchDraw();
 };
 
 
@@ -158,7 +295,7 @@ async function saveCanvasImage(printable = true): Promise<string> {
 
 			if (!printable) {
 				// TODO: error handling?
-				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text, image, backgroundRect, stage);
+				const polaroidImage = await downloadPolaroid(props.config.type, props.settings.text, image, backgroundRect, stage, props.displayScale);
 				resolve(polaroidImage);
 
 			}
@@ -166,7 +303,6 @@ async function saveCanvasImage(printable = true): Promise<string> {
 			else {
 
 				const compressedCanvasImage = await compressedImage(props.config.type, image, backgroundRect, stage);
-				console.log(compressedCanvasImage)
 				// TODO: error handling?
 				resolve(compressedCanvasImage as string)
 			}
@@ -179,30 +315,29 @@ async function saveCanvasImage(printable = true): Promise<string> {
 defineExpose({ fit, saveCanvasImage });
 
 
+// the background rect is a child of the (zoomed/panned) stage, so it has to be
+// counter-transformed to keep covering exactly the visible area
 const resetBackgroundRect = () => {
-	if (backgroundRect == null) return;
+	if (backgroundRect == null || stage == null) return;
 	backgroundRect.absolutePosition({ x: 0, y: 0 });
 	backgroundRect.scaleX(1 / stage.scaleX());
 	backgroundRect.scaleY(1 / stage.scaleY());
 
 }
 
-function setCenterCross(id: string, idle = true, vertical) {
-	const doc = document.getElementById(id);
-
-	if (!idle) {
-		doc.style[!vertical ? 'height' : 'width'] = '100%'
-		doc.style.backgroundColor = 'var(--dynamic-bg-color)';
-		doc.style.zIndex = '5';
-	} else {
-		doc.style[!vertical ? 'height' : 'width'] = '20px'
-		doc.style.backgroundColor = 'white';
-		doc.style.zIndex = '1';
-	}
-
+// grow the background rect to the current stage size and re-anchor it
+const resizeBackgroundRect = () => {
+	if (backgroundRect == null || stage == null) return;
+	backgroundRect.width(stage.width());
+	backgroundRect.height(stage.height());
+	resetBackgroundRect();
 }
-let timeoutSnapX, timeoutSnapY = null;
+
+let timeoutSnapX: ReturnType<typeof setTimeout> | undefined;
+let timeoutSnapY: ReturnType<typeof setTimeout> | undefined;
 function checkAndSnap() {
+	if (!stage || !layer || !image) return;
+
 	// The center of the stage in the stage's coordinate space
 	const stageCenterX = (stage.width() / 2 - stage.x()) / stage.scaleX();
 	const stageCenterY = (stage.height() / 2 - stage.y()) / stage.scaleY();
@@ -228,36 +363,36 @@ function checkAndSnap() {
 		stage.x(snapXPosition);
 
 
-		setCenterCross("cross-element-horizontal", false, false)
+		snappedX.value = true;
 
 		timeoutSnapX = setTimeout(() => {
-			setCenterCross("cross-element-horizontal", true, false)
+			snappedX.value = false;
 		}, 350);
 	} else {
-		setCenterCross("cross-element-horizontal", true, false)
+		snappedX.value = false;
 	}
 	if (deltaY <= threshold) {
 		// Adjust stage.y() to snap image's center to the stage's center
 		const snapYPosition = stage.height() / 2 - imageCenterY * stage.scaleY();
 		stage.y(snapYPosition);
 
-		setCenterCross("cross-element-vertical", false, true)
+		snappedY.value = true;
 
 		timeoutSnapY = setTimeout(() => {
-			setCenterCross("cross-element-vertical", true, true)
+			snappedY.value = false;
 		}, 350);
 	} else {
-		setCenterCross("cross-element-vertical", true, true)
+		snappedY.value = false;
 	}
-
 
 
 	layer.batchDraw();
 }
 
+let listenersAttached = false;
 const addCanvasListeners = () => {
-	// stage.on('transformend', updateHelperLines); // Update lines on transformation end
-	// window.addEventListener('resize', updateHelperLines); // Update lines on window resize
+	if (!stage || listenersAttached) return;
+	listenersAttached = true;
 
 	stage.on('dragmove', resetBackgroundRect);
 	stage.on('dragmove', () => {
@@ -265,12 +400,9 @@ const addCanvasListeners = () => {
 	});
 
 
-
-
 	// Wheel zoom functionality
 	stage.on('wheel', (e) => {
 
-		resetBackgroundRect()
 		e.evt.preventDefault();
 		const oldScale = stage.scaleX();
 		const pointer = stage.getPointerPosition();
@@ -280,7 +412,8 @@ const addCanvasListeners = () => {
 			y: (pointer.y - stage.y()) / oldScale,
 		};
 
-		const newScale = e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale * 1.05;
+		const newScale = clampZoom(e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale * 1.05);
+
 		stage.scale({ x: newScale, y: newScale });
 
 		const newPos = {
@@ -288,6 +421,9 @@ const addCanvasListeners = () => {
 			y: pointer.y - mousePointTo.y * newScale,
 		};
 		stage.position(newPos);
+
+
+		resetBackgroundRect()
 	});
 
 	let lastCenter: any = null;
@@ -341,7 +477,7 @@ const addCanvasListeners = () => {
 				y: (newCenter.y - stage.y()) / stage.scaleX(),
 			};
 
-			const scale = stage.scaleX() * (dist / lastDist);
+			const scale = clampZoom(stage.scaleX() * (dist / lastDist));
 
 			stage.scaleX(scale);
 			stage.scaleY(scale);
@@ -359,6 +495,8 @@ const addCanvasListeners = () => {
 
 			lastDist = dist;
 			lastCenter = newCenter;
+
+			resetBackgroundRect()
 		}
 	});
 
@@ -389,14 +527,16 @@ function removeImage(): void {
 function setBackgroundColor(): void {
 	const color = props.settings.color ?? '#FFFFFF';
 
-	backgroundRect.fill(color)
+	backgroundRect?.fill(color)
 
 	const doc = document.getElementById("polaroid-frame");
 	if (doc) doc.style.backgroundColor = color;
 }
 
 watch(() => props.settings.rotation, (newVal, oldVal) => {
-	image.rotate((newVal - oldVal))
+	if (!image) return;
+	image.rotate(Number(newVal) - Number(oldVal))
+	layer?.batchDraw();
 })
 
 watch([() => props.settings.color, () => props.src], setBackgroundColor);
@@ -421,22 +561,35 @@ watch([() => props.settings.color, () => props.src], setBackgroundColor);
 	position: absolute;
 	top: 50%;
 	left: 50%;
-	background-color: var(--light-grey-color);
+	border-radius: 2px;
+	background-color: rgb(var(--light-grey-color));
 	transform: translate(-50%, -50%);
 	z-index: 2;
 }
 
-.cross-element:first-of-type {
+/* guide for horizontal centring: a thin vertical line */
+.cross-x {
 	width: 2px;
-	border-radius: 2px;
 	height: 20px;
 }
 
-
-.cross-element:last-of-type {
+/* guide for vertical centring: a thin horizontal line */
+.cross-y {
 	width: 20px;
-	border-radius: 2px;
 	height: 2px;
+}
+
+.cross-element.snapped {
+	background-color: rgb(var(--dynamic-bg-color));
+	z-index: 5;
+}
+
+.cross-x.snapped {
+	height: 100%;
+}
+
+.cross-y.snapped {
+	width: 100%;
 }
 
 .center-cross {

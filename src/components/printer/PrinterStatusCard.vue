@@ -189,7 +189,7 @@ const batteryIcon = computed(() => {
 }
 
 .printer-charging-text {
-	color: var(--orange-color);
+	color: rgb(var(--orange-color));
 	letter-spacing: 1px
 }
 
@@ -233,6 +233,6 @@ const batteryIcon = computed(() => {
 	text-transform: uppercase;
 	letter-spacing: 1.5px;
 	font-weight: 400px;
-	color: var(--grey-color)
+	color: rgb(var(--grey-color))
 }
 </style>

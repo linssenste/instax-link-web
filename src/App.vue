@@ -14,12 +14,11 @@
 
 		</div>
 
-		<PolaroidEditor v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
+		<PolaroidEditor class="editor" v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
 
 
 		<MobileOverlay v-show="isMobile" :config="config" v-on:color-change="themeChangeEvent"
 			v-on:type-change="typeChangeEvent" :queue="imageQueue" />
-
 	</div>
 </template>
 
@@ -52,9 +51,17 @@ const config = ref<PrinterStateConfig>({
 
 })
 
-// get hex value of current color theme
+// theme colors are stored as "r, g, b" triplets so they can be used inside
+// rgb()/rgba() in CSS; the printer protocol expects a hex string
 function getThemeColorHex(theme: string): string {
-	return getComputedStyle(document.documentElement).getPropertyValue(`--${theme}-color`) ?? '#FFFFFF'
+	const value = getComputedStyle(document.documentElement).getPropertyValue(`--${theme}-color`)?.trim();
+	if (!value) return '#FFFFFF';
+	if (value.startsWith('#')) return value;
+
+	const channels = value.split(',').map((channel) => Number(channel.trim()));
+	if (channels.length !== 3 || channels.some((channel) => !Number.isFinite(channel))) return '#FFFFFF';
+
+	return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 // update theme onto printer if changed
@@ -69,7 +76,6 @@ function typeChangeEvent(filmType: InstaxFilmVariant): void {
 		config.value.type = filmType
 	}
 }
-
 
 
 let isPrinting = false;
@@ -110,7 +116,6 @@ function unload(event): void {
 		event.returnValue = true;
 	}
 }
-
 
 
 async function disconnectBluetoothPrinter(): Promise<void> {
@@ -163,7 +168,7 @@ async function loadMetaData(): Promise<void> {
 	if (timeoutHandle) clearInterval(timeoutHandle);
 
 
-	await getPrinterMeta(true); 
+	await getPrinterMeta(true);
 	timeoutHandle = setInterval(async () => {
 		await getPrinterMeta();
 		printPolaroidQueue()
@@ -242,7 +247,7 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 				await new Promise((r) => setTimeout(r, 1000));
 
-				await getPrinterMeta(); // update printer information once 
+				await getPrinterMeta(); // update printer information once
 				await new Promise((r) => setTimeout(r, 250));
 
 				const quantity = imageQueue.value[0].quantity ?? 1; // total images
@@ -289,6 +294,9 @@ async function finishUpPrinting() {
 	width: 100vw;
 	height: 100%;
 	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 
 	-moz-user-select: none;
 	-webkit-user-select: none;
@@ -301,7 +309,7 @@ async function finishUpPrinting() {
 		left: 0;
 		width: 100%;
 		height: 100%;
-		background-color: var(--dynamic-bg-color);
+		background-color: rgb(var(--dynamic-bg-color));
 		opacity: .25;
 		z-index: -1;
 	}
@@ -342,6 +350,18 @@ async function finishUpPrinting() {
 	top: 25px;
 	left: 25px;
 	gap: 15px;
+}
+/* the editor is the only scroll container: it fills the fixed app area and
+   scrolls when the polaroid plus its settings panel do not fit. min-height: 0
+   is what allows a flex item to shrink below its content and actually scroll */
+.editor {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 @media only screen and (max-width: 600px) {

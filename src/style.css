@@ -17,8 +17,6 @@
 }
 
 
-
-
 html,
 body {
 	font-family: 'Rubik' !important;
@@ -84,8 +82,6 @@ button img {
 }
 
 
-
-
 h1 {
 	font-family: 'Keedy Sans';
 
@@ -93,16 +89,4 @@ h1 {
 	color: rgb(var(--dynamic-bg-color));
 	padding-top: 20px;
 	font-size: 24px;
-}
-
-
-.polaroid-caption {
-
-
-	color: rgba(0, 15, 85, .75);
-	font-size: 25px;
-	padding-top: 3px;
-	width: 100%;
-	font-family: 'biro_script_standardregular';
-	text-transform: uppercase;
 }

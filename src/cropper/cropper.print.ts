@@ -1,5 +1,6 @@
 
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
+import { PRINT_RESOLUTION } from "../polaroid/frame.geometry";
 import Compressor from 'compressorjs';
 
 
@@ -15,9 +16,7 @@ async function compressFile(file: Blob, width: number, height: number, rate: num
 			height: height,
 			minHeight: height,
 			maxHeight: height,
-
-			// The compression process is asynchronous,
-			// which means you have to access the `result` in the `success` hook function.
+ 
 			success(result: Blob) {
 				resolve(result)
 			},
@@ -27,17 +26,21 @@ async function compressFile(file: Blob, width: number, height: number, rate: num
 		});
 
 	});
-} export async function compressedImage(type, image, background, stage) {
+}
+
+export async function compressedImage(type, image, background, stage) {
 	return new Promise(async (resolve, reject) => {
 		try {
 
-			const canvasUrl = stage.toDataURL({ pixelRatio: 2 });
+			const { width, height } = PRINT_RESOLUTION[type] ?? PRINT_RESOLUTION[InstaxFilmVariant.SQUARE];
+ 
+			const pixelRatio = stage.width() > 0 ? (width / stage.width()) : 2;
+
+			const canvasUrl = stage.toDataURL({ pixelRatio });
 
 			const canvasImageBlob = await fetch(canvasUrl).then(res => res.blob());
 
 			const file = new File([canvasImageBlob], "compressed-image.jpeg", { type: "image/jpeg" });
-			const width = ((type == InstaxFilmVariant.MINI ? 600 : (type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
-			const height = ((type == InstaxFilmVariant.MINI ? 800 : (type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)
 			const maxSize = 1024 * 60;
 
 			let minQuality = 0, maxQuality = 1, quality = 0.5;

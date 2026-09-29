@@ -135,7 +135,7 @@ watch(selectedType, (newType, oldType) => {
 	background-position: center;
 	border-radius: 0;
 	border-radius: 1px;
-	background-color: var(--grey-color);
+	background-color: rgb(var(--grey-color));
 	overflow: hidden;
 }
 

@@ -4,51 +4,42 @@
 		<DropImageUpload v-on:dropped="getFileData($event)" />
 
 
-		<div class="polaroid-editor"
-			 :style="`width: ${config.type == InstaxFilmVariant.MINI ? 270 : (config.type == InstaxFilmVariant.SQUARE ? 350 : 500)}px`">
+		<!-- the editor is capped at the frame's intrinsic width so the settings
+			 panel below can never end up wider than the polaroid itself -->
+		<div class="polaroid-editor" :style="{ maxWidth: `${POLAROID_FRAME_WIDTH[config.type]}px` }">
 
+			<PolaroidFrame :type="config.type" class="frame">
+				<template v-slot:polaroid-area="{ displayScale }">
 
-			<PolaroidFrame :type="config.type" style="z-index: 5" :key="config.type">
-				<template v-slot:polaroid-area>
-
-					<CropperArea v-if="image" class="cropper-area" :key="image" ref="cropperAreaRef" :config="config"
-								 :src="image" :loading="loading" v-on:remove-image="removeImageEvent"
-								 :settings="imageSettings" v-on:save="savePolaroidCanvas" />
+					<CropperArea v-if="image" ref="cropperAreaRef" :config="config" :src="image" :loading="loading"
+						:settings="imageSettings" :displayScale="displayScale" v-on:remove-image="removeImageEvent"
+						v-on:save="savePolaroidCanvas" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
 					<div v-if="loading" class="loading-overlay">
 						<div
-							 style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;">
+							style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: black; opacity: .35; letter-spacing: 1px;">
 							LOADING ...</div>
 					</div>
 
 				</template>
 
 				<template v-slot:polaroid-text>
-					<div v-if="!image" class="polaroid-caption">
+					<!-- the caption is written straight onto the polaroid, in the spot
+						 it will occupy on the print -->
+					<input v-if="image" id="caption-input" class="polaroid-caption caption-input"
+						   data-testid="caption-input" spellcheck="false" placeholder="add a caption"
+						   :maxlength="captionLength" v-model="caption" />
+
+					<div v-else class="polaroid-caption">
 						<span>Choose an image!</span>
 					</div>
-
-					<button v-else-if="!loading" class="expand-button" v-on:click="expandContract"
-							:title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
-							:style="settingsExpansion ? 'transform: rotate(-180deg)' : 'transform: rotate(0deg)'">
-						<img width="20" height="20" :title="`${settingsExpansion ? 'Hide' : 'Show'} image settings`"
-							 src="@/assets/icons/controls/chevron-down.svg" />
-					</button>
-
 				</template>
 			</PolaroidFrame>
 
-			<div id="expand-container">
-				<div id="expand-contract" :style="expansion" class="collapsed">
-					<ImageSettings :queueLength="queueLength" :config="config" :savePolaroid="saveEditorPolaroid"
-								   v-on:change="imageSettings = $event" v-on:scale="fitImageEvent"
-								   v-on:remove-image="image = null" />
-
-				</div>
-
-			</div>
-
+			<SettingsExpansion :config="config" :queueLength="queueLength" :hasImage="image != null"
+							   :savePolaroid="saveEditorPolaroid" v-on:change="updatedSettingsEvent"
+							   v-on:scale="fitImageEvent" />
 
 		</div>
 	</div>
@@ -56,14 +47,14 @@
 
 <script setup lang="ts">
 
-import { computed, ref, watch, Ref } from 'vue'
+import { computed, onBeforeUnmount, ref, Ref } from 'vue'
 import PolaroidFrame from './PolaroidFrame.vue';
 import CropperArea from './CropperArea.vue';
-import ImageSettings from './ImageSettings.vue';
-
 import DropImageUpload from '../files/DropImageUpload.vue';
 import SelectImageUpload from '../files/SelectImageUpload.vue';
 import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import SettingsExpansion from '../layout/SettingsExpansion.vue';
+import { POLAROID_FRAME_WIDTH } from '../../polaroid/frame.geometry';
 
 const emit = defineEmits(['image'])
 
@@ -73,55 +64,54 @@ const props = defineProps<{
 }>()
 
 
-
 const cropperAreaRef: Ref<typeof CropperArea | null> = ref(null);
 props.config;
 
 
 const loading = ref(false)
-const imageSettings = ref({
-	rotation: 0,
-	text: '',
-	color: '#FFFFFF'
+
+// how the image is placed in the frame, owned by the settings panel
+const adjustments = ref({ rotation: 0, color: '#FFFFFF' })
+
+// the caption is edited on the polaroid itself, so it lives here
+const caption = ref('')
+
+const captionLength = computed(() => {
+	if (props.config.type === InstaxFilmVariant.MINI) return 18;
+	return props.config.type === InstaxFilmVariant.SQUARE ? 25 : 35;
 })
 
-const expansion = computed(() => {
-	return `margin-top: ${(!settingsExpansion.value || !image.value) ? (-120 - 51) : (props.config.connection ? -55 : 10)}px; pointer-events: ${settingsExpansion.value ? 'inherit' : 'none'}`
-})
+const imageSettings = computed(() => ({ ...adjustments.value, text: caption.value }))
 
-const settingsExpansion = ref(false)
 
 const image = ref<string | null>(null);
-watch(image, (newVal, prevVal) => {
-	const el = document.getElementById("expand-contract");
 
-	if (el && ((newVal == null && prevVal != null) || (prevVal == null && newVal != null))) {
-		expandContract();
-
-		setTimeout(() => {
-			imageSettings.value.rotation = 0;
-		}, 750);
-
-	}
-});
+// the object URL currently backing `image`, kept so it can be revoked again
+let objectUrl: string | null = null;
 
 
+// ImageSettings resets its own adjustments once the image is gone; the caption
+// belongs to the image too, so it is cleared alongside it
 function removeImageEvent() {
 	image.value = null;
+	releaseImageSource();
+
+	// delayed, so the text does not visibly vanish while the panel slides away
 	setTimeout(() => {
-		imageSettings.value.text = ""
+		if (!image.value) caption.value = '';
 	}, 500);
 }
 
-async function saveEditorPolaroid(download = false): Promise<void> {
+function updatedSettingsEvent(settings: { rotation: number; color: string }) {
+	adjustments.value = settings;
+}
 
+
+async function saveEditorPolaroid(download = false): Promise<void> {
 
 	loading.value = true;
 
-
-
-	expandContract();
-	await new Promise((r) => setTimeout(r, 525)) // await animation 
+	await new Promise((r) => setTimeout(r, 525)) // await the panel collapse animation
 
 
 	const imageUrl = await cropperAreaRef.value?.saveCanvasImage(!download);
@@ -132,18 +122,11 @@ async function saveEditorPolaroid(download = false): Promise<void> {
 
 	}, 750);
 
-
-}
-
-function expandContract() {
-	if (!image.value) settingsExpansion.value = false;
-	else settingsExpansion.value = !settingsExpansion.value
 }
 
 
 function fitImageEvent(type: string): void {
 	if (cropperAreaRef.value) cropperAreaRef.value.fit((type == 'horizontal'));
-
 }
 function savePolaroidCanvas(imageURL: string): void {
 	emit('image', imageURL)
@@ -151,78 +134,76 @@ function savePolaroidCanvas(imageURL: string): void {
 function getFileData(file: File | null): void {
 	if (!file) return;
 
-	// Resize the image if it's larger than 2MB
-	resizeImage(file, 1024, 1024, (resizedFile: Blob) => {
-		const reader = new FileReader();
-		reader.readAsDataURL(resizedFile);
-
-		reader.onload = async function () {
-			image.value = reader.result as string;
-		};
-		reader.onerror = function (error) {
-			console.log('Error: ', error);
-		};
-	});
-
-
-
+	// resize first if it is oversized, then hand the blob straight to the canvas
+	resizeImage(file, 1024, 1024, setImageSource);
 }
 
-// Function to resize an image
+// object URLs reference the blob in place. Reading the file into a base64 data
+// URL instead would copy it, inflate it by a third, and make the canvas parse
+// that string back again on every load
+function setImageSource(blob: Blob): void {
+	releaseImageSource();
+	objectUrl = URL.createObjectURL(blob);
+	image.value = objectUrl;
+}
+
+function releaseImageSource(): void {
+	if (!objectUrl) return;
+	URL.revokeObjectURL(objectUrl);
+	objectUrl = null;
+}
+
+onBeforeUnmount(releaseImageSource);
+
+// scale an oversized image down before it ever reaches the canvas
 function resizeImage(file: File, maxWidth: number, maxHeight: number, callback: (resizedFile: Blob) => void): void {
+	if (file.size < 1.5 * maxWidth * maxHeight) {
+		callback(file);
+		return;
+	}
 
+	try {
+		const img = new Image();
+		const sourceUrl = URL.createObjectURL(file);
 
-	if (file.size < 1.5 * maxWidth * maxHeight) callback(file);
-	else {
+		img.onload = function () {
+			URL.revokeObjectURL(sourceUrl);
 
-		try {
-			const reader = new FileReader();
+			const canvas = document.createElement('canvas');
+			let width = img.width;
+			let height = img.height;
 
-			reader.onload = function (event: ProgressEvent<FileReader>) {
-				const img = new Image();
-				img.src = event.target?.result as string;
-
-				img.onload = function () {
-					const canvas = document.createElement('canvas');
-					let width = img.width;
-					let height = img.height;
-
-					// Scale down maintaining aspect ratio
-					if (width > maxWidth || height > maxHeight) {
-						const aspectRatio = width / height;
-						if (width > height) {
-							width = maxWidth;
-							height = maxWidth / aspectRatio;
-						} else {
-							height = maxHeight;
-							width = maxHeight * aspectRatio;
-						}
-					}
-
-					// Set canvas size and draw the image
-					canvas.width = width;
-					canvas.height = height;
-					const ctx = canvas.getContext('2d')!;
-					ctx.drawImage(img, 0, 0, width, height);
-
-					canvas.toBlob((blob) => {
-						if (blob) {
-							callback(blob);
-						}
-					}, file.type, 0.85);
-				};
-
-				img.onerror = function () {
-					callback(file);
+			// Scale down maintaining aspect ratio
+			if (width > maxWidth || height > maxHeight) {
+				const aspectRatio = width / height;
+				if (width > height) {
+					width = maxWidth;
+					height = maxWidth / aspectRatio;
+				} else {
+					height = maxHeight;
+					width = maxHeight * aspectRatio;
 				}
-			};
+			}
 
+			// Set canvas size and draw the image
+			canvas.width = width;
+			canvas.height = height;
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(img, 0, 0, width, height);
 
-			reader.readAsDataURL(file);
-		} catch {
+			canvas.toBlob((blob) => {
+				callback(blob ?? file);
+			}, file.type, 0.85);
+		};
+
+		img.onerror = function () {
+			URL.revokeObjectURL(sourceUrl);
 			callback(file);
 		}
 
+		img.src = sourceUrl;
+	} catch {
+		callback(file);
 	}
 }
 
@@ -247,54 +228,87 @@ props.config;
 }
 
 .polaroid-editor {
-	position: absolute;
-
-	left: 50%;
-	top: calc(50% + 15px);
-	transform: translate(-50%, -50%);
-
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-}
-
-
-
-#expand-container {
-	overflow: hidden;
 	position: relative;
+
+	/* auto margins (rather than justify-content on the scroll parent) keep the
+	   editor centred without clipping its top edge once it overflows. The width
+	   cap comes from the film variant and is bound in the template */
+	margin: auto;
+	padding: 20px 10px;
+	width: calc(100% - 20px);
+}
+
+.frame {
+	z-index: 5;
+}
+
+/* the caption lives in the frame's bottom border, so it scales with the frame
+   and keeps its position no matter how far the polaroid is scaled down */
+.polaroid-caption {
 	width: 100%;
-	padding: 5px;
+	text-align: center;
+	color: rgba(0, 15, 85, .75);
+	font-family: 'biro_script_standardregular' !important;
+	font-size: calc(25px * var(--polaroid-scale, 1));
+
+	/* a negative padding is ignored by the browser, so the nudge is a margin */
+	margin-top: calc(-10px * var(--polaroid-scale, 1));
 }
 
-#expand-contract {
-	width: 100%;
-	transition: all 450ms ease-in-out;
+.polaroid-caption span {
+	white-space: nowrap;
 }
 
-#expand-contract.expanded {
-	margin-top: 10px;
-}
-
-
-.cropper-area {
-	transition: all 250ms ease-in-out;
-}
-
-.expand-button {
-	background-color: transparent;
-	outline: none;
+/* the input is the caption itself, sitting where the text will be printed. It is
+   tinted with the theme colour so it reads as a field on the white paper, and
+   every offset scales with the frame */
+.caption-input {
+	display: block;
+	box-sizing: border-box;
 	border: none;
+	outline: none;
+	letter-spacing: 1px;
 
-	color: #000000 !important;
-	opacity: .3;
-	padding: 5px;
-	margin-top: 0px;
-	transition: all 250ms;
-	cursor: pointer;
+	/* 5px of breathing room either side of the frame's text area */
+	width: calc(100% - 10px * var(--polaroid-scale, 1));
+	margin-left: calc(5px * var(--polaroid-scale, 1));
+	margin-right: calc(5px * var(--polaroid-scale, 1));
+
+	/* a fixed box, so the padding below shifts the text inside it rather than
+	   growing the field. An input centres its text in the content box, so the
+	   8px of top padding moves the text down by half that */
+	height: calc(40px * var(--polaroid-scale, 1));
+	padding: calc(8px * var(--polaroid-scale, 1)) calc(10px * var(--polaroid-scale, 1)) 0;
+
+	border-radius: calc(12px * var(--polaroid-scale, 1));
+	caret-color: rgba(0, 15, 85, .45);
+	transition: background-color 150ms ease-in-out;
+
+	/* Tint of the field. Transparent at rest, so what is on screen is what gets
+	   printed - the italic placeholder is what makes it discoverable - and tinted
+	   only while pointed at or focused.
+	   For a permanent tint instead, raise --caption-rest-opacity to about .12.
+	   A white tint is not worth trying: the paper is already near white, which is
+	   why it read as invisible. */
+	--caption-tint: var(--dynamic-bg-color);
+	--caption-rest-opacity: 0;
+
+	background-color: rgba(var(--caption-tint), var(--caption-rest-opacity));
 }
 
-.expand-button:hover {
-	opacity: .75;
+.caption-input::placeholder {
+	color: rgba(0, 15, 85, .3);
+	font-style: italic;
+	opacity: 1;
 }
+
+/* .caption-input:focus {
+	background-color: rgba(var(--caption-tint), .22);
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.caption-input:hover {
+		background-color: rgba(var(--caption-tint), .14);
+	}
+} */
 </style>

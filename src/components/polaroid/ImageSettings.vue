@@ -1,10 +1,6 @@
 <template>
 	<div class="settings-container">
 
-		<!-- caption input; only visible if no printer is connected -->
-		<input id="caption-input" spellcheck="false" class="caption-input" data-testid="caption-input"
-			   placeholder="Image caption" :maxlength="captionLength" v-model="settings.text" />
-
 		<div class="align-span-buttons">
 
 			<!-- rotation control + input -->
@@ -42,7 +38,6 @@
 			</div>
 
 
-
 			<div class="alignment-buttons">
 
 				<!-- Horizontal Scale Button -->
@@ -63,69 +58,37 @@
 			</div>
 		</div>
 
-
-
-
-		<div class="print-download-action-buttons">
-
-			<!-- print image button if connected -->
-			<button v-if="config.connection" :style="awaitingQueue" v-on:click="savePolaroid(false)"
-					data-testid="print-image-button" title="print image with instax printer" class="action-button">
-				<span>
-					Print Image
-				</span>
-			</button>
-
-
-			<!-- download image as polaroid button if not connected -->
-			<button v-else v-on:click="savePolaroid(true)" class="action-button" data-testid="download-image-button">
-				<img draggable="false" style="" title="download whole image" src="@/assets/icons/controls/download.svg"
-					 width="14" height="14" />
-				Download
-			</button>
-
-
-
-			<!-- icon button to download (without subtitle) -->
-			<button v-if="config.connection" v-on:click="savePolaroid(true)" class="download-icon-button"
-					data-testid="download-image-icon-button">
-				<img draggable="false" title="download whole image" src="@/assets/icons/controls/download.svg" width="14"
-					 height="14" />
-
-			</button>
-		</div>
-
 	</div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
-import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { onBeforeUnmount, ref, watch } from 'vue';
 const emit = defineEmits(['change', 'scale']);
 
-const props = defineProps<{
-	config: PrinterStateConfig
+const props = withDefaults(defineProps<{
+	hasImage?: boolean;
+}>(), { hasImage: true });
 
-	savePolaroid: (download: boolean) => void;
-	queueLength: number;
-}>();
-props.config;
-props.savePolaroid;
-
+// how the loaded image is placed inside the frame. The caption is not part of
+// this: it is edited on the polaroid itself
 const settings = ref({
 	rotation: 0,
-	color: '#FFFFFF',
-	text: ''
+	color: '#FFFFFF'
 });
 
-const awaitingQueue = computed(() => {
-	if (props.queueLength > 2) return `background-color: var(--grey-color)!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
-	else return ''
-})
-const captionLength = computed(() => {
-	return (props.config.type == InstaxFilmVariant.MINI ? 18 : (props.config.type == InstaxFilmVariant.SQUARE ? 25 : 35))
-})
+// these settings belong to the loaded image, so they are reset once it is gone.
+// delayed, so the fields do not visibly jump while the panel slides away
+let resetTimer: ReturnType<typeof setTimeout> | undefined;
+watch(() => props.hasImage, (hasImage) => {
+	clearTimeout(resetTimer);
+	if (hasImage) return;
 
+	resetTimer = setTimeout(() => {
+		settings.value.rotation = 0;
+	}, 500);
+});
+
+onBeforeUnmount(() => clearTimeout(resetTimer));
 
 
 async function setAlignment(type: 'scale', horizontal: boolean): Promise<void> {
@@ -137,20 +100,23 @@ watch(settings, () => {
 }, { deep: true });
 
 
-// handle rotation input to be between 0 and 360°
-function updateRotation(value: number) {
-	if (settings.value.rotation <= 0 && value == -1) settings.value.rotation = 359;
-	else if (settings.value.rotation >= 359 && value == 1) settings.value.rotation = 0;
-	else settings.value.rotation += value;
+// wrap any degree value (including the string the number input hands us) into [0, 360)
+function normalizeRotation(value: unknown): number {
+	const degrees = Number(value);
+	if (!Number.isFinite(degrees)) return 0;
+	return ((Math.round(degrees) % 360) + 360) % 360;
 }
 
 
-// handle enter event to blur input field
+// step the rotation by one degree in either direction
+function updateRotation(value: number) {
+	settings.value.rotation = normalizeRotation(Number(settings.value.rotation) + value);
+}
+
+
+// normalize the manually typed value and blur the input field
 function inputEnterEvent() {
-
-	if (settings.value.rotation > 360) settings.value.rotation = settings.value.rotation - (Math.round((settings.value.rotation / 360)) * 360)
-
-	if (settings.value.rotation < 0) settings.value.rotation = 360 + settings.value.rotation;
+	settings.value.rotation = normalizeRotation(settings.value.rotation);
 	(document.activeElement as HTMLInputElement)?.blur()
 }
 
@@ -163,10 +129,8 @@ function inputEnterEvent() {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-
-	padding-top: 4px;
-	padding-bottom: 10px;
-	position: relative;
+	padding: 0 10px 10px;
+	justify-content: center;
 }
 
 .align-span-buttons {
@@ -199,7 +163,6 @@ function inputEnterEvent() {
 }
 
 
-
 .icon-button img {
 	position: absolute;
 	opacity: .95;
@@ -207,7 +170,6 @@ function inputEnterEvent() {
 	left: 50%;
 	transform: translate(-50%, -50%);
 }
-
 
 
 .rotation-input {
@@ -255,16 +217,7 @@ function inputEnterEvent() {
 		opacity: 1;
 	}
 
-	.caption-input:hover {
-		background-color: #ffffffee;
-		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
-
-
-
-	}
-
 }
-
 
 
 .rotation-controls {
@@ -329,64 +282,4 @@ input[type=number] {
 	outline-color: transparent;
 }
 
-.caption-input {
-	width: 100%;
-	height: 40px;
-	font-size: 24px !important;
-	letter-spacing: 2px;
-	padding-top: 5px;
-
-	padding-bottom: 5px;
-	margin-top: 5px;
-	margin-bottom: 10px;
-	text-align: center;
-	outline: none;
-	background-color: #ffffffaa;
-	border: none;
-	border-radius: 15px;
-	transition: all 100ms ease-in-out;
-	font-family: "biro_script_standardregular" !important;
-	caret-color: #00000033;
-}
-
-
-.caption-input::placeholder {
-	color: #00000033;
-	opacity: 1;
-}
-
-
-.caption-input::-ms-input-placeholder {
-	color: #00000033;
-}
-
-
-
-.print-download-action-buttons {
-	position: relative;
-	margin-top: 10px;
-	width: 100%;
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-}
-
-.action-button {
-	width: 100%;
-	color: white;
-}
-
-.download-icon-button {
-	margin-left: 5px;
-	width: 40px;
-	position: relative;
-}
-
-
-.download-icon-button img {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-}
 </style>

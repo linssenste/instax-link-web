@@ -55,6 +55,12 @@ function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): stri
 
 }
 
+// guard against a not yet measured or collapsed frame
+export function clampDisplayScale(displayScale: number): number {
+	if (!Number.isFinite(displayScale) || displayScale <= 0) return 1;
+	return displayScale;
+}
+
 interface ImageFilter {
 	contrast: number,
 	saturation: number
@@ -100,17 +106,26 @@ export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect)
 }
 
 
-export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage): Promise<string> {
+// pixel ratio that renders the crop area at the size the exported frame artwork
+// and the text offsets below are aligned to
+const EXPORT_PIXEL_RATIO = 2.4;
+
+/**
+ * @param displayScale how far the frame is currently scaled down on screen. The
+ *   export has to compensate for it, otherwise a canvas shown at 0.75x would be
+ *   composited onto the full size frame artwork at three quarters of its size.
+ */
+export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage, displayScale = 1): Promise<string> {
 	const filterConfig = {
 		contrast: 0.75,
 		saturation: 0.5,
 		brightness: .05,
 		noise: .15
 	}
-	
+
 	setPolaroidFilter(image, background, filterConfig)
 
-	const canvasUrl = stage.toDataURL({ pixelRatio: 2.4 });
+	const canvasUrl = stage.toDataURL({ pixelRatio: EXPORT_PIXEL_RATIO / clampDisplayScale(displayScale) });
 
 	removePolaroidFilter(image, background); // remove all Konva filters
 

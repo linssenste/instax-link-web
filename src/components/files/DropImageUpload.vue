@@ -8,12 +8,11 @@
 			 src="@/assets/icons/printer/plus.svg" />
 
 	</div>
-
 	<div class="drop-image-text">
 		... or drop it here!</div>
 </template>
-	
-	
+
+
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -42,7 +41,6 @@ onUnmounted(() => {
 	document.removeEventListener('dragleave', dragLeave);
 	document.removeEventListener('drop', onDrop);
 });
-
 
 
 let dragCounter = 0; // debounce drag cursor in edge cases
@@ -93,7 +91,7 @@ const onDrop = (e: DragEvent) => {
 };
 
 </script>
-	
+
 <style scoped lang="scss">
 .drop-overlay {
 	z-index: 1000000 !important;
@@ -112,7 +110,7 @@ const onDrop = (e: DragEvent) => {
 .color-overlay {
 	position: absolute;
 	top: 0px;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 	left: 0px;
 	width: 100%;
 	height: 100%;
@@ -128,7 +126,6 @@ const onDrop = (e: DragEvent) => {
 	font-size: 75px;
 	z-index: 10
 }
-
 
 
 .drop-image-text {
@@ -152,4 +149,4 @@ const onDrop = (e: DragEvent) => {
 		display: none !important;
 	}
 }
-</style> 
+</style>

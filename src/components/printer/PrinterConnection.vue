@@ -114,7 +114,7 @@ function removeImageEvent(index: number): void {
 
 .connect-button:disabled {
 
-	background-color: var(--grey-color) !important;
+	background-color: rgb(var(--grey-color)) !important;
 	cursor: not-allowed !important;
 	opacity: 0.4 !important;
 }

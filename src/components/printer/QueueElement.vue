@@ -60,7 +60,7 @@
 			</div>
 
 			<div data-testid="printing-progress-step" class="progress-step"
-				 :style="element.state != 2 ? 'background-color: var(--light-grey-color)!important' : ''" />
+				 :style="element.state != 2 ? 'background-color: rgb(var(--light-grey-color))!important' : ''" />
 
 			<div data-testid="printing-progress-printing" class="progress-bar">
 				<div v-if="element.state == 2" id="printProgress" class="progress progress-print"
@@ -117,7 +117,7 @@ function modifyQuantity(value: number): void {
 
 <style scoped>
 .progress-bar {
-	background-color: var(--light-grey-color);
+	background-color: rgb(var(--light-grey-color));
 	width: calc(100%/2);
 	height: 10px;
 
@@ -205,7 +205,7 @@ function modifyQuantity(value: number): void {
 	border-radius: 5px;
 	margin-left: 5px;
 	margin-right: 5px;
-	background-color: var(--light-grey-color);
+	background-color: rgb(var(--light-grey-color));
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
 }
