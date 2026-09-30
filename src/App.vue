@@ -2,7 +2,8 @@
 	<div class="app-area" id="app-area" :class="{ 'transparent-bg': embedMode != null }">
 
 		<!-- top-right corner: connection, printer status and the print queue -->
-		<PrinterConnection v-show="!isMobile" class="printer-panel" :queue="imageQueue" :config="config" />
+		<PrinterConnection v-show="!isMobile" class="printer-panel" :queue="imageQueue" :config="config"
+			v-on:retry="retryPrintEvent" />
 
 		<!-- bottom-left corner: theme color selector -->
 		<ThemeColorSelector v-show="!isMobile" v-if="!embedMode" class="theme-colors"
@@ -19,6 +20,10 @@
 
 		<MobileOverlay v-show="isMobile" :config="config" v-on:color-change="themeChangeEvent"
 			v-on:type-change="typeChangeEvent" :queue="imageQueue" />
+
+		<!-- a print that never came out: the photo stays on the queue behind this -->
+		<PrintErrorDialog :error="printError" v-on:close="printError = null" v-on:retry="retryPrintEvent"
+			v-on:discard="discardFailedPrintEvent" />
 	</div>
 </template>
 
@@ -32,11 +37,15 @@ import PolaroidSizeSelector from './components/layout/PolaroidSizeSelector.vue';
 import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 import PrinterConnection from './components/printer/PrinterConnection.vue';
 import { InstaxPrinter } from './api/instax';
+import { isPrintError, InstaxPrintError, type PrintFailure } from './api/instax.errors';
+import { QUEUE_STATE, MAX_QUEUE_LENGTH } from './interfaces/QueueImage';
+import PrintErrorDialog from './components/printer/PrintErrorDialog.vue';
 
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
 
 import type { QueueImage } from './interfaces/QueueImage';
 import { downloadDataUrl, polaroidFilename } from './cropper/cropper.download';
+import { warmCompression } from './cropper/cropper.print';
 
 
 // if window smaller 1000
@@ -83,6 +92,18 @@ let isPrinting = false;
 
 let timeoutHandle: ReturnType<typeof setInterval> | null = null
 let printer: InstaxPrinter | null = null;
+
+/** the print that did not come out, and what the printer said about it */
+const printError = ref<InstaxPrintError | null>(null);
+
+/**
+ * What the printer's film looked like when the print failed.
+ *
+ * A failed photo waits rather than retrying on a loop, but it should not have to
+ * wait for a click when the thing that was wrong has visibly been put right. This
+ * is the reading to compare against: when it changes, a pack has been in or out.
+ */
+let filmStateAtFailure: string | null = null;
 const imageQueue = ref<QueueImage[]>([])
 
 const embedMode = ref<string | null>(null)
@@ -98,6 +119,26 @@ onMounted(() => {
 	}
 	window.addEventListener("beforeunload", unload);
 	window.addEventListener('resize', resize);
+
+	// the worker is a module of its own; fetching and compiling it is work the
+	// first print should not be waiting on
+	warmCompression();
+
+	// the failure dialog needs an empty film pack to show itself, which is a poor
+	// way to look at its styling, so while developing it can just be asked for
+	if (import.meta.env.DEV) {
+		(window as unknown as { printError: (reason?: PrintFailure | null, status?: number) => void })
+			.printError = (reason = 'not-printed', status = 0x09) => {
+				printError.value = reason == null
+					? null
+					: new InstaxPrintError(reason, 'Simulated failure', status, [0x01, 0xff]);
+			};
+
+		console.log(
+			"> printError('not-printed' | 'reported' | 'refused' | 'silent') shows the print failure dialog,"
+			+ ' printError(null) hides it'
+		);
+	}
 
 })
 
@@ -137,6 +178,10 @@ async function connectBluetoothPrinter(): Promise<void> {
 
 		config.value.connection = true;
 
+		// a handle on the live printer while developing, so the protocol can be
+		// questioned from the console without wiring a control into the UI
+		if (import.meta.env.DEV) (window as unknown as { instax: unknown }).instax = printer;
+
 		// listener on disconnect event
 		device.addEventListener('gattserverdisconnected', clearConnection);
 
@@ -172,6 +217,7 @@ async function loadMetaData(): Promise<void> {
 	await getPrinterMeta(true);
 	timeoutHandle = setInterval(async () => {
 		await getPrinterMeta();
+		resumeOnNewFilm();
 		printPolaroidQueue()
 	}, 2000) as ReturnType<typeof setInterval>;
 
@@ -207,6 +253,8 @@ function createdImageEvent(imageData: RenderedImage) {
 
 	// queue for printing; the caption is not printed, so it is kept as the title
 	if (imageData.download == false && config.value.connection == true) {
+		if (imageQueue.value.length >= MAX_QUEUE_LENGTH) return;
+
 		imageQueue.value.push({
 			base64: imageData.src,
 			quantity: 1,
@@ -273,7 +321,31 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 			}
 
-		} catch {
+		} catch (error) {
+			// a print that did not come out is the printer's answer, not a glitch to
+			// retry through: sending it again only makes it blink again, and dropping
+			// the photo off the queue would make the user build it a second time
+			if (isPrintError(error)) {
+				console.error('> print failed', error.detail);
+				printError.value = error;
+
+				// FAILED, not QUEUED: the poller below picks up anything queued, and
+				// would send this straight back to the printer that just refused it
+				const pending = imageQueue.value[0];
+				if (pending != null) {
+					pending.state = QUEUE_STATE.FAILED;
+					pending.progress = 0;
+					pending.abortController = null;
+				}
+
+				filmStateAtFailure = config.value.status?.filmState ?? null;
+
+				isPrinting = false;
+				if (timeoutHandle) clearInterval(timeoutHandle);
+				loadMetaData();
+				return;
+			}
+
 			if (!isRetry && !imageQueue.value[0]?.abortController?.signal) return printPolaroidQueue(true);
 		}
 
@@ -281,6 +353,61 @@ async function printPolaroidQueue(isRetry = false): Promise<void> {
 
 	}
 
+}
+
+/**
+ * Pick a failed photo back up once the film has visibly been dealt with.
+ *
+ * Only on a change: the reading is compared, never interpreted, so putting a pack
+ * in and taking it out again counts as much as loading a fresh one. If the print
+ * fails a second time it simply lands back here against the new reading, so this
+ * cannot become the reprint loop it exists to avoid.
+ */
+function resumeOnNewFilm(): void {
+	const pending = imageQueue.value[0];
+	if (pending == null || pending.state !== QUEUE_STATE.FAILED) return;
+
+	const status = config.value.status;
+	if (status == null || status.filmState == null) return;
+	if (status.filmState === filmStateAtFailure) return;
+	if ((status.polaroidCount ?? 0) <= 0) return;
+
+	filmStateAtFailure = status.filmState;
+	printError.value = null;
+	pending.state = QUEUE_STATE.QUEUED;
+	pending.progress = 0;
+}
+
+/** Put the photo that failed back through, once the film has been seen to. */
+async function retryPrintEvent(): Promise<void> {
+	const pending = imageQueue.value[0];
+	if (pending == null || pending.state !== QUEUE_STATE.FAILED) {
+		printError.value = null;
+		return;
+	}
+
+	await getPrinterMeta();
+
+	// printPolaroidQueue turns straight back round when the printer says it has
+	// nothing to print on, and a retry that quietly does nothing would leave the
+	// photo sitting in the queue with no sign of why
+	if ((config.value.status?.polaroidCount ?? 0) <= 0) {
+		printError.value = new InstaxPrintError('refused', 'The printer is reporting no film left');
+		return;
+	}
+
+	printError.value = null;
+	pending.state = QUEUE_STATE.QUEUED;
+	pending.progress = 0;
+
+	await printPolaroidQueue();
+}
+
+/** Give up on the photo that failed and take it off the queue. */
+function discardFailedPrintEvent(): void {
+	printError.value = null;
+
+	if (imageQueue.value[0]?.state === QUEUE_STATE.FAILED) imageQueue.value.shift();
 }
 
 async function finishUpPrinting() {
@@ -349,8 +476,8 @@ async function finishUpPrinting() {
 
 .printer-panel {
 	position: absolute;
-	top: 25px;
-	right: 25px;
+	top: var(--panel-inset);
+	right: var(--panel-inset);
 	z-index: 1;
 }
 

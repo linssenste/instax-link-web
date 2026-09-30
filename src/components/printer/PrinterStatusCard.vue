@@ -13,8 +13,7 @@
 			<!-- disconnect icon button -->
 			<button data-testid="disconnect-printer-button" v-on:click="config.disconnect" title="Disconnect INSTAX Printer"
 					class="disconnect-button">
-				<img width="18" alt="bluetooth icon to disconnect" draggable="false"
-					 src="@/assets/icons/printer/bluetooth-disconnect.svg" />
+				<span class="disconnect-icon" aria-hidden="true" />
 
 			</button>
 		</div>
@@ -221,11 +220,18 @@ const batteryIcon = computed(() => {
 
 }
 
-.disconnect-button img {
+/* a mask rather than an img: the icon ships with a grey placeholder fill, which
+   is what left it looking washed out on the coloured card */
+.disconnect-icon {
 	position: absolute;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%)
+	width: 18px;
+	height: 18px;
+	transform: translate(-50%, -50%);
+	background-color: #ffffff;
+	-webkit-mask: url('@/assets/icons/printer/bluetooth-disconnect.svg') center / contain no-repeat;
+	mask: url('@/assets/icons/printer/bluetooth-disconnect.svg') center / contain no-repeat;
 }
 
 

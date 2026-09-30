@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
+import { MAX_QUEUE_LENGTH } from '../../../interfaces/QueueImage';
 
 import SettingsExpansion from '../../layout/SettingsExpansion.vue'
 import { InstaxFilmVariant } from '../../../interfaces/PrinterStateConfig'
@@ -341,7 +342,7 @@ describe('SettingsExpansion drawer', () => {
 
 		it('disables printing once the queue is full', async () => {
 			await wrapper.setProps({
-				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 11
+				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: MAX_QUEUE_LENGTH
 			});
 
 			const style = wrapper.find('[data-testid="print-image-button"]').attributes('style');
@@ -350,10 +351,10 @@ describe('SettingsExpansion drawer', () => {
 		});
 
 		it('leaves printing alone while there is still room', async () => {
-			// the limit is ten; this test used to sit at three, which stopped matching
-			// when the queue was allowed to grow
+			// read off the shared limit rather than repeating it: this test has already
+			// been left behind once by a number that moved
 			await wrapper.setProps({
-				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 10
+				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: MAX_QUEUE_LENGTH - 1
 			});
 
 			expect(wrapper.find('[data-testid="print-image-button"]').attributes('style'))

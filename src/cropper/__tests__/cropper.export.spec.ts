@@ -1,8 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 
-const Compressor = vi.hoisted(() => vi.fn())
-
-vi.mock('compressorjs', () => ({ default: Compressor }))
 vi.mock('konva', () => ({
 	default: { Filters: { Contrast: 'contrast', HSL: 'hsl', Brighten: 'brighten', Noise: 'noise' } }
 }))
@@ -55,6 +52,9 @@ const stubCanvas = () => {
 	};
 	vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
 	vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,text');
+	vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+		(callback) => callback(new Blob(['x'], { type: 'image/jpeg' }))
+	);
 	return context;
 };
 
@@ -62,7 +62,6 @@ describe('Export resolution', () => {
 	let downloadPolaroid: typeof import('../cropper.download').downloadPolaroid
 
 	beforeEach(async () => {
-		Compressor.mockClear();
 		loadedFrames.length = 0;
 		stubCanvas();
 		vi.stubGlobal('Image', StubImage);
@@ -204,13 +203,12 @@ describe('Export resolution', () => {
 	});
 
 	describe('compressedImage', () => {
-		// the compressor and the fetch/FileReader round trip are not under test here,
-		// only the resolution handed to it
+		// the encode itself is not under test here, only the resolution it is given
 		const ratioFor = (type: InstaxFilmVariant, stageWidth: number) => {
 			const stage = fakeStage(stageWidth, stageWidth);
-			// it rejects once it reaches the mocked compressor; the ratio is already set
+			// the rasterise is synchronous, so the ratio is set before this returns
 			compressedImage(type, fakeNode(), fakeNode(), stage).catch(() => { /* expected */ });
-			return stage.toDataURL.mock.calls[0][0].pixelRatio;
+			return stage.toCanvas.mock.calls[0][0].pixelRatio;
 		};
 
 		it('renders exactly at the printer resolution at full size', () => {
@@ -246,7 +244,9 @@ describe('Export resolution', () => {
 				width: () => width,
 				height: () => width,
 				toDataURL: vi.fn(() => 'data:image/png;base64,canvas'),
-				toCanvas: vi.fn(() => ({}))
+				toCanvas: vi.fn(({ pixelRatio }: { pixelRatio: number }) => ({
+					width: width * pixelRatio, height: width * pixelRatio
+				}))
 			});
 
 			// the worker is created once and reused, so the stub delegates to these
@@ -351,8 +351,10 @@ describe('Export resolution', () => {
 				const stage = fakeStage(REFERENCE_STAGE);
 				compressedImage(InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), stage).catch(() => { /* expected */ });
 
-				expect(stage.toDataURL).toHaveBeenCalled();
-				expect(stage.toCanvas).not.toHaveBeenCalled();
+				// it rasterises straight to a canvas and encodes that, rather than
+				// going out through a PNG data URL and decoding it again per attempt
+				expect(stage.toCanvas).toHaveBeenCalled();
+				expect(stage.toDataURL).not.toHaveBeenCalled();
 			});
 		});
 	});

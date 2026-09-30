@@ -185,4 +185,61 @@ describe('QueueElement Component', () => {
 		});
 
 	});
+
+	describe('a print that failed', () => {
+		const failed = (overrides = {}) => mount(QueueElement, {
+			props: {
+				element: {
+					base64: 'data:image/png;base64,testbase64',
+					state: 3, progress: 0, quantity: 2,
+					type: InstaxFilmVariant.SQUARE, ...overrides
+				}
+			}
+		});
+
+		it('says so, rather than looking like it is still queued', () => {
+			expect(failed().find('[data-testid="status-text"]').text()).toContain('PRINT FAILED');
+		});
+
+		it('shows no progress, because nothing is in flight', () => {
+			// state 3 is above every in flight state, and the bar keyed off "> 0"
+			// would otherwise sit there full
+			expect(failed().find('[data-testid="printing-progress"]').exists()).toBe(false);
+		});
+
+		it('still lets the copies be changed before another go', () => {
+			expect(failed().find('[data-testid="quantity-setter"]').exists()).toBe(true);
+		});
+
+		it('offers a way back to printing on the card itself', async () => {
+			// the dialog can be dismissed, and then this is the only route left
+			const wrapper = failed();
+
+			await wrapper.find('[data-testid="queue-retry-button"]').trigger('click');
+
+			expect(wrapper.emitted('retry')).toHaveLength(1);
+		});
+
+		it('offers it only once there is something to retry', () => {
+			for (const state of [0, 1, 2]) {
+				expect(failed({ state }).find('[data-testid="queue-retry-button"]').exists()).toBe(false);
+			}
+		});
+
+		it('can still be taken off the queue from the card', async () => {
+			const wrapper = failed();
+
+			await wrapper.find('[data-testid="canceling-button"]').trigger('click');
+
+			expect(wrapper.emitted('cancel')).toHaveLength(1);
+		});
+
+		it('does not claim to be canceling once it has failed', async () => {
+			const wrapper = failed();
+
+			await wrapper.find('[data-testid="canceling-button"]').trigger('click');
+
+			expect(wrapper.find('[data-testid="status-text"]').text()).not.toContain('CANCELING');
+		});
+	});
 });

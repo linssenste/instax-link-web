@@ -22,6 +22,7 @@ export interface InstaxParsedResponse {
 	eventCode?: number
 	command?: number
 	payload?: number[]
+	filmState?: number[]
 	status?: number
 }
 
@@ -59,7 +60,15 @@ export function parse(eventCode: number, command: number, payload: number[], sta
 			case 2:
 				return {
 					photosLeft: payload[0] & 15,
-					isCharging: (payload[0] & (1 << 7)) === 0 ? 0 : 1
+					isCharging: (payload[0] & (1 << 7)) === 0 ? 0 : 1,
+
+					// everything past the first byte, kept rather than dropped. Measured
+					// on a Link printer: these read `00 00 0c 00 00 00 00` while it is
+					// happy and `f4 f0 0c 00 00 00 10` once it has failed to feed, so
+					// they carry a state the count itself does not - the count reads the
+					// same either way. What each byte means is not known, so this is
+					// compared rather than interpreted.
+					filmState: payload.slice(1)
 				}
 
 			default:

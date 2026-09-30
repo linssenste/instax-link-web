@@ -34,7 +34,8 @@
 
 			<div v-if="config.status != null && queue.length > 0" class="printing-queue">
 				<QueueElement v-for="(element, index) in queue" :key="index" :element="element"
-					v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event" />
+					v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event"
+					v-on:retry="$emit('retry')" />
 			</div>
 
 		</div>
@@ -56,6 +57,8 @@ import PrinterStatusCard from './PrinterStatusCard.vue';
 import LoadingButton from '../controls/LoadingButton.vue';
 import HelpDialog from '../help/HelpDialog.vue';
 import bluetoothIcon from '@/assets/icons/printer/bluetooth.svg';
+
+defineEmits<{ (e: 'retry'): void }>();
 
 const props = defineProps<{
 	config: PrinterStateConfig;
@@ -127,12 +130,20 @@ function removeImageEvent(index: number): void {
 }
 
 
+/* the scrolling box is widened to the window edge and its contents padded back,
+   so the bar rides in the gutter beside the cards rather than over them - an
+   overlay scrollbar draws inside the box, and the box used to stop where the
+   cards did */
 .printing-queue {
 	position: relative;
-	width: 100%;
+	width: calc(100% + var(--panel-inset));
 	max-height: calc(100vh - 130px);
+	margin-right: calc(var(--panel-inset) * -1);
+	padding-right: var(--panel-inset);
+	box-sizing: border-box;
 	overflow-y: auto;
 	overflow-x: hidden;
+	scrollbar-gutter: stable;
 }
 
 .connected-printer {

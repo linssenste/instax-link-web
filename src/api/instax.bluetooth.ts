@@ -2,6 +2,9 @@
 import { INSTAX_PRINTER_NAME_PREFIX, INSTAX_PRINTER_SERVICES } from './instax.config'
 import type { CHARACTERISTIC_REF } from './instax.types'
 
+/** How long the printer is given to answer a write that expects a reply. */
+const RESPONSE_TIMEOUT = 500
+
 export class InstaxBluetooth {
 	protected _characteristicRef: CHARACTERISTIC_REF = {
 		server: null,
@@ -10,6 +13,39 @@ export class InstaxBluetooth {
 	}
 
 	protected isBusy = false
+
+	/**
+	 * The subscription, kept open for as long as the printer is connected.
+	 *
+	 * Every write that expects a reply used to subscribe and unsubscribe around
+	 * itself. An image is acknowledged once per packet, so a single print paid for
+	 * a hundred or more of those round trips on top of the data itself. The
+	 * printer notifies on one characteristic throughout, so subscribing once and
+	 * handing each notification to whoever is waiting does the same job.
+	 */
+	private _listening: Promise<void> | null = null
+
+	/** Whoever is waiting on the next notification, if anyone is. */
+	private _waiting: ((event: Event) => void) | null = null
+
+	/**
+	 * Where a notification goes when nothing asked for it.
+	 *
+	 * The printer speaks up on its own when something goes wrong mid print, and
+	 * those packets used to land in the gap between one write's subscription and
+	 * the next and be lost. Now that the subscription is held open they arrive,
+	 * and this is what they arrive at.
+	 */
+	protected _onUnsolicited: ((event: Event) => void) | null = null
+
+	private _onNotification = (event: Event): void => {
+		const waiting = this._waiting
+		this._waiting = null
+
+		if (waiting != null) waiting(event)
+		else this._onUnsolicited?.(event)
+	}
+
 	/**
 	 * manually disconnects the printer
 	 */
@@ -22,69 +58,75 @@ export class InstaxBluetooth {
 		} catch (error) {
 			console.error('> error on manual disconnect: ', error)
 			return
+		} finally {
+			this._forgetSubscription()
 		}
 	}
 
-	protected async notifications(callback: (event: Event) => void): Promise<void> {
-		if (this._characteristicRef.notify == null) return
+	/** A subscription does not survive the connection that carried it. */
+	protected _forgetSubscription(): void {
+		this._characteristicRef.notify?.removeEventListener(
+			'characteristicvaluechanged', this._onNotification
+		)
+		this._listening = null
+		this._waiting = null
+		this._onUnsolicited = null
+	}
 
-		const va = await this._characteristicRef.notify.startNotifications()
+	/** Subscribe once, and only once, for the life of the connection. */
+	private async _listen(): Promise<void> {
+		if (this._listening != null) return this._listening
 
-		await new Promise<void>(() => {
-			va.addEventListener('characteristicvaluechanged', (e: Event) => {
-				// Do something with the event data here...
-				callback(e)
+		const notify = this._characteristicRef.notify
+		if (notify == null) throw new Error('Not connected')
+
+		this._listening = notify
+			.startNotifications()
+			.then((handle) => {
+				handle.addEventListener('characteristicvaluechanged', this._onNotification)
 			})
-		})
+			.catch((error) => {
+				// a failed subscribe must not be remembered as a live one
+				this._listening = null
+				throw error
+			})
+
+		return this._listening
 	}
 
 	protected async send(command: Uint8Array, response = true): Promise<Event | void> {
 		if (this.isBusy === true) return
 		this.isBusy = true
-		let timeout: ReturnType<typeof setTimeout> | null = null
-
-		// console.log('SEND', Array.from(command))
-		let notificationHandle: BluetoothRemoteGATTCharacteristic | null = null
-		let notificationPromise: Promise<Event> | null = null
-		let timeoutPromise: Promise<Event> | null = null
-		if (response === true) {
-			const handle = await this._characteristicRef.notify!.startNotifications()
-			notificationHandle = handle
-
-			notificationPromise = new Promise<Event>((resolve) => {
-				handle.addEventListener(
-					'characteristicvaluechanged',
-					(e: Event) => {
-						if (timeout) clearTimeout(timeout)
-
-						resolve(e)
-					},
-					{ once: true }
-				)
-			})
-
-			timeoutPromise = new Promise<Event>((resolve, reject) => {
-				timeout = setTimeout(() => {
-					handle.removeEventListener('characteristicvaluechanged', () => { })
-					reject(new Error('Notification timeout'))
-				}, 500)
-			})
-		}
-
-		await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
-		this.isBusy = false
-		if (response != true) return
 
 		try {
-			const event = await Promise.race([notificationPromise, timeoutPromise])
-			if (event) {
-				return event
-			} else {
-				throw new Error('Unexpected void return')
+			if (response !== true) {
+				await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
+				return
+			}
+
+			await this._listen()
+
+			let timeout: ReturnType<typeof setTimeout> | null = null
+			const answer = new Promise<Event>((resolve, reject) => {
+				this._waiting = resolve
+				timeout = setTimeout(() => {
+					this._waiting = null
+					reject(new Error('Notification timeout'))
+				}, RESPONSE_TIMEOUT)
+			})
+
+			// the waiter is armed before the write, so a printer that answers
+			// immediately cannot reply into a gap
+			await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
+
+			try {
+				return await answer
+			} finally {
+				if (timeout) clearTimeout(timeout)
 			}
 		} finally {
-			if (timeout) clearTimeout(timeout)
-			await notificationHandle?.stopNotifications()
+			// held until the reply, so two writes can never wait on the same slot
+			this.isBusy = false
 		}
 	}
 
@@ -106,6 +148,7 @@ export class InstaxBluetooth {
 				.then((device: BluetoothDevice) => {
 					deviceHandle = device
 					device.addEventListener('gattserverdisconnected', () => {
+						this._forgetSubscription()
 						this._characteristicRef.write = null
 						this._characteristicRef.notify = null
 					})
@@ -149,6 +192,7 @@ export class InstaxBluetooth {
 			if (connected === true) return deviceHandle!
 			else throw new Error()
 		} catch {
+			this._forgetSubscription()
 			this._characteristicRef.notify = null
 			this._characteristicRef.write = null
 			return false

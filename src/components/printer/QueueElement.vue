@@ -11,14 +11,23 @@
 				<div v-if="caption" class="queue-caption" data-testid="queue-caption" :title="caption">{{ caption }}</div>
 
 				<div class="status-text" data-testid="status-text">
-					<span v-if="element.state > 0 && isCanceling == true">CANCELING...</span>
+					<span v-if="element.state > 0 && element.state < 3 && isCanceling == true">CANCELING...</span>
 					<span v-else-if="element.state == 0">IN QUEUE</span>
 					<span v-else-if="element.state == 1">SENDING ...</span>
+					<span v-else-if="element.state == 3" class="failed-text">PRINT FAILED</span>
 					<span v-else-if="element.state == 2">PRINTING
 						<span>
 							{{ Math.round(element.progress / (100 / element.quantity)) }}/{{ element.quantity }}
 						</span>
 					</span>
+
+					<!-- the dialog is dismissable, so the way back to printing has to live
+						 on the card itself rather than only in the dialog -->
+					<button v-if="element.state == 3" type="button" class="retry-button"
+							data-testid="queue-retry-button" aria-label="Try printing this image again"
+							title="Try printing this image again" v-on:click="$emit('retry')">
+						Retry
+					</button>
 
 					<!-- download the framed keepsake, which is not what gets printed -->
 					<LoadingButton :loading="preparingDownload" :icon="downloadIcon" :iconSize="18"
@@ -27,21 +36,19 @@
 								   v-on:click="downloadPolaroidEvent()" />
 
 					<!-- remove/cancel button -->
-					<button type="button" data-testid="canceling-button" class="remove-button"
-							:class="isCanceling ? 'disabled' : ''" aria-label="Cancel printing this image"
-							title="Cancel printing this image" v-on:click="cancelPrinting()">
-						<span class="cancel-icon" aria-hidden="true" />
-					</button>
+					<CloseButton class="remove-button" :class="isCanceling ? 'disabled' : ''" tone="plain"
+								 :size="34" testid="canceling-button" label="Cancel printing this image"
+								 title="Cancel printing this image" v-on:click="cancelPrinting()" />
 				</div>
 
 
-				<div v-if="element.state < 2" class="print-quantity" data-testid="quantity-setter">
+				<div v-if="element.state < 2 || element.state == 3" class="print-quantity" data-testid="quantity-setter">
 
 					<!-- decrease input -->
 					<button type="button" data-testid="quantity-button-minus"
 							v-on:click="modifyQuantity(element.quantity - 1)" :class="element.quantity <= 1 ? 'disabled' : ''"
 							class="quantity-icon-button" aria-label="Print one copy fewer" title="Print one copy fewer">
-						<img src="@/assets/icons/printer/minus.svg" draggable="false" width="12" alt="" />
+						<img src="@/assets/icons/printer/minus.svg" draggable="false" width="16" alt="" class="quantity-mark" />
 					</button>
 
 
@@ -54,7 +61,7 @@
 					<button type="button" data-testid="quantity-button-plus"
 							v-on:click="modifyQuantity(element.quantity + 1)" :class="element.quantity >= 10 ? 'disabled' : ''"
 							class="quantity-icon-button" aria-label="Print one more copy" title="Print one more copy">
-						<img src="@/assets/icons/printer/plus.svg" draggable="false" width="12" alt="" />
+						<img src="@/assets/icons/printer/plus.svg" draggable="false" width="16" alt="" class="quantity-mark" />
 					</button>
 
 
@@ -64,7 +71,7 @@
 
 
 		<!-- printing progress bar  -->
-		<div v-if="element.state > 0" class="printing-status-progress" data-testid="printing-progress">
+		<div v-if="element.state > 0 && element.state < 3" class="printing-status-progress" data-testid="printing-progress">
 
 			<div class="progress-bar" data-testid="printing-progress-sending">
 				<div v-if="element.state >= 1" class="progress"
@@ -88,10 +95,11 @@
 import { computed, ref, watch } from 'vue';
 import type { QueueImage } from '../../interfaces/QueueImage';
 import LoadingButton from '../controls/LoadingButton.vue';
+import CloseButton from '../controls/CloseButton.vue';
 import downloadIcon from '@/assets/icons/controls/download.svg';
 import { downloadDataUrl, polaroidFilename, polaroidFromPrintImage } from '../../cropper/cropper.download';
 
-const emit = defineEmits(['cancel', 'quantity-change'])
+const emit = defineEmits(['cancel', 'quantity-change', 'retry'])
 
 const props = defineProps<{
 	element: QueueImage;
@@ -149,6 +157,35 @@ function modifyQuantity(value: number): void {
 
 
 <style scoped>
+/* it sits in a row of small uppercase labels, so it reads as one of them rather
+   than as a headline shouted across the card */
+.failed-text {
+	color: rgb(var(--error-color));
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: .5px;
+}
+
+/* the dialog can be dismissed, and then this is the only way back to printing */
+.retry-button {
+	height: 26px;
+	min-width: 0;
+	margin-left: 10px;
+	padding: 0 12px;
+	border-radius: 13px;
+	font-size: 11px;
+	letter-spacing: 1px;
+	background-color: rgba(var(--dynamic-bg-color), .14) !important;
+	color: rgb(var(--dynamic-bg-color));
+	box-shadow: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.retry-button:hover {
+		background-color: rgba(var(--dynamic-bg-color), .24) !important;
+	}
+}
+
 .progress-bar {
 	background-color: rgb(var(--light-grey-color));
 	width: calc(100%/2);
@@ -195,22 +232,24 @@ function modifyQuantity(value: number): void {
 
 .quantity-icon-button {
 	position: relative;
-	width: 32px;
-	height: 32px;
+	width: 34px;
+	height: 34px;
 	border-radius: 50%;
 	background-color: rgb(var(--dynamic-bg-color));
 	opacity: .75;
 	transition: opacity 150ms ease-in-out;
 }
 
+/* the handwriting belongs on the polaroid, not in a list: here the caption is a
+   title, and reads as one in the app's own face */
 .queue-caption {
 	max-width: 100%;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-family: 'biro_script_standardregular';
-	font-size: 17px;
-	color: rgba(0, 15, 85, .75);
+	font-size: 14px;
+	font-weight: 500;
+	color: rgb(var(--black-color));
 }
 
 .queue-icon-button {
@@ -351,29 +390,9 @@ input::-webkit-inner-spin-button {
 }
 
 .remove-button {
-	background-color: #e0e0e0;
-	width: 32px;
-	height: 32px;
-	position: relative;
-	border-radius: 50%;
-	opacity: .75;
+	flex: none;
 }
 
-.remove-button:hover {
-	opacity: 1;
-}
-
-.cancel-icon {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 12px;
-	height: 12px;
-	margin: -6px 0 0 -6px;
-	background-color: #000000;
-	-webkit-mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
-	mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
-}
 
 
 .printing-status-progress {

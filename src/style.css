@@ -14,6 +14,10 @@
 	--light-grey-color: 224, 224, 224;
 	--white-color: 255, 255, 255;
 	--black-color: 0, 0, 0;
+
+	/* how far the corner panels sit in from the window edge; the print queue
+	   reaches past it so its scrollbar lands in that gutter */
+	--panel-inset: 25px;
 }
 
 

@@ -1,8 +1,7 @@
 <template>
     <div>
         <button class="close-button" v-on:click="showOverlay = true">
-        <img draggable="false" alt="settings icon"
-                src="@/assets/icons/printer/menu.svg" width="25" height="25" />
+        <span class="menu-icon" aria-hidden="true" />
     </button>
         <div v-if="showOverlay" class="overlay">
 
@@ -178,5 +177,16 @@ function themeChangeEvent(value: string) {
     background-color: #000000;
     -webkit-mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
     mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
+}
+
+/* a mask rather than an img: the icon ships with a grey placeholder fill, so it
+   never took the theme colour the rest of the controls are in */
+.menu-icon {
+    display: block;
+    width: 25px;
+    height: 25px;
+    background-color: rgb(var(--dynamic-bg-color));
+    -webkit-mask: url('@/assets/icons/printer/menu.svg') center / contain no-repeat;
+    mask: url('@/assets/icons/printer/menu.svg') center / contain no-repeat;
 }
 </style>

@@ -9,8 +9,8 @@
 					 a second tab stop: Escape and the close button are the real paths -->
 				<button type="button" class="scrim" tabindex="-1" aria-hidden="true" v-on:click="close" />
 
-				<div ref="panelRef" class="panel" tabindex="-1" role="dialog" aria-modal="true"
-					 :data-testid="testid" :aria-labelledby="titleId">
+				<div ref="panelRef" class="panel" :class="{ compact }" tabindex="-1" role="dialog"
+					 aria-modal="true" :data-testid="testid" :aria-labelledby="titleId">
 
 					<!-- fixed bands: only the content between them scrolls, so the title
 						 and the actions stay reachable however little room there is -->
@@ -41,6 +41,8 @@ const props = defineProps<{
 	open: boolean;
 	title: string;
 	testid?: string;
+	/** a narrow panel, for a dialog that says something rather than offering somewhere to work */
+	compact?: boolean;
 }>();
 
 const emit = defineEmits<{ (e: 'close'): void }>();
@@ -129,6 +131,12 @@ onBeforeUnmount(() => {
 	background-color: color-mix(in srgb, rgb(var(--dynamic-bg-color)) 20%, #ffffff);
 	box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
 	outline: none;
+}
+
+/* a short message reads badly across the full width: the eye has to travel back
+   over half a panel of nothing to find the start of the next line */
+.panel.compact {
+	max-width: 400px;
 }
 
 .head {

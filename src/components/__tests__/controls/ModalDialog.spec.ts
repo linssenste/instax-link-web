@@ -279,4 +279,18 @@ describe('ModalDialog', () => {
 			expect(source).toContain('env(safe-area-inset-bottom)')
 		})
 	})
+
+	it('is full width by default, for a dialog that is somewhere to work', () => {
+		mountDialog()
+
+		expect(panel().classes()).not.toContain('compact')
+	})
+
+	it('can be narrowed for a dialog that only says something', () => {
+		// a short message across 720px makes the eye travel back over half a panel
+		// of nothing to find the next line
+		mountDialog({ compact: true })
+
+		expect(panel().classes()).toContain('compact')
+	})
 })

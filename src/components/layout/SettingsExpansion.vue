@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import { MAX_QUEUE_LENGTH } from '../../interfaces/QueueImage';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ImageSettings from '../polaroid/ImageSettings.vue';
 import { NOT_ALIGNED, type FrameAlignment } from '../../polaroid/frame.geometry';
@@ -89,7 +90,7 @@ const saving = computed(() => props.savingAction != null);
 
 // the printer only takes so many images at a time
 const awaitingQueue = computed(() => {
-	if (props.queueLength > 10) return `background-color: rgb(var(--grey-color))!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
+	if (props.queueLength >= MAX_QUEUE_LENGTH) return `background-color: rgb(var(--grey-color))!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
 	else return ''
 });
 
