@@ -18,9 +18,9 @@ export const POLAROID_FRAME_WIDTH: Record<InstaxFilmVariant, number> = {
  * artwork, and the frame is composited on top, so the overhang is covered.
  */
 export const POLAROID_EXPORT_WIDTH: Record<InstaxFilmVariant, number> = {
-	[InstaxFilmVariant.MINI]: 609,
-	[InstaxFilmVariant.SQUARE]: 795,
-	[InstaxFilmVariant.WIDE]: 1179
+	[InstaxFilmVariant.MINI]: 564,
+	[InstaxFilmVariant.SQUARE]: 736,
+	[InstaxFilmVariant.WIDE]: 1116
 }
 
 /** Pixel dimensions the printer expects per film variant. */
@@ -28,4 +28,22 @@ export const PRINT_RESOLUTION: Record<InstaxFilmVariant, { width: number, height
 	[InstaxFilmVariant.MINI]: { width: 600, height: 800 },
 	[InstaxFilmVariant.SQUARE]: { width: 800, height: 800 },
 	[InstaxFilmVariant.WIDE]: { width: 1260, height: 840 }
+}
+
+/**
+ * Which of the four framing states the image currently satisfies, so each control
+ * can show whether it is already the case rather than only offering to make it so.
+ */
+export interface FrameAlignment {
+	fitsWidth: boolean
+	fitsHeight: boolean
+	centredHorizontally: boolean
+	centredVertically: boolean
+}
+
+export const NOT_ALIGNED: FrameAlignment = {
+	fitsWidth: false,
+	fitsHeight: false,
+	centredHorizontally: false,
+	centredVertically: false
 }

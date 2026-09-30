@@ -230,6 +230,24 @@ describe('SettingsExpansion drawer', () => {
 			expect(wrapper.find('[data-testid="download-image-button"]').exists()).toBe(false);
 		});
 
+		it('keeps the film look with the alignment controls, not with the actions', () => {
+			// it is something done to the picture, like the rotation and the fit
+			// buttons, rather than something done with the finished polaroid
+			const film = wrapper.find('[data-testid="open-film-button"]')
+
+			expect(wrapper.find('.image-controls').find('[data-testid="open-film-button"]').exists())
+				.toBe(true)
+			expect(wrapper.find('.print-download-action-buttons')
+				.find('[data-testid="open-film-button"]').exists()).toBe(false)
+			expect(film.attributes('aria-label')).toBe('Open the film look settings')
+		});
+
+		it('asks for the film look dialog when pressed', async () => {
+			await wrapper.find('[data-testid="open-film-button"]').trigger('click');
+
+			expect(wrapper.emitted('open-film')).toHaveLength(1);
+		});
+
 		it('stays reachable while the settings are collapsed', () => {
 			// the footer is the part of the panel that is never pulled out of sight
 			expect(wrapper.vm.isExpanded).toBe(false);
@@ -321,12 +339,95 @@ describe('SettingsExpansion drawer', () => {
 			expect(marginTop()).toBe(`${COLLAPSED_OFFSET}px`);
 		});
 
-		it('disables printing while the queue is full', async () => {
-			await wrapper.setProps({ config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 3 });
+		it('disables printing once the queue is full', async () => {
+			await wrapper.setProps({
+				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 11
+			});
 
 			const style = wrapper.find('[data-testid="print-image-button"]').attributes('style');
 			expect(style).toContain('opacity: 0.2');
 			expect(style).toContain('not-allowed');
+		});
+
+		it('leaves printing alone while there is still room', async () => {
+			// the limit is ten; this test used to sit at three, which stopped matching
+			// when the queue was allowed to grow
+			await wrapper.setProps({
+				config: { connection: true, type: InstaxFilmVariant.SQUARE }, queueLength: 10
+			});
+
+			expect(wrapper.find('[data-testid="print-image-button"]').attributes('style'))
+				.toBeFalsy();
+		});
+	});
+
+	describe('Reachable only while it is open', () => {
+		const wrap = () => wrapper.find('.settings-wrap');
+
+		it('takes the controls out of the tab order while collapsed', () => {
+			// they sit behind the polaroid, so Tab and Shift Tab must not find them
+			expect(wrapper.vm.isExpanded).toBe(false);
+			expect(wrap().attributes('inert')).toBeDefined();
+		});
+
+		it('gives them back once it is open', async () => {
+			await wrapper.find('[data-testid="expand-handle"]').trigger('click');
+
+			expect(wrapper.vm.isExpanded).toBe(true);
+			expect(wrap().attributes('inert')).toBeUndefined();
+		});
+
+		it('lets go of a focused control as it closes', async () => {
+			await wrapper.find('[data-testid="expand-handle"]').trigger('click');
+
+			const button = wrapper.find('[data-testid="align-horizontal-button"]')
+				.element as HTMLButtonElement;
+			button.focus();
+			expect(document.activeElement).toBe(button);
+
+			await wrapper.find('[data-testid="expand-handle"]').trigger('click');
+
+			// otherwise the focus ring would be left sitting on something hidden
+			expect(document.activeElement).not.toBe(button);
+		});
+
+		it('leaves focus outside the panel alone', async () => {
+			await wrapper.find('[data-testid="expand-handle"]').trigger('click');
+
+			const handle = wrapper.find('[data-testid="expand-handle"]').element as HTMLElement;
+			handle.focus();
+
+			await wrapper.find('[data-testid="expand-handle"]').trigger('click');
+
+			expect(document.activeElement).toBe(handle);
+		});
+	});
+
+	describe('Keyboard', () => {
+		const press = (key: string) => {
+			document.dispatchEvent(new KeyboardEvent('keydown', { key, cancelable: true }));
+		};
+
+		it('opens and closes the panel', async () => {
+			expect(wrapper.vm.isExpanded).toBe(false);
+
+			press('s');
+			await nextTick();
+			expect(wrapper.vm.isExpanded).toBe(true);
+
+			press('s');
+			await nextTick();
+			expect(wrapper.vm.isExpanded).toBe(false);
+		});
+
+		it('hands a move on to the editor', () => {
+			press('ArrowRight');
+
+			expect(wrapper.emitted('move')).toEqual([[{ x: 1, y: 0 }]]);
+		});
+
+		it('names its own shortcut on the handle', () => {
+			expect(wrapper.find('[data-testid="expand-handle"]').attributes('title')).toContain('(S)');
 		});
 	});
 

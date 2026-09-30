@@ -39,6 +39,18 @@ export class FakeNode {
 
 	rotate(degrees: number) { this.state.rotation += degrees; return this }
 
+	private appliedFilters: unknown[] = []
+	cached: { pixelRatio?: number } | null = null
+
+	filters(value?: unknown[]) {
+		if (value === undefined) return this.appliedFilters;
+		this.appliedFilters = value;
+		return this;
+	}
+
+	cache(config?: { pixelRatio?: number }) { this.cached = config ?? {}; return this }
+	clearCache() { this.cached = null; return this }
+
 	scale(value?: Point) {
 		if (value === undefined) return { x: this.state.scaleX, y: this.state.scaleY };
 		this.state.scaleX = value.x;
@@ -71,6 +83,12 @@ export class FakeNode {
 			this.state.x = (value.x - stage.x()) / stage.scaleX();
 			this.state.y = (value.y - stage.y()) / stage.scaleY();
 		}
+		return this;
+	}
+
+	visible(value?: boolean) {
+		if (value === undefined) return this.state.visible !== false;
+		this.state.visible = value;
 		return this;
 	}
 
@@ -126,16 +144,27 @@ export class FakeStage extends FakeNode {
 	getPointerPosition() { return this.pointer }
 }
 
+export class FakeShape extends FakeNode {
+	sceneFunc: ((context: unknown) => void) | null = null
+
+	constructor(config: Record<string, unknown> = {}) {
+		super(config)
+		this.sceneFunc = (config.sceneFunc as typeof this.sceneFunc) ?? null
+	}
+}
+
 export const stages: FakeStage[] = []
 export const layers: FakeLayer[] = []
 export const images: FakeNode[] = []
 export const rects: FakeNode[] = []
+export const shapes: FakeShape[] = []
 
 export function resetKonvaMock(): void {
 	stages.length = 0;
 	layers.length = 0;
 	images.length = 0;
 	rects.length = 0;
+	shapes.length = 0;
 }
 
 export const konvaMock = {
@@ -151,6 +180,9 @@ export const konvaMock = {
 	},
 	Rect: class extends FakeNode {
 		constructor(config: Record<string, any> = {}) { super(config); rects.push(this) }
+	},
+	Shape: class extends FakeShape {
+		constructor(config: Record<string, any> = {}) { super(config); shapes.push(this) }
 	}
 }
 
@@ -159,3 +191,4 @@ export const lastStage = () => stages[stages.length - 1] as FakeStage
 export const lastLayer = () => layers[layers.length - 1] as FakeLayer
 export const lastImage = () => images[images.length - 1]
 export const lastRect = () => rects[rects.length - 1]
+export const lastShape = () => shapes[shapes.length - 1]

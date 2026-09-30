@@ -1,4 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 import RotateSelector from '../../polaroid/RotateSelector.vue'
@@ -85,9 +87,36 @@ describe('RotateSelector', () => {
 			expect(dial().attributes('aria-valuemax')).toBe('359')
 			expect(dial().attributes('aria-valuenow')).toBe('0')
 
-			// the dial is not a tab stop; the readout inside it is
-			expect(dial().attributes('tabindex')).toBe('-1')
+			// it is reached by keyboard like any other slider, so the arrow keys it
+			// already answers to can actually be got at. The readout inside it is the
+			// second stop, for typing an exact angle
+			expect(dial().attributes('tabindex')).toBe('0')
 			expect(input().attributes('tabindex')).toBeUndefined()
+		})
+
+		it('says it is focused on the knob rather than round the whole square', () => {
+			// jsdom applies no scoped styles, so the rule is checked in the source
+			const source = readFileSync(
+				resolve(process.cwd(), 'src/components/polaroid/RotateSelector.vue'), 'utf8'
+			)
+
+			// the same ring the film sliders put round their knob when tabbed to
+			const start = source.indexOf('.dial:focus-visible .knob-dot {')
+			expect(start).toBeGreaterThan(-1)
+
+			const rule = source.slice(start, source.indexOf('}', start))
+			expect(rule).toContain('transform: scale(1.45)')
+			expect(rule).toContain('box-shadow: 0 0 0 3px rgba(var(--dynamic-bg-color), .35)')
+		})
+
+		it('brings the knob up from anywhere on the dial, as the sliders do', () => {
+			const source = readFileSync(
+				resolve(process.cwd(), 'src/components/polaroid/RotateSelector.vue'), 'utf8'
+			)
+
+			// it used to come up only when the knob itself was under the pointer
+			expect(source).toContain('.dial:hover .knob-dot')
+			expect(source).not.toContain('.knob:hover .knob-dot')
 		})
 
 		it('keeps aria-valuenow in step with the angle', async () => {

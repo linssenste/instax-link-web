@@ -39,7 +39,9 @@ describe('YourComponent', () => {
 				stubs: {
 					PrinterStatusCard: true,
 					StatusAlerts: true,
-					QueueElement: true
+					QueueElement: true,
+					// the help dialog teleports, so it is rendered in place to be found
+					teleport: true
 				}
 			}
 		});
@@ -201,6 +203,39 @@ describe('YourComponent', () => {
 			const queued = mountWith([{ base64: 'x', state: 0, quantity: 1, progress: 0 }]);
 
 			expect(queued.find('.printing-queue').exists()).toBe(true);
+		});
+	});
+
+	describe('The help button', () => {
+		it('sits beside the connect button', () => {
+			const row = wrapper.find('.connect-row');
+
+			expect(row.find('[data-testid="connect-printer-button"]').exists()).toBe(true);
+			expect(row.find('[data-testid="open-help-button"]').exists()).toBe(true);
+		});
+
+		it('is a named button, with the mark out of its name', () => {
+			const help = wrapper.find('[data-testid="open-help-button"]');
+
+			expect(help.element.tagName).toBe('BUTTON');
+			expect(help.attributes('type')).toBe('button');
+			expect(help.attributes('aria-label')).toBe('About this app');
+			expect(help.find('span').attributes('aria-hidden')).toBe('true');
+		});
+
+		it('keeps the dialog shut until it is pressed', async () => {
+			expect(wrapper.find('[data-testid="help-dialog"]').exists()).toBe(false);
+
+			await wrapper.find('[data-testid="open-help-button"]').trigger('click');
+
+			expect(wrapper.find('[data-testid="help-dialog"]').exists()).toBe(true);
+		});
+
+		it('closes again when the dialog asks to be closed', async () => {
+			await wrapper.find('[data-testid="open-help-button"]').trigger('click');
+			await wrapper.find('[data-testid="help-done"]').trigger('click');
+
+			expect(wrapper.find('[data-testid="help-dialog"]').exists()).toBe(false);
 		});
 	});
 });

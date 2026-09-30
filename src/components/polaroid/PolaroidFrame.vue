@@ -134,26 +134,29 @@ defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameR
 	left: 50%;
 	transform: translateX(-50%);
 	overflow: hidden;
+	top: 10px;
 	background-color: white;
 }
 
-/* offsets are percentages of the frame box, so the crop window keeps its
-   position relative to the artwork at any size */
+/* Percentages of the frame box, so the crop window keeps its place relative to the
+   artwork at any size. Each is the artwork's own transparent window plus a 4px lip
+   at the displayed size, measured off the artwork rather than guessed: the photo
+   still tucks under the frame with no seam, but only just. */
 .inner-mini {
-	top: 6.667%;
-	width: 90%;
+	top: 7.614%;
+	width: 88.121%;
 	aspect-ratio: 600/790;
 }
 
 .inner-square {
-	top: 7.692%;
-	width: 90%;
+	top: 8.182%;
+	width: 88.043%;
 	aspect-ratio: 800/800;
 }
 
 .inner-wide {
-	top: 7.692%;
-	width: 94.118%;
+	top: 7.864%;
+	width: 93.103%;
 	aspect-ratio: 1260/850;
 }
 

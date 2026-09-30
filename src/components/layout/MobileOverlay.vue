@@ -6,8 +6,15 @@
     </button>
         <div v-if="showOverlay" class="overlay">
 
-            <button v-on:click="showOverlay = false" class="close-button"><img draggable="false" alt="close icon"
-                    src="@/assets/icons/controls/xmark.svg" width="20" height="20" /></button>
+            <!-- a pointer shortcut, not a second tab stop: the close button is the
+                 real way out -->
+            <button type="button" class="scrim" tabindex="-1" aria-hidden="true"
+                v-on:click="showOverlay = false" />
+
+            <button type="button" v-on:click="showOverlay = false" class="close-button"
+                aria-label="Close settings" title="Close settings">
+                <span class="close-icon" aria-hidden="true" />
+            </button>
             <PolaroidSizeSelector v-if="!config.connection" class="polaroid-size-selector"
                 v-on:type-change="typeChangeEvent" connected="square" />
 
@@ -78,6 +85,27 @@ function themeChangeEvent(value: string) {
     }
 }
 
+/* Sits behind the controls, which are positioned siblings that come after it.
+   height: auto overrides the app's 40px button height, which would otherwise leave
+   only a band across the top clickable. */
+.scrim {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* the global button hover outranks a single class and would paint it over */
+.scrim:hover {
+    background-color: transparent;
+    box-shadow: none;
+}
+
 .settings-area {
     position: absolute;
     bottom: 25px;
@@ -132,22 +160,23 @@ function themeChangeEvent(value: string) {
     }
 
 
-    .close-button:hover img {
+    .close-button:hover .close-icon {
         opacity: 1;
     }
 }
 
-.close-button img {
-    opacity: .75;
-
-
+/* a mask rather than an image: the icon ships with a placeholder fill that would
+   vanish against the overlay */
+.close-icon {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-
-    -moz-user-select: none;
-    -webkit-user-select: none;
-    user-select: none;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    opacity: .75;
+    background-color: #000000;
+    -webkit-mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
+    mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
 }
 </style>

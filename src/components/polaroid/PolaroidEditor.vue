@@ -12,8 +12,9 @@
 				<template v-slot:polaroid-area>
 
 					<CropperArea v-if="image" ref="cropperAreaRef" :config="config" :src="image" :loading="loading"
-						:settings="imageSettings" v-on:remove-image="removeImageEvent"
-						v-on:save="savePolaroidCanvas" />
+						:settings="imageSettings" :adjustments="filmAdjustments"
+						v-on:remove-image="removeImageEvent" v-on:save="savePolaroidCanvas"
+						v-on:alignment="alignment = $event" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
 					<div v-if="loading" class="loading-overlay" role="status" aria-live="polite"
@@ -41,7 +42,12 @@
 
 			<SettingsExpansion :config="config" :queueLength="queueLength" :hasImage="image != null"
 							   :savingAction="savingAction" :savePolaroid="saveEditorPolaroid"
-							   v-on:change="updatedSettingsEvent" v-on:scale="fitImageEvent" />
+							   :alignment="alignment" v-on:change="updatedSettingsEvent"
+							   v-on:scale="fitImageEvent" v-on:centre="centreImageEvent"
+							   v-on:move="moveImageEvent" v-on:open-film="openFilmEvent" />
+
+			<FilmDialog :open="filmOpen" :adjustments="filmAdjustments"
+						:source="filmSource" v-on:update:adjustments="filmAdjustments = $event" v-on:close="filmOpen = false" />
 
 		</div>
 	</div>
@@ -56,7 +62,11 @@ import DropImageUpload from '../files/DropImageUpload.vue';
 import SelectImageUpload from '../files/SelectImageUpload.vue';
 import { InstaxFilmVariant, type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 import SettingsExpansion from '../layout/SettingsExpansion.vue';
-import { POLAROID_FRAME_WIDTH } from '../../polaroid/frame.geometry';
+import FilmDialog from '../film/FilmDialog.vue';
+import { DEFAULT_ADJUSTMENTS, type FilmAdjustments } from '../../polaroid/film';
+import {
+	POLAROID_FRAME_WIDTH, NOT_ALIGNED, type FrameAlignment
+} from '../../polaroid/frame.geometry';
 
 const emit = defineEmits(['image'])
 
@@ -67,6 +77,11 @@ const props = defineProps<{
 
 
 const cropperAreaRef: Ref<typeof CropperArea | null> = ref(null);
+
+// reported by the canvas after anything that moves or scales the image. Cleared
+// alongside the image itself: the canvas is torn down with it and cannot report,
+// which would otherwise leave the controls lit over the next photo while it loads.
+const alignment = ref<FrameAlignment>({ ...NOT_ALIGNED });
 
 
 // which action is rendering, so the panel can show progress on just that button
@@ -90,6 +105,19 @@ const adjustments = ref({ rotation: 0, color: '#FFFFFF' })
 
 // the caption is edited on the polaroid itself, so it lives here
 const caption = ref('')
+
+// the film look, shown live on the canvas and carried into both exports
+const filmAdjustments = ref<FilmAdjustments>({ ...DEFAULT_ADJUSTMENTS })
+
+const filmOpen = ref(false)
+const filmSource = ref<HTMLCanvasElement | null>(null)
+
+// the dialog previews from an untouched snapshot of the crop, so moving a slider
+// never compounds on the last preview
+function openFilmEvent(): void {
+	filmSource.value = cropperAreaRef.value?.previewSource() ?? null;
+	filmOpen.value = true;
+}
 
 const captionLength = computed(() => {
 	if (props.config.type === InstaxFilmVariant.MINI) return 18;
@@ -115,6 +143,7 @@ let objectUrl: string | null = null;
 // belongs to the image too, so it is cleared alongside it
 function removeImageEvent() {
 	image.value = null;
+	alignment.value = { ...NOT_ALIGNED };
 	releaseImageSource();
 
 	// delayed, so the text does not visibly vanish while the panel slides away
@@ -160,6 +189,14 @@ async function saveEditorPolaroid(download = false): Promise<void> {
 function fitImageEvent(type: string): void {
 	if (cropperAreaRef.value) cropperAreaRef.value.fit((type == 'horizontal'));
 }
+
+function centreImageEvent(axis: string): void {
+	cropperAreaRef.value?.centre(axis === 'horizontal');
+}
+
+function moveImageEvent(by: { x: number, y: number }): void {
+	cropperAreaRef.value?.nudge(by.x, by.y);
+}
 function savePolaroidCanvas(imageURL: string): void {
 	emit('image', imageURL)
 }
@@ -177,6 +214,7 @@ function setImageSource(blob: Blob): void {
 	releaseImageSource();
 	objectUrl = URL.createObjectURL(blob);
 	image.value = objectUrl;
+	alignment.value = { ...NOT_ALIGNED };
 }
 
 function releaseImageSource(): void {

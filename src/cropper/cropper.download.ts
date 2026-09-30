@@ -1,138 +1,107 @@
 import Konva from "konva";
 import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
-import mergeImages from 'merge-images';
 import { POLAROID_EXPORT_WIDTH, PRINT_RESOLUTION } from "../polaroid/frame.geometry";
 
-function createPolaroidText(polaroidType: InstaxFilmVariant, text: string): string {
-	// Create a new canvas element
-	const canvas = document.createElement('canvas');
-	canvas.id = "polaroid-download-text";
-
-	// Set canvas dimensions based on your configuration
-	const width = (polaroidType == InstaxFilmVariant.MINI) ? 600 :
-		(polaroidType == InstaxFilmVariant.SQUARE) ? 800 : 1150;
-	const height = 200;
-	canvas.width = width;
-	canvas.height = height;
-
-	// Get 2D context
-	const ctx = canvas.getContext("2d");
-	if (ctx == null) return '';
-
-	// Draw content
-	// Clear the canvas (optional, if you want to clear previous drawings)
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-	// Draw the transparent background
-	ctx.fillStyle = "rgba(255, 150, 100, 0)"; // Transparent white background
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-	// Draw the text
-	ctx.font = `${(Math.random() * 2) + 60}px biro_script_standardregular`;
-	ctx.fillStyle = "rgba(0, 15, 85, .75)";
-
-	// Calculate text width
-	const textWidth = ctx.measureText(text).width;
-
-	const x = (canvas.width - textWidth) / 2;
-	const y = canvas.height / 2;
-	const rotationAngle = (Math.random() * 2) - 1;
-
-	ctx.save();
-	ctx.translate(x + textWidth / 2, y);
-	ctx.rotate((rotationAngle * Math.PI) / 180);
-
-	ctx.fillText(text, -textWidth / 2, 0);
-	ctx.restore();
-
-	// Append canvas to the document
-	document.body.appendChild(canvas);
-
-	const textImage = (canvas as HTMLCanvasElement).toDataURL('image/png')
-
-
-	document.body.removeChild(canvas);
-
-	return textImage;
-
-}
-
-interface ImageFilter {
-	contrast: number,
-	saturation: number
-	brightness: number,
-	noise: number,
-}
-
-export function setPolaroidFilter(image: Konva.Image, background: Konva.Rect, filter: ImageFilter): void {
-	const filterList = [
-		Konva.Filters.Contrast,
-		Konva.Filters.HSL,
-		Konva.Filters.Brighten,
-		Konva.Filters.Noise
-	]
-
-
-	// Apply filters
-	image.filters(filterList);
-	image.contrast(filter.contrast)
-	image.saturation(filter.saturation)
-	image.brightness(filter.brightness)
-	image.noise(filter.noise)
-	image.cache();
-
-
-	if (background == null) return;
-	background.filters(filterList)
-
-	background.contrast(filter.contrast);
-	background.saturation(filter.saturation)
-	background.brightness(filter.brightness)
-	background.noise(filter.noise)
-	background.cache();
-}
-
-export function removePolaroidFilter(image: Konva.Image, background: Konva.Rect): void {
-	image.clearCache();
-	image.filters([]);
-
-	if (background == null) return;
-	background.filters([]);
-	background.clearCache();
-}
-
+/** the box the caption is written into, under the photo */
+const CAPTION_WIDTH: Record<string, number> = { mini: 600, square: 800, wide: 1150 };
+const CAPTION_HEIGHT = 200;
+const CAPTION_LEFT = 20;
 
 /**
- * Render the polaroid keepsake: the framed photo with its caption, filtered to
- * look like film.
+ * Where the photo sits inside the frame artwork. Each is the artwork's own
+ * transparent window less a small lip, measured off the artwork so the print lands
+ * where the editor showed it: these used to be one shared top and a left that put
+ * the photo well off centre, twice as far under the frame on one side as the other.
+ */
+const PHOTO_LEFT: Record<string, number> = { mini: 39, square: 52, wide: 40 };
+const PHOTO_TOP: Record<string, number> = { mini: 76, square: 82, wide: 80 };
+
+/**
+ * Write the caption onto the keepsake.
+ *
+ * This used to be drawn on a canvas of its own, encoded to a PNG and merged back
+ * in, which is two full image round trips on the main thread for one line of
+ * handwriting. The box it was drawn in is kept, so a long caption still runs out
+ * of room in the same place.
+ */
+function drawCaption(context: CanvasRenderingContext2D, type: InstaxFilmVariant, text: string): void {
+	if (text.trim().length === 0) return;
+
+	const width = CAPTION_WIDTH[type] ?? CAPTION_WIDTH.square;
+	const top = (Math.random() * 10) + 835;
+
+	context.save();
+
+	context.beginPath();
+	context.rect(CAPTION_LEFT, top, width, CAPTION_HEIGHT);
+	context.clip();
+
+	context.font = `${(Math.random() * 2) + 60}px biro_script_standardregular`;
+	context.fillStyle = 'rgba(0, 15, 85, .75)';
+
+	const textWidth = context.measureText(text).width;
+	const centre = CAPTION_LEFT + width / 2;
+	const rotation = (Math.random() * 2) - 1;
+
+	context.translate(centre, top + CAPTION_HEIGHT / 2);
+	context.rotate((rotation * Math.PI) / 180);
+	context.fillText(text, -textWidth / 2, 0);
+
+	context.restore();
+}
+
+// the frame artwork is the same few files over and over, and decoding one is far
+// from free, so each is decoded once and kept
+const frameArtwork = new Map<string, Promise<HTMLImageElement>>();
+
+function frameImage(type: InstaxFilmVariant): Promise<HTMLImageElement> {
+	const cached = frameArtwork.get(type);
+	if (cached != null) return cached;
+
+	const loading = loadImage(`/polaroids/export/${type}_scale.png`)
+		.catch((error) => {
+			// a failed load must not be remembered as the answer
+			frameArtwork.delete(type);
+			throw error;
+		});
+
+	frameArtwork.set(type, loading);
+	return loading;
+}
+
+/**
+ * Render the polaroid keepsake: the framed photo with its caption.
+ *
+ * The film look is whatever the stage is already showing. This used to reach in
+ * and put its own fixed filter on the image, which overwrote the settings the
+ * editor had applied and left the download looking nothing like the preview.
  *
  * The stage may be any size - the editor scales it to fit the viewport, and the
  * queue rebuilds one at print resolution - so the pixel ratio is derived from the
  * export width the frame artwork is aligned to rather than from the stage.
  */
 export async function downloadPolaroid(type: InstaxFilmVariant, text: string, image: Konva.Image, background: Konva.Rect, stage: Konva.Stage): Promise<string> {
-	const filterConfig = {
-		contrast: 0.75,
-		saturation: 0.5,
-		brightness: .05,
-		noise: .15
-	}
-
-	setPolaroidFilter(image, background, filterConfig)
-
 	const exportWidth = POLAROID_EXPORT_WIDTH[type] ?? POLAROID_EXPORT_WIDTH[InstaxFilmVariant.SQUARE];
 	const pixelRatio = stage.width() > 0 ? (exportWidth / stage.width()) : 1;
 
-	const canvasUrl = stage.toDataURL({ pixelRatio });
+	// straight to a canvas: asking the stage for a data URL would encode a PNG on
+	// the main thread only for the compositor below to decode it again
+	const photo = stage.toCanvas({ pixelRatio });
+	const frame = await frameImage(type);
 
-	removePolaroidFilter(image, background); // remove all Konva filters
+	const canvas = document.createElement('canvas');
+	canvas.width = Math.max(photo.width, frame.width);
+	canvas.height = Math.max(photo.height, frame.height);
 
-	return mergeImages([
-		{ src: canvasUrl, x: type == InstaxFilmVariant.SQUARE ? 28 : type == InstaxFilmVariant.MINI ? 22 : 22, y: 40 },
-		{ src: `/polaroids/export/${type}_scale.png`, x: 0, y: 0 },
-		{ src: createPolaroidText(type, text), x: 20, y: (Math.random() * 10) + 835 }
-	])
+	const context = canvas.getContext('2d');
+	if (context == null) throw new Error('Could not compose the polaroid');
 
+	context.drawImage(photo, PHOTO_LEFT[type] ?? PHOTO_LEFT.square, PHOTO_TOP[type] ?? PHOTO_TOP.square);
+	context.drawImage(frame, 0, 0);
+	drawCaption(context, type, text);
+
+	// one encode, at the end, rather than one per layer
+	return canvas.toDataURL('image/png');
 }
 
 

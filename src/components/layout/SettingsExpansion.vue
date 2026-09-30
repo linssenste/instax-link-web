@@ -5,8 +5,15 @@
 		 :class="{ 'no-transition': isDragging || isPositioning }" :style="{ marginTop: `${panelOffset}px` }">
 
 		<!-- the collapsible part: how the image sits in the frame -->
-		<ImageSettings :hasImage="hasImage" v-on:change="$emit('change', $event)"
-					   v-on:scale="$emit('scale', $event)" />
+		<!-- Collapsed, these controls sit behind the polaroid: inert takes them out of
+			 the tab order so Tab and Shift Tab cannot reach something nobody can see.
+			 The keyboard shortcuts still work, being listened for on the document. -->
+		<div ref="settingsRef" class="settings-wrap" :inert="isExpanded ? undefined : true">
+			<ImageSettings :hasImage="hasImage" :alignment="alignment" v-on:change="$emit('change', $event)"
+						   v-on:scale="$emit('scale', $event)" v-on:centre="$emit('centre', $event)"
+						   v-on:move="$emit('move', $event)" v-on:open-film="$emit('open-film')"
+						   v-on:toggle-settings="toggleClickEvent" />
+		</div>
 
 		<!-- the footer stays visible while the panel is collapsed, so the image can
 			 be printed or downloaded without opening the settings first -->
@@ -33,12 +40,14 @@
 							   class="download-icon-button" data-testid="download-image-icon-button"
 							   aria-label="Download the polaroid" title="Download the polaroid"
 							   v-on:click="saveEvent(true)" />
+
 			</div>
 
 			<!-- grab handle: click to toggle, drag vertically to slide the panel
 				 out from behind the polaroid frame -->
 			<button type="button" class="expand-button" data-testid="expand-handle" :aria-expanded="isExpanded"
-					:disabled="saving" :title="`${isExpanded ? 'Hide' : 'Show'} image settings`"
+					:disabled="saving"
+					:title="titleWith(`${isExpanded ? 'Hide' : 'Show'} image settings`, SHORTCUTS.settings)"
 					v-on:click="toggleClickEvent" v-on:pointerdown="dragStartEvent" v-on:pointermove="dragMoveEvent"
 					v-on:pointerup="dragEndEvent" v-on:pointercancel="dragEndEvent">
 				<span class="chevron" aria-hidden="true"
@@ -51,6 +60,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ImageSettings from '../polaroid/ImageSettings.vue';
+import { NOT_ALIGNED, type FrameAlignment } from '../../polaroid/frame.geometry';
+import { titleWith, SHORTCUTS } from '../../polaroid/shortcuts';
 import LoadingButton from '../controls/LoadingButton.vue';
 import downloadIcon from '@/assets/icons/controls/download.svg';
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
@@ -58,6 +69,9 @@ import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 defineEmits<{
 	(e: 'change', settings: { rotation: number; text: string; color: string }): void;
 	(e: 'scale', type: string): void;
+	(e: 'centre', axis: string): void;
+	(e: 'move', by: { x: number, y: number }): void;
+	(e: 'open-film'): void;
 }>();
 
 const props = withDefaults(defineProps<{
@@ -67,13 +81,15 @@ const props = withDefaults(defineProps<{
 	savePolaroid: (download: boolean) => void;
 	/** which action is rendering, so only that button reports progress */
 	savingAction?: 'print' | 'download' | null;
-}>(), { savingAction: null });
+	/** which framing states already hold, handed down to the controls */
+	alignment?: FrameAlignment;
+}>(), { savingAction: null, alignment: () => ({ ...NOT_ALIGNED }) });
 
 const saving = computed(() => props.savingAction != null);
 
 // the printer only takes so many images at a time
 const awaitingQueue = computed(() => {
-	if (props.queueLength > 2) return `background-color: rgb(var(--grey-color))!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
+	if (props.queueLength > 10) return `background-color: rgb(var(--grey-color))!important; opacity: .2; cursor: not-allowed; pointer-events: none!important; color: black;`;
 	else return ''
 });
 
@@ -91,6 +107,16 @@ const footerRef = ref<HTMLDivElement | null>(null);
 const panelHeight = ref(0);
 const footerHeight = ref(0);
 const isExpanded = ref(false);
+const settingsRef = ref<HTMLDivElement | null>(null);
+
+// inert is meant to blow focus away on its own, but not every engine does it yet and
+// jsdom does none of it, so the focused control is let go of by hand
+watch(isExpanded, (expanded) => {
+	if (expanded) return;
+
+	const focused = document.activeElement;
+	if (focused instanceof HTMLElement && settingsRef.value?.contains(focused)) focused.blur();
+});
 const isDragging = ref(false);
 
 // set while the panel is being put on a position it should snap to rather than
@@ -318,7 +344,7 @@ onBeforeUnmount(() => {
 	border-bottom-right-radius: 10px;
 	border-bottom-left-radius: 10px;
 	z-index: 0;
-	padding-top: 42px;
+	padding-top: 28px;
 	overflow: hidden;
 	transition: margin-top 250ms ease, opacity 250ms ease;
 
@@ -357,6 +383,7 @@ onBeforeUnmount(() => {
 	width: 100%;
 	color: white;
 }
+
 
 .download-icon-button {
 	margin-left: 5px;
@@ -401,14 +428,14 @@ onBeforeUnmount(() => {
 
 
 .chevron {
-	width: 15px;
-	height: 15px;
+	width: 23px;
+	height: 23px;
 	background-color: rgb(var(--black-color));
 	opacity: .4;
 
 	/* masked rather than an <img>, so the arrow can take the theme colour */
-	-webkit-mask: url('../../assets/icons/controls/chevron-down.svg') center / contain no-repeat;
-	mask: url('../../assets/icons/controls/chevron-down.svg') center / contain no-repeat;
+	-webkit-mask: url('../../assets/icons/controls/chevron.svg') center / contain no-repeat;
+	mask: url('../../assets/icons/controls/chevron.svg') center / contain no-repeat;
 
 	transition: opacity 250ms ease, transform 250ms ease, background-color 250ms ease;
 }

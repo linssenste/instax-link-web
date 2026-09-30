@@ -15,20 +15,29 @@ import DropImageUpload from '../../files/DropImageUpload.vue'
 import PolaroidFrame from '../../polaroid/PolaroidFrame.vue'
 import SettingsExpansion from '../../layout/SettingsExpansion.vue'
 import SelectImageUpload from '../../files/SelectImageUpload.vue'
+import { DEFAULT_ADJUSTMENTS } from '../../../polaroid/film';
 import { InstaxFilmVariant } from '../../../interfaces/PrinterStateConfig'
 
 // CropperArea owns a Konva canvas, which jsdom cannot render; the editor only
 // needs its interface here
-let cropperSpies: { fit: ReturnType<typeof vi.fn>, saveCanvasImage: ReturnType<typeof vi.fn> }
+let cropperSpies: {
+	fit: ReturnType<typeof vi.fn>,
+	centre: ReturnType<typeof vi.fn>,
+	nudge: ReturnType<typeof vi.fn>,
+	saveCanvasImage: ReturnType<typeof vi.fn>
+}
 
 const CropperAreaStub = {
 	name: 'CropperArea',
-	props: ['src', 'loading', 'config', 'settings'],
-	emits: ['save', 'remove-image'],
+	props: ['src', 'loading', 'config', 'settings', 'adjustments'],
+	emits: ['save', 'remove-image', 'alignment'],
 	template: '<div class="cropper-stub" />',
 	methods: {
 		fit(...args: unknown[]) { return cropperSpies.fit(...args) },
-		saveCanvasImage(...args: unknown[]) { return cropperSpies.saveCanvasImage(...args) }
+		centre(...args: unknown[]) { return cropperSpies.centre(...args) },
+		nudge(...args: unknown[]) { return cropperSpies.nudge(...args) },
+		saveCanvasImage(...args: unknown[]) { return cropperSpies.saveCanvasImage(...args) },
+		previewSource() { return null }
 	}
 }
 
@@ -43,7 +52,8 @@ describe('PolaroidEditor', () => {
 				...props
 			},
 			global: {
-				stubs: { CropperArea: CropperAreaStub }
+				// the film dialog teleports to body; stubbing keeps it in the wrapper
+				stubs: { CropperArea: CropperAreaStub, teleport: true }
 			}
 		});
 		return wrapper;
@@ -61,7 +71,10 @@ describe('PolaroidEditor', () => {
 	let urlCounter = 0
 
 	beforeEach(() => {
-		cropperSpies = { fit: vi.fn(), saveCanvasImage: vi.fn(async () => 'saved-image-url') };
+		cropperSpies = {
+			fit: vi.fn(), centre: vi.fn(), nudge: vi.fn(),
+			saveCanvasImage: vi.fn(async () => 'saved-image-url')
+		};
 
 		urlCounter = 0;
 		createObjectURL = vi.fn(() => `blob:mock/${++urlCounter}`);
@@ -338,6 +351,90 @@ describe('PolaroidEditor', () => {
 			expect(local.find('[data-testid="editor-root"]').classes()).toContain('ready');
 			vi.useRealTimers();
 			local.unmount();
+		});
+	});
+
+	describe('Film look dialog', () => {
+		it('is closed until it is asked for', () => {
+			expect(wrapper.findComponent(SettingsExpansion).exists()).toBe(true);
+			expect(wrapper.find('[data-testid="film-dialog"]').exists()).toBe(false);
+		});
+
+		it('opens when the panel asks for it', async () => {
+			await withImage();
+			wrapper.findComponent(SettingsExpansion).vm.$emit('open-film');
+			await nextTick();
+
+			expect(wrapper.find('[data-testid="film-dialog"]').exists()).toBe(true);
+		});
+
+		it('hands the film look down to the cropper', async () => {
+			await withImage();
+
+			const cropper = wrapper.findComponent(CropperAreaStub);
+			expect(cropper.props('adjustments')).toMatchObject(DEFAULT_ADJUSTMENTS);
+		});
+	});
+
+	describe('What the framing controls are told', () => {
+		it('starts with nothing aligned', async () => {
+			await withImage();
+
+			expect(wrapper.findComponent(SettingsExpansion).props('alignment'))
+				.toEqual({
+					fitsWidth: false, fitsHeight: false,
+					centredHorizontally: false, centredVertically: false
+				});
+		});
+
+		it('passes on what the canvas reports', async () => {
+			await withImage();
+			const reported = {
+				fitsWidth: true, fitsHeight: false,
+				centredHorizontally: true, centredVertically: false
+			};
+
+			wrapper.findComponent(CropperAreaStub).vm.$emit('alignment', reported);
+			await nextTick();
+
+			expect(wrapper.findComponent(SettingsExpansion).props('alignment')).toEqual(reported);
+		});
+
+		it('clears it when the image is taken away', async () => {
+			await withImage();
+			wrapper.findComponent(CropperAreaStub).vm.$emit('alignment', {
+				fitsWidth: true, fitsHeight: true,
+				centredHorizontally: true, centredVertically: true
+			});
+			await nextTick();
+
+			wrapper.findComponent(CropperAreaStub).vm.$emit('remove-image');
+			await nextTick();
+
+			// the canvas is gone with it and cannot report, so a stale lit control would
+			// otherwise carry over to the next photo
+			expect(wrapper.vm.alignment).toEqual({
+				fitsWidth: false, fitsHeight: false,
+				centredHorizontally: false, centredVertically: false
+			});
+		});
+
+		it('passes a keyboard move straight to the canvas', async () => {
+			await withImage();
+
+			wrapper.findComponent(SettingsExpansion).vm.$emit('move', { x: -10, y: 4 });
+
+			expect(cropperSpies.nudge).toHaveBeenCalledWith(-10, 4);
+		});
+
+		it('asks the canvas to centre on the axis the controls name', async () => {
+			await withImage();
+
+			wrapper.findComponent(SettingsExpansion).vm.$emit('centre', 'horizontal');
+			expect(cropperSpies.centre).toHaveBeenCalledWith(true);
+
+			wrapper.findComponent(SettingsExpansion).vm.$emit('centre', 'vertical');
+			expect(cropperSpies.centre).toHaveBeenCalledWith(false);
 		});
 	});
 

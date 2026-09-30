@@ -1,15 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 
-const mergeImages = vi.hoisted(() => vi.fn(async () => 'merged-data-url'))
 const Compressor = vi.hoisted(() => vi.fn())
 
-vi.mock('merge-images', () => ({ default: mergeImages }))
 vi.mock('compressorjs', () => ({ default: Compressor }))
 vi.mock('konva', () => ({
 	default: { Filters: { Contrast: 'contrast', HSL: 'hsl', Brighten: 'brighten', Noise: 'noise' } }
 }))
 
-import { downloadPolaroid } from '../cropper.download'
 import { compressedImage } from '../cropper.print'
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig'
 import { POLAROID_EXPORT_WIDTH, PRINT_RESOLUTION } from '../../polaroid/frame.geometry'
@@ -25,14 +22,34 @@ const fakeNode = () => ({
 const fakeStage = (width: number, height = width) => ({
 	width: () => width,
 	height: () => height,
+	toCanvas: vi.fn(({ pixelRatio }: { pixelRatio: number }) => ({
+		width: width * pixelRatio, height: height * pixelRatio
+	})),
 	toDataURL: vi.fn(() => 'data:image/png;base64,canvas')
 })
+
+// the frame artwork is fetched and decoded for real in the browser; jsdom never
+// fires the load, so the decode is stood in for here
+const loadedFrames: string[] = []
+
+class StubImage {
+	width = 836
+	height = 1000
+	onload: (() => void) | null = null
+	onerror: (() => void) | null = null
+
+	set src(value: string) {
+		loadedFrames.push(value);
+		queueMicrotask(() => this.onload?.());
+	}
+}
 
 // jsdom has no 2d context, and the caption is drawn on a throwaway canvas
 const stubCanvas = () => {
 	const context = {
 		clearRect: vi.fn(), fillRect: vi.fn(), save: vi.fn(), restore: vi.fn(),
-		translate: vi.fn(), rotate: vi.fn(), fillText: vi.fn(),
+		translate: vi.fn(), rotate: vi.fn(), fillText: vi.fn(), drawImage: vi.fn(),
+		beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(),
 		measureText: vi.fn(() => ({ width: 120 })),
 		fillStyle: '', font: ''
 	};
@@ -42,18 +59,47 @@ const stubCanvas = () => {
 };
 
 describe('Export resolution', () => {
-	beforeEach(() => {
-		mergeImages.mockClear();
+	let downloadPolaroid: typeof import('../cropper.download').downloadPolaroid
+
+	beforeEach(async () => {
 		Compressor.mockClear();
+		loadedFrames.length = 0;
 		stubCanvas();
+		vi.stubGlobal('Image', StubImage);
+		window.Image = StubImage as never;
+
+		// the module keeps the artwork it has decoded, so it is reloaded per test
+		vi.resetModules();
+		({ downloadPolaroid } = await import('../cropper.download'));
 	});
+
+	afterEach(() => vi.unstubAllGlobals());
 
 	describe('downloadPolaroid', () => {
 		const ratioFor = async (type: InstaxFilmVariant, stageWidth: number) => {
 			const stage = fakeStage(stageWidth);
 			await downloadPolaroid(type, 'caption', fakeNode() as never, fakeNode() as never, stage as never);
-			return stage.toDataURL.mock.calls[0][0].pixelRatio;
+			return stage.toCanvas.mock.calls[0][0].pixelRatio;
 		};
+
+		it('leaves the film look alone, rendering whatever the stage is showing', async () => {
+			// it used to put its own fixed filter on the image and clear the node's
+			// filters afterwards, so the download came out ignoring every setting
+			// the dialog had applied
+			const image = fakeNode();
+			const background = fakeNode();
+
+			await downloadPolaroid(
+				InstaxFilmVariant.SQUARE, 'caption', image as never, background as never,
+				fakeStage(REFERENCE_STAGE) as never
+			);
+
+			for (const node of [image, background]) {
+				expect(node.filters).not.toHaveBeenCalled();
+				expect(node.cache).not.toHaveBeenCalled();
+				expect(node.clearCache).not.toHaveBeenCalled();
+			}
+		});
 
 		it('renders at the export width the frame artwork is aligned to', async () => {
 			const stageWidth = REFERENCE_STAGE;
@@ -69,7 +115,6 @@ describe('Export resolution', () => {
 				const ratio = await ratioFor(InstaxFilmVariant.SQUARE, stageWidth);
 
 				expect(stageWidth * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH.square);
-				mergeImages.mockClear();
 			}
 		});
 
@@ -86,7 +131,6 @@ describe('Export resolution', () => {
 				const ratio = await ratioFor(type, stageWidth);
 
 				expect(stageWidth * ratio).toBeCloseTo(POLAROID_EXPORT_WIDTH[type]);
-				mergeImages.mockClear();
 			}
 		});
 
@@ -95,27 +139,68 @@ describe('Export resolution', () => {
 		});
 
 		it('composites onto the frame artwork of the requested variant', async () => {
-			const stage = fakeStage(REFERENCE_STAGE);
 			await downloadPolaroid(
-				InstaxFilmVariant.WIDE, '', fakeNode() as never, fakeNode() as never, stage as never
+				InstaxFilmVariant.WIDE, '', fakeNode() as never, fakeNode() as never,
+				fakeStage(REFERENCE_STAGE) as never
 			);
 
-			const sources = mergeImages.mock.calls[0][0].map((layer: { src: string }) => layer.src);
-			expect(sources).toContain('/polaroids/export/wide_scale.png');
+			expect(loadedFrames).toContain('/polaroids/export/wide_scale.png');
 		});
 
-		it('clears the print filters again after rendering', async () => {
-			const image = fakeNode();
-			const background = fakeNode();
+		it('encodes once, at the end, rather than once per layer', async () => {
+			// the photo, the frame and the caption each used to make the round trip
+			// through a PNG on the main thread, which is what stalled the loader
+			const context = stubCanvas();
+			const encode = vi.mocked(HTMLCanvasElement.prototype.toDataURL);
+			encode.mockClear();
 
 			await downloadPolaroid(
-				InstaxFilmVariant.SQUARE, '', image as never, background as never, fakeStage(REFERENCE_STAGE) as never
+				InstaxFilmVariant.MINI, 'holiday 98', fakeNode() as never, fakeNode() as never,
+				fakeStage(REFERENCE_STAGE) as never
 			);
 
-			expect(image.clearCache).toHaveBeenCalled();
-			expect(image.filters).toHaveBeenLastCalledWith([]);
-			expect(background.filters).toHaveBeenLastCalledWith([]);
+			expect(encode).toHaveBeenCalledTimes(1);
+
+			// and the layers go down in order: photo, frame, then the caption
+			expect(context.drawImage).toHaveBeenCalledTimes(2);
+			expect(context.fillText).toHaveBeenCalledWith('holiday 98', expect.any(Number), 0);
 		});
+
+		it('keeps the caption inside its own box, as a merged layer was', async () => {
+			const context = stubCanvas();
+
+			await downloadPolaroid(
+				InstaxFilmVariant.SQUARE, 'a caption', fakeNode() as never, fakeNode() as never,
+				fakeStage(REFERENCE_STAGE) as never
+			);
+
+			expect(context.clip).toHaveBeenCalled();
+			const [left, , width, height] = context.rect.mock.calls[0];
+			expect([left, width, height]).toEqual([20, 800, 200]);
+		});
+
+		it('writes nothing at all when there is no caption', async () => {
+			const context = stubCanvas();
+
+			await downloadPolaroid(
+				InstaxFilmVariant.SQUARE, '   ', fakeNode() as never, fakeNode() as never,
+				fakeStage(REFERENCE_STAGE) as never
+			);
+
+			expect(context.fillText).not.toHaveBeenCalled();
+		});
+
+		it('keeps the artwork it has already decoded', async () => {
+			for (let attempt = 0; attempt < 3; attempt++) {
+				await downloadPolaroid(
+					InstaxFilmVariant.MINI, '', fakeNode() as never, fakeNode() as never,
+					fakeStage(REFERENCE_STAGE) as never
+				);
+			}
+
+			expect(loadedFrames.filter((src) => src.includes('mini')).length).toBeLessThanOrEqual(1);
+		});
+
 	});
 
 	describe('compressedImage', () => {

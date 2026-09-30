@@ -1,8 +1,8 @@
 <template>
 	<button type="button" :class="{ busy: loading }" :disabled="disabled || loading" v-on:click="clickEvent">
 		<span v-if="loading" class="button-spinner" :class="{ spaced: currentLabel != null }" aria-hidden="true" />
-		<img v-else-if="icon" :src="icon" :width="iconSize" :height="iconSize" alt="" draggable="false"
-			 :class="{ spaced: currentLabel != null }" />
+		<span v-else-if="icon" class="button-icon" :class="{ spaced: currentLabel != null }"
+			  :style="{ '--button-icon': iconMask }" aria-hidden="true" />
 
 		<span v-if="currentLabel">{{ currentLabel }}</span>
 	</button>
@@ -21,7 +21,14 @@ const props = withDefaults(defineProps<{
 	iconSize?: number;
 	loading?: boolean;
 	disabled?: boolean;
-}>(), { iconSize: 14, loading: false, disabled: false });
+}>(), { iconSize: 20, loading: false, disabled: false });
+
+/**
+ * The mask source, quoted. A small icon is inlined as a data uri carrying a raw
+ * apostrophe, which an unquoted url() cannot hold: the declaration would be thrown
+ * away and the mark would come out as a filled square.
+ */
+const iconMask = computed(() => props.icon == null ? undefined : `url("${props.icon}")`);
 
 const currentLabel = computed(() => {
 	if (props.loading && props.loadingLabel != null) return props.loadingLabel;
@@ -37,6 +44,9 @@ function clickEvent(): void {
 <style scoped>
 button {
 	position: relative;
+	/* the icon and the spinner are both drawn in currentColor, so the one colour
+	   here covers the label and the mark alike */
+	color: #ffffff;
 }
 
 /* unavailable is unavailable, whatever the button normally looks like */
@@ -54,15 +64,26 @@ button:disabled.busy {
 
 /* only the icon or the spinner sits next to a label, so the gap belongs on them
    rather than on the global `button img` rule */
-img,
+.button-icon,
 .button-spinner {
 	margin-right: 0;
 	flex: none;
 }
 
-img.spaced,
+.button-icon.spaced,
 .button-spinner.spaced {
 	margin-right: 8px;
+}
+
+/* a mask rather than an img: the icons ship with a placeholder fill, and this way
+   the mark takes the button's own colour */
+.button-icon {
+	display: block;
+	width: v-bind('`${iconSize}px`');
+	height: v-bind('`${iconSize}px`');
+	background-color: currentColor;
+	-webkit-mask: var(--button-icon) center / contain no-repeat;
+	mask: var(--button-icon) center / contain no-repeat;
 }
 
 /* rotation only, so the browser keeps it on the compositor and it carries on

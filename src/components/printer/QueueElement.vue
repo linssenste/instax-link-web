@@ -21,7 +21,7 @@
 					</span>
 
 					<!-- download the framed keepsake, which is not what gets printed -->
-					<LoadingButton :loading="preparingDownload" :icon="downloadIcon" :iconSize="12"
+					<LoadingButton :loading="preparingDownload" :icon="downloadIcon" :iconSize="18"
 								   class="queue-icon-button" data-testid="queue-download-button"
 								   aria-label="Download this polaroid" title="Download this polaroid"
 								   v-on:click="downloadPolaroidEvent()" />
@@ -30,7 +30,7 @@
 					<button type="button" data-testid="canceling-button" class="remove-button"
 							:class="isCanceling ? 'disabled' : ''" aria-label="Cancel printing this image"
 							title="Cancel printing this image" v-on:click="cancelPrinting()">
-						<img src="@/assets/icons/controls/xmark.svg" width="12" alt="" />
+						<span class="cancel-icon" aria-hidden="true" />
 					</button>
 				</div>
 
@@ -363,11 +363,16 @@ input::-webkit-inner-spin-button {
 	opacity: 1;
 }
 
-.remove-button img {
+.cancel-icon {
 	position: absolute;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%);
+	width: 12px;
+	height: 12px;
+	margin: -6px 0 0 -6px;
+	background-color: #000000;
+	-webkit-mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
+	mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
 }
 
 

@@ -92,7 +92,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		let aborted: boolean = false
 		signal.addEventListener('abort', () => {
 			aborted = true
-		})
+		}) 
 
 		// console.log(printCount)
 		for (let index = 0; index < (printCount); index++) {

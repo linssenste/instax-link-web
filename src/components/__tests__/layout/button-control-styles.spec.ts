@@ -41,7 +41,8 @@ describe('Controls converted from div to button', () => {
 			['layout/ThemeColorSelector.vue', '.color-item'],
 			['layout/PolaroidSizeSelector.vue', '.polaroid'],
 			['files/SelectImageUpload.vue', '.upload-area'],
-			['polaroid/CropperArea.vue', '.remove-button']
+			// the close control is its own component now, shared with the dialog
+			['controls/CloseButton.vue', '.close']
 		]
 
 		for (const [file, selector] of controls) {
@@ -58,7 +59,7 @@ describe('Controls converted from div to button', () => {
 			['layout/ThemeColorSelector.vue', '.color-item:focus-visible'],
 			['layout/PolaroidSizeSelector.vue', '.polaroid:focus-visible'],
 			['files/SelectImageUpload.vue', '.upload-area:focus-visible'],
-			['polaroid/CropperArea.vue', '.remove-button:focus-visible']
+			['controls/CloseButton.vue', '.close:focus-visible']
 		]
 
 		for (const [file, selector] of controls) {
@@ -160,6 +161,16 @@ describe('Controls converted from div to button', () => {
 
 		// and nothing overrides it per button
 		expect(read('printer/PrinterConnection.vue')).not.toContain('connect-button:disabled')
+	})
+
+	it('leaves the shared close control nothing but its placing to do', () => {
+		// the chrome lives in the component, so a second use of it cannot drift: all
+		// the editor says is where on the photo it goes
+		const rule = ruleFor(read('polaroid/CropperArea.vue'), '.remove-button')
+
+		expect(rule).toContain('position: absolute')
+		expect(rule).not.toContain('background-color')
+		expect(rule).not.toContain('border-radius')
 	})
 
 	it('keeps the rotation dial geometry in one place', () => {

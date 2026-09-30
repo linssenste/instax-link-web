@@ -3,9 +3,18 @@
 
 		<div v-if="!config.connection" class="printer-connection">
 
-			<LoadingButton :disabled="!hasBluetoothAccess" :loading="connecting" :icon="bluetoothIcon" :iconSize="18"
-						   label="Connect" loadingLabel="Connecting" class="connect-button"
-						   data-testid="connect-printer-button" v-on:click="connectEvent" />
+			<div class="connect-row">
+				<LoadingButton :disabled="!hasBluetoothAccess" :loading="connecting" :icon="bluetoothIcon"
+							   :iconSize="22" label="Connect" loadingLabel="Connecting" class="connect-button"
+							   data-testid="connect-printer-button" v-on:click="connectEvent" />
+
+				<!-- what this is, which printers it speaks to, and the keyboard -->
+				<button type="button" class="help-button" data-testid="open-help-button"
+						title="About this, the printers it works with, and the keyboard"
+						aria-label="About this app" v-on:click="helpOpen = true">
+					<span class="help-icon" aria-hidden="true" />
+				</button>
+			</div>
 
 			<a v-if="!hasBluetoothAccess" class="no-support-text" data-testid="no-support-text"
 				href="https://developer.mozilla.org/en-US/docs/Web/API/Bluetooth#browser_compatibility">
@@ -28,8 +37,8 @@
 
 		</div>
 
+		<HelpDialog :open="helpOpen" v-on:close="helpOpen = false" />
 	</div>
-
 
 </template>
 
@@ -43,6 +52,7 @@ import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 import type { QueueImage } from '../../interfaces/QueueImage'
 import PrinterStatusCard from './PrinterStatusCard.vue';
 import LoadingButton from '../controls/LoadingButton.vue';
+import HelpDialog from '../help/HelpDialog.vue';
 import bluetoothIcon from '@/assets/icons/printer/bluetooth.svg';
 
 const props = defineProps<{
@@ -51,6 +61,7 @@ const props = defineProps<{
 }>();
 
 const connecting = ref(false);
+const helpOpen = ref(false);
 
 async function connectEvent(): Promise<void> {
 	if (connecting.value) return;
@@ -135,6 +146,57 @@ function removeImageEvent(index: number): void {
 	width: 100%;
 	height: 100%;
 	gap: 4px;
+}
+
+/* the connect button keeps the room it had; the question mark sits beside it */
+.connect-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.connect-row .connect-button {
+	flex: 1 1 auto;
+}
+
+.help-button {
+	position: relative;
+	flex: none;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	opacity: 1;
+	background-color: rgba(var(--dynamic-bg-color), .12);
+	cursor: pointer;
+}
+
+/* a mask rather than an image, so the mark takes the theme colour */
+.help-icon {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 20px;
+	height: 20px;
+	margin: -10px 0 0 -10px;
+	background-color: rgb(var(--dynamic-bg-color));
+	-webkit-mask: url('@/assets/icons/controls/help.svg') center / contain no-repeat;
+	mask: url('@/assets/icons/controls/help.svg') center / contain no-repeat;
+}
+
+.help-button:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.help-button:hover {
+		background-color: rgba(var(--dynamic-bg-color), .2);
+		box-shadow: none;
+	}
 }
 
 

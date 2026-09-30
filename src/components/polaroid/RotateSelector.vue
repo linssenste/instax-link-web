@@ -1,5 +1,6 @@
 <template>
-	<div ref="dialRef" class="dial" role="slider" tabindex="-1" aria-label="Image rotation in degrees"
+	<div ref="dialRef" class="dial" role="slider" tabindex="0" aria-label="Image rotation in degrees"
+		 :title="`Rotation. ${SHORTCUTS.rotate.hint} for a quarter turn, arrows for one degree`"
 		 :aria-valuenow="angle" aria-valuemin="0" aria-valuemax="359" :aria-valuetext="`${angle} degrees`"
 		 :class="{ dragging: isDragging, 'knob-parked': knobParked }" data-testid="rotate-dial"
 		 v-on:keydown="keyEvent" v-on:pointerleave="knobParked = false"
@@ -26,6 +27,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
+import { SHORTCUTS } from '../../polaroid/shortcuts';
 
 const SNAP_ANGLES = [0, 90, 180, 270];
 // how close a drag has to come to a quarter turn before it sticks
@@ -190,7 +192,13 @@ defineExpose({ angle, commit });
 	cursor: grabbing;
 }
 
+/* the ring is reached by keyboard like any other slider, and says so on the knob
+   rather than by drawing a box round the whole square it sits in */
 .dial:focus {
+	outline: none;
+}
+
+.dial:focus-visible {
 	outline: none;
 }
 
@@ -270,12 +278,18 @@ defineExpose({ angle, commit });
 	height: 100%;
 	border-radius: 50%;
 	background-color: rgb(var(--dynamic-bg-color));
-	transition: transform 150ms ease-out;
+	transition: transform 150ms ease-out, box-shadow 150ms ease-out;
 }
 
 .dial.dragging .knob-dot,
 .dial.knob-parked .knob-dot {
 	transform: scale(1.45);
+}
+
+/* the same ring the sliders put round their knob when tabbed to */
+.dial:focus-visible .knob-dot {
+	transform: scale(1.45);
+	box-shadow: 0 0 0 3px rgba(var(--dynamic-bg-color), .35);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -290,7 +304,9 @@ defineExpose({ angle, commit });
 		background-color: #ffffff;
 	}
 
-	.knob:hover .knob-dot {
+	/* anywhere on the dial, not only on the knob itself: the same as the sliders,
+	   where the knob comes up as soon as the pointer is over the band */
+	.dial:hover .knob-dot {
 		transform: scale(1.45);
 	}
 }
