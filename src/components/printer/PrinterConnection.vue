@@ -4,9 +4,7 @@
 		<div v-if="!config.connection" class="printer-connection">
 
 			<div class="connect-row">
-				<LoadingButton :disabled="!hasBluetoothAccess" :loading="connecting" :icon="bluetoothIcon"
-							   :iconSize="22" label="Connect" loadingLabel="Connecting" class="connect-button"
-							   data-testid="connect-printer-button" v-on:click="connectEvent" />
+				
 
 				<!-- what this is, which printers it speaks to, and the keyboard -->
 				<button type="button" class="help-button" data-testid="open-help-button"
@@ -14,6 +12,10 @@
 						aria-label="About this app" v-on:click="helpOpen = true">
 					<span class="help-icon" aria-hidden="true" />
 				</button>
+
+				<LoadingButton :disabled="!hasBluetoothAccess" :loading="connecting" :icon="bluetoothIcon"
+							   :iconSize="22" label="Connect" loadingLabel="Connecting" class="connect-button"
+							   data-testid="connect-printer-button" v-on:click="connectEvent" />
 			</div>
 
 			<a v-if="!hasBluetoothAccess" class="no-support-text" data-testid="no-support-text"
