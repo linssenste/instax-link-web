@@ -33,8 +33,11 @@
 			<StatusAlerts v-if="config.status != null" :status="config.status" />
 
 			<div v-if="config.status != null && queue.length > 0" class="printing-queue">
-				<QueueElement v-for="(element, index) in queue" :key="index" :element="element"
-					v-on:cancel="removeImageEvent(index)" v-on:quantity-change="element.quantity = $event"
+				<!-- keyed by the photo, not its position: the queue is shifted from the
+					 front, so an index key hands one card's state to the next photo -->
+				<QueueElement v-for="element in queue" :key="element.id" :element="element"
+					v-on:cancel="$emit('cancel', element.id)"
+					v-on:quantity-change="$emit('quantity-change', element.id, $event)"
 					v-on:retry="$emit('retry')" />
 			</div>
 
@@ -58,7 +61,11 @@ import LoadingButton from '../controls/LoadingButton.vue';
 import HelpDialog from '../help/HelpDialog.vue';
 import bluetoothIcon from '@/assets/icons/printer/bluetooth.svg';
 
-defineEmits<{ (e: 'retry'): void }>();
+defineEmits<{
+	(e: 'retry'): void;
+	(e: 'cancel', id: number): void;
+	(e: 'quantity-change', id: number, quantity: number): void;
+}>();
 
 const props = defineProps<{
 	config: PrinterStateConfig;
@@ -107,14 +114,6 @@ onMounted(() => {
 
 })
 
-
-function removeImageEvent(index: number): void {
-
-	if (index == 0 && (props.config.status?.polaroidCount ?? 0) > 0) {
-		props.queue[0].abortController?.abort();
-	}
-
-}
 
 
 </script>

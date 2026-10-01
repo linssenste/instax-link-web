@@ -26,26 +26,39 @@ export interface InstaxParsedResponse {
 	status?: number
 }
 
-export function parse(eventCode: number, command: number, payload: number[], status: number): InstaxParsedResponse | undefined {
+/**
+ * Read a reply into the fields its opcode is known to carry.
+ *
+ * `status` is on every shape it returns. It is a property of the frame rather
+ * than of the opcode, and the two special-cased branches used to drop it - so a
+ * fault reported on one of those opcodes read as a healthy reply, which is
+ * exactly how the print-fault watcher could miss the packet that matters most.
+ * The same goes for never returning undefined: a well formed reply that mapped
+ * to nothing was reported as "the printer did not answer".
+ */
+export function parse(eventCode: number, command: number, payload: number[], status: number): InstaxParsedResponse {
+	const frame = { eventCode, command, payload, status }
+
 	if (eventCode === INSTAX_OPCODES.DEVICE_INFO_SERVICE) {
 		const asciiResponse = String.fromCharCode(...payload.filter((code) => code !== 8))
 		switch (command) {
 			case 0:
-				return { company: asciiResponse }
+				return { ...frame, company: asciiResponse }
 
 			case 1:
-				return { printerTypeId: asciiResponse }
+				return { ...frame, printerTypeId: asciiResponse }
 
 			case 2:
-				return { serialNumber: asciiResponse }
+				return { ...frame, serialNumber: asciiResponse }
 
 			default:
-				return { eventCode, command, payload }
+				return frame
 		}
 	} else if (eventCode === INSTAX_OPCODES.SUPPORT_FUNCTION_INFO) {
 		switch (command) {
 			case 0:
 				return {
+					...frame,
 					width: twoByteInt(0, payload),
 					height: twoByteInt(2, payload),
 					packet: twoByteInt(4, payload) // idk - 512
@@ -53,14 +66,21 @@ export function parse(eventCode: number, command: number, payload: number[], sta
 
 			case 1:
 				return {
+					...frame,
 					isCharging: oneByteInt(0, payload),
 					battery: oneByteInt(1, payload)
 				}
 
 			case 2:
+				// a short payload would read `undefined & 15` as 0 shots left, which
+				// the app reports as an empty pack; the other two commands guard with
+				// the byte readers and this one used to index straight in
+				if (payload.length === 0) return frame
+
 				return {
-					photosLeft: payload[0] & 15,
-					isCharging: (payload[0] & (1 << 7)) === 0 ? 0 : 1,
+					...frame,
+					photosLeft: oneByteInt(0, payload) & 15,
+					isCharging: (oneByteInt(0, payload) & (1 << 7)) === 0 ? 0 : 1,
 
 					// everything past the first byte, kept rather than dropped. Measured
 					// on a Link printer: these read `00 00 0c 00 00 00 00` while it is
@@ -72,9 +92,9 @@ export function parse(eventCode: number, command: number, payload: number[], sta
 				}
 
 			default:
-				break
+				return frame
 		}
-	} else {
-		return { eventCode, command, payload, status }
 	}
+
+	return frame
 }

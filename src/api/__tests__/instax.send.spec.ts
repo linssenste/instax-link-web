@@ -57,13 +57,6 @@ function fakePrinter(options: { acceptWrite?: number, startStatus?: number } = {
 	return { printer, writes, notify, write }
 }
 
-/** Whether a promise has settled, so a timer pump can stop once it has. */
-function done(promise: Promise<unknown>): boolean {
-	let settled = false
-	promise.then(() => { settled = true }, () => { settled = true })
-	return settled
-}
-
 const image = (bytes: number) =>
 	`data:image/jpeg;base64,${btoa(String.fromCharCode(...new Uint8Array(bytes).fill(0x41)))}`
 
@@ -118,29 +111,42 @@ describe('sendImage', () => {
 		expect(pauses).toHaveLength(packets * (perPacket - 1))
 	})
 
-	it('falls back to a smaller write when the link rejects the large one', async () => {
-		// an MTU that only carries 182 byte payloads, which is the low end of what
-		// turns up in the wild
-		const { printer, writes } = fakePrinter({ acceptWrite: 182 })
+	it('falls back to a smaller write when the link rejects the opening one', async () => {
+		// 150 is below WRITE_SIZES[0], so the ladder is genuinely entered. This used
+		// to say 182 - which writeStride never exceeds - so no write was ever
+		// rejected and the whole back off path went untested while claiming not to
+		const { printer, writes } = fakePrinter({ acceptWrite: 150 })
 
 		await printer.sendImage(image(8000), true, InstaxFilmVariant.SQUARE, () => { }, new AbortController().signal)
 
-		for (const chunk of writes) expect(chunk.length).toBeLessThanOrEqual(182)
+		// it got there in the end, and only at a size the link would carry
+		expect(writes.length).toBeGreaterThan(0)
+		for (const chunk of writes) expect(chunk.length).toBeLessThanOrEqual(150)
+		expect(writes.some((chunk) => chunk.length <= WRITE_SIZES[1])).toBe(true)
 	})
 
-	it('keeps the smaller write for the next image rather than retrying the large one', async () => {
-		const { printer, writes } = fakePrinter({ acceptWrite: 182 })
+	it('completes the transfer at the smaller write rather than giving up', async () => {
+		const { printer, writes } = fakePrinter({ acceptWrite: 150 })
+
+		await printer.sendImage(image(8000), true, InstaxFilmVariant.SQUARE, () => { }, new AbortController().signal)
+
+		// the end of transfer command is only sent once every packet is through
+		expect(writes.some((frame) => ((frame[4] << 8) | frame[5]) === 0x1002)).toBe(true)
+	})
+
+	it('keeps the smaller write for the next image rather than probing again', async () => {
+		const { printer, writes } = fakePrinter({ acceptWrite: 150 })
 		const signal = new AbortController().signal
 
 		await printer.sendImage(image(4000), true, InstaxFilmVariant.SQUARE, () => { }, signal)
-		const afterFirst = writes.length
 		writes.length = 0
 
 		await printer.sendImage(image(4000), true, InstaxFilmVariant.SQUARE, () => { }, signal)
 
-		// the first image paid for the discovery; the second must not pay again
-		expect(writes.length).toBeLessThanOrEqual(afterFirst)
-		for (const chunk of writes) expect(chunk.length).toBeLessThanOrEqual(182)
+		// the first image paid for the discovery: the second opens small, so it
+		// needs exactly one transfer start rather than a rejected one first
+		const starts = writes.filter((frame) => ((frame[4] << 8) | frame[5]) === 0x1000)
+		expect(starts).toHaveLength(1)
 	})
 
 	it('reports progress that climbs to completion', async () => {
@@ -176,18 +182,19 @@ describe('sendImage', () => {
 			const { printer, write } = fakePrinter()
 			write.writeValueWithoutResponse.mockImplementation(async () => { /* silence */ })
 
+			let settled = false
 			const sending = printer.sendImage(
 				image(2000), true, InstaxFilmVariant.SQUARE, () => { }, new AbortController().signal
-			)
-			const settled = expect(sending).rejects.toThrow(/stopped responding/)
+			).finally(() => { settled = true })
+			const caught = expect(sending).rejects.toThrow(/stopped responding/)
 
 			// every retry waits out a response timeout, which is the point; there is
 			// no reason for the test to wait out the same seconds in real time
-			for (let step = 0; step < 200 && !done(sending); step++) {
+			for (let step = 0; step < 200 && !settled; step++) {
 				await vi.advanceTimersByTimeAsync(500)
 			}
 
-			await settled
+			await caught
 		} finally {
 			vi.useRealTimers()
 		}
@@ -273,6 +280,68 @@ describe('sendImage', () => {
 
 			for (const chunk of writes) expect(chunk.length).toBeLessThanOrEqual(WRITE_SIZES[0])
 		})
+	})
+
+	describe('a signal that is already aborted', () => {
+		it('sends nothing at all', async () => {
+			// the listener can never fire for a signal aborted before the call, so the
+			// whole image used to be transferred and printed after a cancel
+			const { printer, writes } = fakePrinter()
+			const controller = new AbortController()
+			controller.abort()
+
+			await printer.sendImage(image(20_000), true, InstaxFilmVariant.SQUARE, () => { }, controller.signal)
+
+			expect(writes).toHaveLength(0)
+		})
+
+		it('tells the caller it was cancelled', async () => {
+			const { printer } = fakePrinter()
+			const controller = new AbortController()
+			controller.abort()
+			const progress: number[] = []
+
+			await printer.sendImage(
+				image(2000), true, InstaxFilmVariant.SQUARE, (value) => progress.push(value), controller.signal
+			)
+
+			expect(progress).toEqual([-1])
+		})
+
+		it('prints nothing either', async () => {
+			const { printer, writes } = fakePrinter()
+			const controller = new AbortController()
+			controller.abort()
+
+			await printer.printImage(3, () => { }, controller.signal)
+
+			expect(writes.filter((frame) => ((frame[4] << 8) | frame[5]) === 0x1080)).toHaveLength(0)
+		})
+	})
+
+	it('refuses an empty image rather than crashing on it', async () => {
+		// imageToChunks indexed into an empty array and threw a TypeError out of
+		// sendImage before there was a try block to turn it into a real failure
+		const { printer } = fakePrinter()
+
+		await expect(
+			printer.sendImage('data:image/jpeg;base64,', true, InstaxFilmVariant.SQUARE, () => { }, new AbortController().signal)
+		).rejects.toThrow(/empty/i)
+	})
+
+	it('decodes a data URL whatever media type it declares', async () => {
+		// the prefix strip was a literal match on the jpeg form, so any other data
+		// URL kept its prefix and decoded to a few bytes of garbage
+		const { printer, writes } = fakePrinter()
+		const bytes = new Uint8Array(3000).fill(0x41)
+		const url = `data:image/png;base64,${btoa(String.fromCharCode(...bytes))}`
+
+		await printer.sendImage(url, true, InstaxFilmVariant.SQUARE, () => { }, new AbortController().signal)
+
+		const start = writes.find((frame) => ((frame[4] << 8) | frame[5]) === 0x1000)
+		expect(start).toBeDefined()
+		// the length field carries the real byte count, not a truncated one
+		expect((start![12] << 8) | start![13]).toBe(3000)
 	})
 
 	it('stops when the transfer is aborted', async () => {

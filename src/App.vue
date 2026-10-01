@@ -3,7 +3,8 @@
 
 		<!-- top-right corner: connection, printer status and the print queue -->
 		<PrinterConnection v-show="!isMobile" class="printer-panel" :queue="imageQueue" :config="config"
-			v-on:retry="retryPrintEvent" />
+			v-on:retry="retryPrintEvent" v-on:cancel="cancelQueuedEvent"
+			v-on:quantity-change="quantityChangeEvent" />
 
 		<!-- bottom-left corner: theme color selector -->
 		<ThemeColorSelector v-show="!isMobile" v-if="!embedMode" class="theme-colors"
@@ -15,11 +16,13 @@
 
 		</div>
 
-		<PolaroidEditor class="editor" v-on:image="createdImageEvent" :config="config" :queueLength="imageQueue.length" />
+		<PolaroidEditor class="editor" v-on:image="createdImageEvent" :config="config"
+			:queueLength="imageQueue.length" v-on:render-failed="renderFailedEvent" />
 
 
 		<MobileOverlay v-show="isMobile" :config="config" v-on:color-change="themeChangeEvent"
-			v-on:type-change="typeChangeEvent" :queue="imageQueue" />
+			v-on:type-change="typeChangeEvent" :queue="imageQueue" v-on:retry="retryPrintEvent"
+			v-on:cancel="cancelQueuedEvent" v-on:quantity-change="quantityChangeEvent" />
 
 		<!-- a print that never came out: the photo stays on the queue behind this -->
 		<PrintErrorDialog :error="printError" v-on:close="printError = null" v-on:retry="retryPrintEvent"
@@ -38,7 +41,7 @@ import PolaroidEditor from './components/polaroid/PolaroidEditor.vue';
 import PrinterConnection from './components/printer/PrinterConnection.vue';
 import { InstaxPrinter } from './api/instax';
 import { isPrintError, InstaxPrintError, type PrintFailure } from './api/instax.errors';
-import { QUEUE_STATE, MAX_QUEUE_LENGTH } from './interfaces/QueueImage';
+import { QUEUE_STATE, MAX_QUEUE_LENGTH, queueId } from './interfaces/QueueImage';
 import PrintErrorDialog from './components/printer/PrintErrorDialog.vue';
 
 import { type PrinterStateConfig, InstaxFilmVariant } from './interfaces/PrinterStateConfig';
@@ -81,9 +84,9 @@ function themeChangeEvent(theme: string = 'dynamic-bg'): void {
 }
 
 // update film type (only if not automatically with printer)
-function typeChangeEvent(filmType: string): void {
+function typeChangeEvent(filmType: InstaxFilmVariant): void {
 	if (!config.value.connection || !printer) {
-		config.value.type = filmType as InstaxFilmVariant
+		config.value.type = filmType
 	}
 }
 
@@ -256,6 +259,7 @@ function createdImageEvent(imageData: RenderedImage) {
 		if (imageQueue.value.length >= MAX_QUEUE_LENGTH) return;
 
 		imageQueue.value.push({
+			id: queueId(),
 			base64: imageData.src,
 			quantity: 1,
 			state: 0,
@@ -269,90 +273,148 @@ function createdImageEvent(imageData: RenderedImage) {
 }
 
 
-// process (send + print) first image in queue
-async function printPolaroidQueue(isRetry = false): Promise<void> {
+/**
+ * Send and print the photo at the head of the queue.
+ *
+ * The photo is held by identity rather than by position throughout. The queue is
+ * mutated from the front, so `imageQueue[0]` after an await is not necessarily the
+ * photo this run started on - it is whichever one has since slid into the slot -
+ * and acting on that is how a cancel mid-print used to take the wrong photo off.
+ */
+async function printPolaroidQueue(): Promise<void> {
+	if (printer == null) return;
 
-	if (printer == null || config.value.status == null || config.value.status.polaroidCount == null || config.value.status.polaroidCount <= 0 || imageQueue.value.length == 0 || imageQueue.value[0] == null) return;
+	const status = config.value.status;
+	if (status == null || status.polaroidCount == null || status.polaroidCount <= 0) return;
+
+	const photo = imageQueue.value[0];
+	if (photo == null || photo.state !== QUEUE_STATE.QUEUED) return;
+
 	const connectedPrinter = printer;
 
-	if (imageQueue.value[0].state == 0) {
+	/** The photo is only still ours to touch while it is at the head of the queue. */
+	const stillQueued = (): boolean => imageQueue.value[0]?.id === photo.id;
 
-		try {
-			isPrinting = true
+	try {
+		isPrinting = true
 
-			if (timeoutHandle) clearInterval(timeoutHandle);
-			imageQueue.value[0].state = 1
-			imageQueue.value[0].abortController = new AbortController();
+		if (timeoutHandle) clearInterval(timeoutHandle);
+		photo.state = QUEUE_STATE.SENDING
+		const controller = new AbortController();
+		photo.abortController = controller;
 
-			await connectedPrinter.sendImage(imageQueue.value[0].base64, true, config.value.type, async (progress: number) => {
-				if (imageQueue.value[0] == null) return;
-				if (imageQueue.value[0].abortController != null && (imageQueue.value[0].abortController.signal.aborted == true && progress == -1)) {
-					return;
+		await connectedPrinter.sendImage(photo.base64, true, config.value.type, async (progress: number) => {
+			if (!stillQueued()) return;
+			if (controller.signal.aborted && progress == -1) return;
+
+			photo.progress = progress * 100;
+		}, controller.signal);
+
+		if (!controller.signal.aborted && stillQueued()) {
+
+			// finished sending --> starting print progress (now printed images are the progress)
+			photo.state = QUEUE_STATE.PRINTING;
+			photo.progress = 0
+
+			await new Promise((r) => setTimeout(r, 1000));
+
+			await getPrinterMeta(); // update printer information once
+			await new Promise((r) => setTimeout(r, 250));
+
+			// a quantity of 0 or '' used to transfer the image, print nothing, raise
+			// nothing and then drop the photo off the queue as though it had printed
+			const quantity = printableQuantity(photo.quantity);
+			photo.quantity = quantity;
+			photo.progress = (1 / quantity) * 100; // initialize progress to start transition
+
+			// begin printing commands
+			await connectedPrinter.printImage(quantity, (printedImages: number) => {
+				if (!stillQueued()) return;
+
+				if (printedImages < quantity) {
+					photo.progress = (((printedImages + 1) / quantity) * 100)
 				}
+			}, controller.signal)
 
-				imageQueue.value[0].progress = progress * 100;
-
-			}, imageQueue.value[0].abortController.signal);
-
-
-			if (imageQueue.value[0].abortController.signal == null || !imageQueue.value[0].abortController.signal.aborted) {
-
-				// finished sending --> starting print progress (now printed images are the progress)
-				imageQueue.value[0].state = 2;
-				imageQueue.value[0].progress = 0
-
-
-				await new Promise((r) => setTimeout(r, 1000));
-
-				await getPrinterMeta(); // update printer information once
-				await new Promise((r) => setTimeout(r, 250));
-
-				const quantity = imageQueue.value[0].quantity ?? 1; // total images
-				imageQueue.value[0].progress = (1 / quantity) * 100; // initialize progress to start transition
-
-				// begin printing commands
-				await connectedPrinter.printImage(quantity, (printedImages: number) => {
-
-					if (printedImages < quantity) {
-						imageQueue.value[0].progress = (((printedImages + 1) / quantity) * 100)
-					} else return;
-
-				}, imageQueue.value[0].abortController.signal)
-
-			}
-
-		} catch (error) {
-			// a print that did not come out is the printer's answer, not a glitch to
-			// retry through: sending it again only makes it blink again, and dropping
-			// the photo off the queue would make the user build it a second time
-			if (isPrintError(error)) {
-				console.error('> print failed', error.detail);
-				printError.value = error;
-
-				// FAILED, not QUEUED: the poller below picks up anything queued, and
-				// would send this straight back to the printer that just refused it
-				const pending = imageQueue.value[0];
-				if (pending != null) {
-					pending.state = QUEUE_STATE.FAILED;
-					pending.progress = 0;
-					pending.abortController = null;
-				}
-
-				filmStateAtFailure = config.value.status?.filmState ?? null;
-
-				isPrinting = false;
-				if (timeoutHandle) clearInterval(timeoutHandle);
-				loadMetaData();
-				return;
-			}
-
-			if (!isRetry && !imageQueue.value[0]?.abortController?.signal) return printPolaroidQueue(true);
 		}
 
-		finishUpPrinting()
+	} catch (error) {
+		// a print that did not come out is the printer's answer, not a glitch to
+		// retry through: sending it again only makes it blink again, and dropping
+		// the photo off the queue would make the user build it a second time.
+		//
+		// Anything else that goes wrong is treated the same way. It used to fall
+		// through to finishUpPrinting below, which took the photo off the queue with
+		// nothing said at all - so a printer switched off mid-print simply ate it.
+		const failure = isPrintError(error)
+			? error
+			: new InstaxPrintError('silent', 'The print could not be completed');
 
+		console.error('> print failed', failure.detail, error);
+		printError.value = failure;
+
+		// FAILED, not QUEUED: the poller below picks up anything queued, and
+		// would send this straight back to the printer that just refused it
+		if (stillQueued()) {
+			photo.state = QUEUE_STATE.FAILED;
+			photo.progress = 0;
+			photo.abortController = null;
+		}
+
+		filmStateAtFailure = config.value.status?.filmState ?? null;
+
+		isPrinting = false;
+		if (timeoutHandle) clearInterval(timeoutHandle);
+		loadMetaData();
+		return;
 	}
 
+	finishUpPrinting(photo.id)
+}
+
+/**
+ * The photo could not be rendered, so there is nothing to queue.
+ *
+ * This used to be a console line and a spinner that simply stopped, which from
+ * the outside is the same as the button not working.
+ */
+function renderFailedEvent(): void {
+	printError.value = new InstaxPrintError('silent', 'The photo could not be prepared for printing');
+}
+
+/** At least one copy, at most ten, whatever the field currently holds. */
+function printableQuantity(value: unknown): number {
+	const count = Math.floor(Number(value));
+	if (!Number.isFinite(count) || count < 1) return 1;
+	return Math.min(count, 10);
+}
+
+/** Take a photo off the queue, wherever it has got to by now. */
+function removeFromQueue(id: number): void {
+	const at = imageQueue.value.findIndex((queued) => queued.id === id);
+	if (at >= 0) imageQueue.value.splice(at, 1);
+}
+
+/** The card's × button: stop the print if it is running, then drop the photo. */
+function cancelQueuedEvent(id: number): void {
+	const photo = imageQueue.value.find((queued) => queued.id === id);
+	if (photo == null) return;
+
+	// aborting a transfer lets sendImage wind the printer down cleanly; the photo
+	// is then removed by the run that owned it
+	if (photo.state === QUEUE_STATE.SENDING || photo.state === QUEUE_STATE.PRINTING) {
+		photo.abortController?.abort();
+		return;
+	}
+
+	if (printError.value != null && imageQueue.value[0]?.id === id) printError.value = null;
+	removeFromQueue(id);
+}
+
+/** Keep the copies the card asks for inside what the printer will accept. */
+function quantityChangeEvent(id: number, quantity: number): void {
+	const photo = imageQueue.value.find((queued) => queued.id === id);
+	if (photo != null) photo.quantity = printableQuantity(quantity);
 }
 
 /**
@@ -407,13 +469,16 @@ async function retryPrintEvent(): Promise<void> {
 function discardFailedPrintEvent(): void {
 	printError.value = null;
 
-	if (imageQueue.value[0]?.state === QUEUE_STATE.FAILED) imageQueue.value.shift();
+	const failed = imageQueue.value[0];
+	if (failed?.state === QUEUE_STATE.FAILED) removeFromQueue(failed.id);
 }
 
-async function finishUpPrinting() {
+async function finishUpPrinting(id: number) {
 	await new Promise((r) => setTimeout(r, 500));
 
-	imageQueue.value.shift(); // remove element from queue
+	// by identity: an unconditional shift() here would take whichever photo had
+	// moved up in the meantime, not the one that just printed
+	removeFromQueue(id);
 
 	isPrinting = false;
 	if (timeoutHandle) clearInterval(timeoutHandle);
@@ -446,7 +511,7 @@ async function finishUpPrinting() {
 		width: 100%;
 		height: 100%;
 		background-color: rgb(var(--dynamic-bg-color));
-		opacity: .2;
+		opacity: .25;
 		z-index: -1;
 	}
 }

@@ -1,7 +1,6 @@
 import { INSTAX_OPCODES } from './events'
 import { InstaxBluetooth } from './instax.bluetooth'
 import { parse, type InstaxParsedResponse } from './instax.parser'
-import { Buffer } from 'buffer'
 import { encodeColor } from './instax.color'
 import { InstaxFilmVariant, type PrinterBatteryStatus } from '../interfaces/PrinterStateConfig'
 import { TransferTuning, writeStride } from './instax.transfer'
@@ -9,6 +8,20 @@ import { InstaxPrintError, isPrintError } from './instax.errors'
 
 /** How long a sheet takes to come out of the printer. */
 const PRINT_DURATION = 15000
+
+/**
+ * Opcodes whose unsolicited replies say something about the print.
+ *
+ * Anything else the printer volunteers while a sheet is coming out - the answer
+ * to a colour change, say - is not a print fault however its status byte reads.
+ */
+const PRINT_FAULT_OPCODES: ReadonlySet<number> = new Set([
+	INSTAX_OPCODES.PRINT_IMAGE,
+	INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_START,
+	INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_DATA,
+	INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_END,
+	INSTAX_OPCODES.SUPPORT_FUNCTION_INFO
+])
 
 /** The transfer packs the payload length into two bytes, so this is the ceiling. */
 const MAX_TRANSFER_BYTES = 65535
@@ -116,11 +129,16 @@ export class InstaxPrinter extends InstaxBluetooth {
 		callback: (imageId: number) => void,
 		signal: AbortSignal
 	): Promise<void> {
+		if (signal.aborted) {
+			callback(-1)
+			return
+		}
+
 		await new Promise((r) => setTimeout(r, 500))
 		let aborted: boolean = false
 		signal.addEventListener('abort', () => {
 			aborted = true
-		})
+		}, { once: true })
 
 		for (let index = 0; index < (printCount); index++) {
 			const before = await this._filmCount()
@@ -194,8 +212,14 @@ export class InstaxPrinter extends InstaxBluetooth {
 
 				if (import.meta.env.DEV) console.log('> printer volunteered', parsed)
 
-				// the printer talks while it works; only a bad status ends the wait
-				if (parsed?.status != null && parsed.status !== 0) finish(parsed)
+				if (parsed?.status == null || parsed.status === 0) return
+
+				// and it has to be about printing. Anything with a status was treated
+				// as a print fault, so a reply to an LED command sent while the sheet
+				// was coming out failed a photo that printed perfectly well
+				if (!PRINT_FAULT_OPCODES.has(parsed.eventCode ?? -1)) return
+
+				finish(parsed)
 			}
 		})
 	}
@@ -227,7 +251,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		callback: (progress: number) => void,
 		signal: AbortSignal
 	): Promise<void> {
-		const imageData = await this._base64ToByteArray(imageUrl)
+		const imageData = this._base64ToByteArray(imageUrl)
 
 		// the length below is packed into two bytes, and an image over this would
 		// wrap it to a small number and be truncated by the printer without a word
@@ -235,10 +259,19 @@ export class InstaxPrinter extends InstaxBluetooth {
 			throw new Error(`Image is ${imageData.length} bytes, over the ${MAX_TRANSFER_BYTES} byte transfer limit`)
 		}
 
+		if (imageData.length === 0) throw new InstaxPrintError('refused', 'The image is empty')
+
 		const chunks = this.imageToChunks(imageData, type == InstaxFilmVariant.SQUARE ? 1808 : 900)
 
 		// every chunk carries the 7 byte command frame on top of its own length
 		const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length + 7, 0)
+
+		// checked before anything is sent: a photo cancelled between being queued and
+		// the poll picking it up used to be transferred and printed regardless
+		if (signal.aborted) {
+			callback(-1)
+			return
+		}
 
 		let isSendingImage: boolean = true
 		let abortedPrinting = false
@@ -246,7 +279,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		signal.addEventListener('abort', () => {
 			isSendingImage = false
 			abortedPrinting = true
-		})
+		}, { once: true })
 
 		while (isSendingImage == true && abortedPrinting == false) {
 			const writeSize = this.tuning.writeSize
@@ -284,7 +317,11 @@ export class InstaxPrinter extends InstaxBluetooth {
 				for (let packetId = 0; packetId < chunks.length; packetId++) {
 					if (!isSendingImage) {
 						await new Promise((r) => setTimeout(r, 500))
-						await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_CANCEL, [], false)
+
+						// the same verified cancel the error path uses: a fire and forget
+						// one could be dropped, leaving the printer mid-download and
+						// refusing the next image until it was power cycled
+						await this._cancelTransfer()
 						callback(-1)
 						break
 					}
@@ -396,7 +433,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 				const value = (event as { target?: { value?: DataView } } | void)?.target?.value
 				if (value == null) continue
 
-				const packet = Array.from(new Uint8Array(value.buffer))
+				const packet = Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
 				readings.push({
 					opCode: `0x${opCode.toString(16).padStart(4, '0')}`,
 					command: command[0] ?? -1,
@@ -431,28 +468,23 @@ export class InstaxPrinter extends InstaxBluetooth {
 		}
 	}
 
-	private async _base64ToByteArray(base64: string): Promise<Uint8Array> {
-		return new Promise<Uint8Array>((resolve, reject) => {
-			const buffer = Buffer.from(String(base64).replace('data:image/jpeg;base64,', ''), 'base64')
+	/**
+	 * The bytes behind a data URL.
+	 *
+	 * This used to wrap the decoded bytes in a Blob, then a File, then read them
+	 * back out through a FileReader - three further copies of ~60kB and an event
+	 * loop hop to arrive at the array it already had. The prefix strip was also a
+	 * literal match on the jpeg form, so any other data URL left its prefix in
+	 * place and decoded to a handful of bytes.
+	 */
+	private _base64ToByteArray(base64: string): Uint8Array {
+		const payload = String(base64).replace(/^data:[^;,]*;base64,/, '')
+		const binary = atob(payload)
 
-			const blob = new Blob([buffer], { type: 'image/jpeg' })
-			const file = new File([blob], 'filename.jpeg', { type: 'image/jpeg' })
+		const bytes = new Uint8Array(binary.length)
+		for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
 
-			const reader = new FileReader()
-			reader.onload = () => {
-				if (reader.result instanceof ArrayBuffer) {
-					const arrayBuffer = reader.result
-					const byteArray = new Uint8Array(arrayBuffer)
-					resolve(byteArray)
-				} else {
-					reject(new Error('Failed to read file'))
-				}
-			}
-			reader.onerror = (event) => {
-				reject(new Error(`Error reading file: ${event.target?.error}`))
-			}
-			reader.readAsArrayBuffer(file)
-		})
+		return bytes
 	}
 
 	createImageDataChunk(index: number, chunk: Uint8Array): Uint8Array {
@@ -477,6 +509,11 @@ export class InstaxPrinter extends InstaxBluetooth {
 	}
 
 	imageToChunks(imgData: Uint8Array, chunkSize = 900): Uint8Array[] {
+		// the loop below builds nothing for an empty image, and the padding step then
+		// indexes into an empty array and throws a TypeError out of sendImage before
+		// it has a try block to catch it
+		if (imgData.length === 0) return []
+
 		const imgDataChunks = []
 
 		// pad the last chunk with zeroes if needed
@@ -503,7 +540,8 @@ export class InstaxPrinter extends InstaxBluetooth {
 		if (event == null || event.target == null) return
 		const characteristic = event.target as { value?: DataView }
 		if (characteristic.value == null) return
-		const packet = Array.from(new Uint8Array(characteristic.value.buffer))
+		const value = characteristic.value
+		const packet = Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
 
 		// Validate the packet length and checksum
 		const packetLength = (packet[2] << 8) | packet[3]
@@ -515,7 +553,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 		}
 
 
-		if (packet[0] != 0x61 || packet[1] != 0x42) throw new Error()
+		if (packet[0] != 0x61 || packet[1] != 0x42) throw new Error('Unrecognised packet header')
 
 		if (import.meta.env.DEV) console.log('>', this._printableHex(new Uint8Array(packet)))
 

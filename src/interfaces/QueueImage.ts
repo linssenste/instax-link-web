@@ -18,6 +18,12 @@ import type { InstaxFilmVariant } from './PrinterStateConfig'
  */
 export const MAX_QUEUE_LENGTH = 5
 
+/** Gives each queued photo an identity that survives the queue moving under it. */
+let nextQueueId = 0
+export function queueId(): number {
+	return ++nextQueueId
+}
+
 export const QUEUE_STATE = {
 	QUEUED: 0,
 	SENDING: 1,
@@ -25,10 +31,22 @@ export const QUEUE_STATE = {
 	FAILED: 3
 } as const
 
+/** The states a queued photo may be in, as a type rather than a bare number. */
+export type QueueState = typeof QUEUE_STATE[keyof typeof QUEUE_STATE]
+
 export interface QueueImage {
+	/**
+	 * Identifies this photo for as long as it is queued.
+	 *
+	 * The queue is mutated by `shift()`, so a position is not a photo: anything
+	 * that looks a photo up again after an await has to do it by identity, or it
+	 * acts on whichever photo has since slid into that slot.
+	 */
+	id: number,
+
 	quantity: number,
 	base64: string,
-	state: number,
+	state: QueueState,
 	progress: number,
 	abortController?: null | AbortController,
 

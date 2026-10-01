@@ -23,10 +23,12 @@
  * ends up: probing above it cost two failed transfers on every connection and
  * never once succeeded.
  *
- * 20 is the payload behind the 23 byte MTU every BLE link must support, kept as
- * somewhere to go if a link ever negotiates the floor.
+ * The rungs below it fall gently on purpose. 20 is the payload behind the 23 byte
+ * MTU every BLE link must support and is the floor rather than the first step:
+ * dropping straight to it turns a 60kB image into ~3000 writes, so a single
+ * transient fault used to cost minutes a photo for the rest of the session.
  */
-export const WRITE_SIZES = [182, 20] as const
+export const WRITE_SIZES = [182, 128, 20] as const
 
 /** Where the pause between writes starts, and how far it may move. */
 export const INITIAL_WRITE_DELAY = 15
@@ -38,6 +40,15 @@ const DECAY = 0.8
 
 /** How much a failed transfer adds once there is no smaller write left to try. */
 const BACK_OFF = 25
+
+/**
+ * Clean transfers needed before a smaller write is given up again.
+ *
+ * Not every failure that lands here is the link's fault, and the ones that are
+ * may have passed. Without this the first fault of a session decided the write
+ * size for every print after it.
+ */
+const RECOVER_AFTER = 3
 
 /**
  * Split a packet into equal writes rather than a fixed stride with a remainder.
@@ -62,6 +73,7 @@ export function writeStride(total: number, maxWrite: number): number {
 export class TransferTuning {
 	private sizeIndex = 0
 	private delay: number = INITIAL_WRITE_DELAY
+	private cleanRuns = 0
 
 	get writeSize(): number {
 		return WRITE_SIZES[this.sizeIndex]
@@ -72,13 +84,19 @@ export class TransferTuning {
 	}
 
 	/**
-	 * A transfer went through without a retry, so ease off the pause a little.
-	 *
-	 * The write size is left where it is: it is either working or it is not, and
-	 * this is not the place to find out by breaking the next print.
+	 * A transfer went through without a retry, so ease off the pause a little, and
+	 * after a run of them try the larger write once more.
 	 */
 	succeeded(): void {
 		this.delay = Math.max(MIN_WRITE_DELAY, Math.round(this.delay * DECAY))
+
+		if (this.sizeIndex === 0) return
+
+		// enough has gone right to be worth trying the larger write again
+		if (++this.cleanRuns >= RECOVER_AFTER) {
+			this.cleanRuns = 0
+			this.sizeIndex--
+		}
 	}
 
 	/**
@@ -89,6 +107,8 @@ export class TransferTuning {
 	 * Returns false when there is nothing further to try.
 	 */
 	backOff(): boolean {
+		this.cleanRuns = 0
+
 		if (this.sizeIndex < WRITE_SIZES.length - 1) {
 			this.sizeIndex++
 			return true

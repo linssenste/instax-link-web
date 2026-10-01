@@ -259,14 +259,22 @@ describe('Export resolution', () => {
 
 			const reply = (data: unknown) => dispatch('message', { data });
 
+			let workerTerminate: ReturnType<typeof vi.fn>
+			let bitmapClose: ReturnType<typeof vi.fn>
+
 			const enableWorker = () => {
 				workerPost = vi.fn();
+				workerTerminate = vi.fn();
+				bitmapClose = vi.fn();
 				workerHandlers = {};
 
 				vi.stubGlobal('OffscreenCanvas', class { });
-				vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ close: vi.fn() })));
+				vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ close: bitmapClose })));
 				vi.stubGlobal('Worker', class {
 					postMessage(...args: unknown[]) { return workerPost(...args) }
+					// a real Worker has this, and a dead one left running keeps its
+					// canvas and blobs alive beside the replacement
+					terminate() { return workerTerminate() }
 					addEventListener(type: string, handler: (event: unknown) => void) {
 						(workerHandlers[type] ??= []).push(handler);
 					}
@@ -333,6 +341,40 @@ describe('Export resolution', () => {
 				dispatch('error', new Event('error'));
 
 				await expect(pending).rejects.toThrow('stopped responding');
+				expect(workerTerminate).toHaveBeenCalled();
+			});
+
+			it('closes the bitmap when the handover itself fails', async () => {
+				// the bitmap is only detached once postMessage has taken it; if that
+				// throws it is still ours, and a wide frame is ~4MB left behind
+				enableWorker();
+				workerPost.mockImplementation(() => { throw new Error('DataCloneError') });
+
+				const pending = compressedImage(
+					InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE)
+				);
+
+				await expect(pending).rejects.toThrow('DataCloneError');
+				expect(bitmapClose).toHaveBeenCalled();
+			});
+
+			it('gives up on a worker that simply goes quiet', async () => {
+				// no error event, no reply: without a watchdog the editor shows its
+				// loading overlay for ever and only a reload clears it
+				vi.useFakeTimers();
+				enableWorker();
+
+				try {
+					const pending = compressedImage(
+						InstaxFilmVariant.SQUARE, fakeNode(), fakeNode(), fakeStage(REFERENCE_STAGE)
+					);
+					const settled = expect(pending).rejects.toThrow('stopped responding');
+
+					await vi.advanceTimersByTimeAsync(25_000);
+					await settled;
+				} finally {
+					vi.useRealTimers();
+				}
 			});
 
 			it('rejects when a reply cannot be deserialised', async () => {

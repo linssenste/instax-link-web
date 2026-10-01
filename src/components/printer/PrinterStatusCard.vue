@@ -25,7 +25,7 @@
 			<div v-if="config.status != null && config.status.polaroidCount != null && config.status.battery.level != null"
 				 class="printer-status-polaroids" data-testid="printer-polaroid-count">
 
-				<img :title="`${remainingPolaroids} Polaroids left`" draggable="false"
+				<img :title="`${config.status?.polaroidCount ?? 0} Polaroids left`" draggable="false"
 					 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" alt="" />
 				<span style="letter-spacing: 2px">{{ config.status.polaroidCount }}/10</span>
 			</div>
@@ -47,7 +47,7 @@
 					 src="@/assets/icons/battery/battery-100.svg" alt="" />
 
 				<span v-if="config.status.battery.charging" data-testid="printer-battery-charging-text"
-					  class="printer-chargingin-text">POWER</span>
+					  class="printer-charging-text">POWER</span>
 				<span v-else>
 					{{ config.status.battery.level }}%</span>
 			</div>
@@ -63,7 +63,7 @@
 
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 
@@ -71,7 +71,6 @@ const props = defineProps<{
 	config: PrinterStateConfig
 }>();
 
-const remainingPolaroids = ref(10)
 
 const printerType = computed(() => {
 	if (props.config.status == null || props.config.status?.battery.level == null || props.config.status?.polaroidCount == null) return ''

@@ -6,9 +6,10 @@ import {
 
 describe('writeStride', () => {
 	it('splits a packet into as few writes as the link allows', () => {
-		// a square packet is 1819 bytes; at 512 that is four writes, not ten
-		expect(Math.ceil(1819 / writeStride(1819, 512))).toBe(4)
-		expect(Math.ceil(911 / writeStride(911, 512))).toBe(2)
+		// a square packet is 1819 bytes
+		expect(Math.ceil(1819 / writeStride(1819, 182))).toBe(10)
+		expect(Math.ceil(911 / writeStride(911, 182))).toBe(6)
+		expect(Math.ceil(1819 / writeStride(1819, 128))).toBe(15)
 	})
 
 	it('never exceeds the write size it is given', () => {
@@ -37,10 +38,10 @@ describe('writeStride', () => {
 	})
 
 	it('spreads evenly rather than front loading', () => {
-		const stride = writeStride(1819, 512)
+		const stride = writeStride(1819, 128)
 
-		expect(stride).toBe(455)
-		expect(1819 - 3 * 455).toBeGreaterThan(1)
+		expect(stride).toBe(122)
+		expect(1819 - 14 * 122).toBeGreaterThan(1)
 	})
 
 	it('holds up for degenerate sizes', () => {

@@ -23,7 +23,8 @@
 
 				<!-- print image button if connected -->
 				<LoadingButton v-if="config.connection" :style="awaitingQueue" :loading="savingAction === 'print'"
-							   :disabled="savingAction === 'download'" label="Print Image" loadingLabel="Rendering"
+							   :disabled="savingAction === 'download' || queueLength >= MAX_QUEUE_LENGTH"
+							   label="Print Image" loadingLabel="Rendering"
 							   class="action-button" data-testid="print-image-button"
 							   title="print image with instax printer" v-on:click="saveEvent(false)" />
 
@@ -341,7 +342,7 @@ onBeforeUnmount(() => {
 	width: calc(100% - 6px);
 	-webkit-backdrop-filter: blur(8px);
 	backdrop-filter: blur(8px);
-	background-color: rgba(var(--dynamic-bg-color), .1);
+	background-color: rgba(var(--dynamic-bg-color), .15);
 	border-bottom-right-radius: 10px;
 	border-bottom-left-radius: 10px;
 	z-index: 0;

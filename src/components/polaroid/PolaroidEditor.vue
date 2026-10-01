@@ -13,7 +13,7 @@
 
 					<CropperArea v-if="image" ref="cropperAreaRef" :config="config" :src="image" :loading="loading"
 						:settings="imageSettings" :adjustments="filmAdjustments"
-						v-on:remove-image="removeImageEvent" v-on:save="savePolaroidCanvas"
+						v-on:remove-image="removeImageEvent"
 						v-on:alignment="alignment = $event" />
 
 					<SelectImageUpload v-else v-on:selected="getFileData($event)" />
@@ -68,7 +68,10 @@ import {
 	POLAROID_FRAME_WIDTH, NOT_ALIGNED, type FrameAlignment
 } from '../../polaroid/frame.geometry';
 
-const emit = defineEmits(['image'])
+const emit = defineEmits<{
+	(e: 'image', image: { src: string; download: boolean; caption: string; type: InstaxFilmVariant }): void;
+	(e: 'render-failed'): void;
+}>()
 
 const props = defineProps<{
 	config: PrinterStateConfig,
@@ -86,6 +89,9 @@ const alignment = ref<FrameAlignment>({ ...NOT_ALIGNED });
 
 // which action is rendering, so the panel can show progress on just that button
 const savingAction = ref<'print' | 'download' | null>(null)
+
+/** The longest the capture will wait on the settings panel, however it behaves. */
+const PANEL_SETTLE_CEILING = 525
 const loading = computed(() => savingAction.value != null)
 
 // nothing is shown until the frame artwork has settled, so the polaroid does not
@@ -162,7 +168,10 @@ async function saveEditorPolaroid(download = false): Promise<void> {
 
 	savingAction.value = download ? 'download' : 'print';
 
-	await new Promise((r) => setTimeout(r, 525)) // await the panel collapse animation
+	// the panel collapse has to finish before the frame is captured, or it is
+	// caught mid-animation. This was a flat 525ms wait whatever the panel was
+	// doing, which is most of what a print appeared to cost
+	await panelSettled()
 
 	// hand the browser a frame to paint the overlay before the capture blocks it
 	await new Promise((r) => requestAnimationFrame(() => r(null)))
@@ -173,18 +182,42 @@ async function saveEditorPolaroid(download = false): Promise<void> {
 		// the cropper is gone if the image was removed while it rendered
 		if (imageUrl) emit("image", { src: imageUrl, download, caption: caption.value, type: props.config.type })
 	} catch (error) {
-		// otherwise the editor would stay stuck in its loading state
+		// it used to say nothing at all: the spinner simply stopped and no photo
+		// appeared, which is indistinguishable from the button not working
 		console.error('> could not render the polaroid', error)
+		emit('render-failed')
 		savingAction.value = null;
 		return;
 	}
 
-	setTimeout(() => {
-		savingAction.value = null
-	}, 750);
+	savingAction.value = null
 
 }
 
+
+/**
+ * Wait for the settings panel to be out of the way, but no longer than it takes.
+ *
+ * The capture has to happen with the panel collapsed, and the only thing that
+ * knows when that is are the transitions on it. A fixed sleep was both wrong (it
+ * waited even when nothing was animating) and fragile.
+ */
+function panelSettled(): Promise<void> {
+	const panel = document.querySelector('[data-testid="settings-expansion"]');
+
+	if (panel == null || typeof panel.getAnimations !== 'function') {
+		return new Promise((resolve) => setTimeout(resolve, PANEL_SETTLE_CEILING));
+	}
+
+	const running = panel.getAnimations({ subtree: true }).map((animation) => animation.finished);
+	if (running.length === 0) return Promise.resolve();
+
+	// a transition that never finishes must not hold the print for ever
+	return Promise.race([
+		Promise.allSettled(running).then(() => undefined),
+		new Promise<void>((resolve) => setTimeout(resolve, PANEL_SETTLE_CEILING))
+	]);
+}
 
 function fitImageEvent(type: string): void {
 	if (cropperAreaRef.value) cropperAreaRef.value.fit((type == 'horizontal'));
@@ -196,9 +229,6 @@ function centreImageEvent(axis: string): void {
 
 function moveImageEvent(by: { x: number, y: number }): void {
 	cropperAreaRef.value?.nudge(by.x, by.y);
-}
-function savePolaroidCanvas(imageURL: string): void {
-	emit('image', imageURL)
 }
 function getFileData(file: File | null): void {
 	if (!file) return;

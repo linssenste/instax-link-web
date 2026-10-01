@@ -11,11 +11,11 @@
 				<div v-if="caption" class="queue-caption" data-testid="queue-caption" :title="caption">{{ caption }}</div>
 
 				<div class="status-text" data-testid="status-text">
-					<span v-if="element.state > 0 && element.state < 3 && isCanceling == true">CANCELING...</span>
-					<span v-else-if="element.state == 0">IN QUEUE</span>
-					<span v-else-if="element.state == 1">SENDING ...</span>
-					<span v-else-if="element.state == 3" class="failed-text">PRINT FAILED</span>
-					<span v-else-if="element.state == 2">PRINTING
+					<span v-if="element.state > QUEUE_STATE.QUEUED && element.state < QUEUE_STATE.FAILED && isCanceling == true">CANCELING...</span>
+					<span v-else-if="element.state == QUEUE_STATE.QUEUED">IN QUEUE</span>
+					<span v-else-if="element.state == QUEUE_STATE.SENDING">SENDING ...</span>
+					<span v-else-if="element.state == QUEUE_STATE.FAILED" class="failed-text">PRINT FAILED</span>
+					<span v-else-if="element.state == QUEUE_STATE.PRINTING">PRINTING
 						<span>
 							{{ Math.round(element.progress / (100 / element.quantity)) }}/{{ element.quantity }}
 						</span>
@@ -23,9 +23,9 @@
 
 					<!-- the dialog is dismissable, so the way back to printing has to live
 						 on the card itself rather than only in the dialog -->
-					<button v-if="element.state == 3" type="button" class="retry-button"
+					<button v-if="element.state == QUEUE_STATE.FAILED" type="button" class="retry-button"
 							data-testid="queue-retry-button" aria-label="Try printing this image again"
-							title="Try printing this image again" v-on:click="$emit('retry')">
+							title="Try printing this image again" v-on:click="emit('retry')">
 						Retry
 					</button>
 
@@ -42,7 +42,7 @@
 				</div>
 
 
-				<div v-if="element.state < 2 || element.state == 3" class="print-quantity" data-testid="quantity-setter">
+				<div v-if="element.state < QUEUE_STATE.PRINTING || element.state == QUEUE_STATE.FAILED" class="print-quantity" data-testid="quantity-setter">
 
 					<!-- decrease input -->
 					<button type="button" data-testid="quantity-button-minus"
@@ -71,18 +71,18 @@
 
 
 		<!-- printing progress bar  -->
-		<div v-if="element.state > 0 && element.state < 3" class="printing-status-progress" data-testid="printing-progress">
+		<div v-if="element.state > QUEUE_STATE.QUEUED && element.state < QUEUE_STATE.FAILED" class="printing-status-progress" data-testid="printing-progress">
 
 			<div class="progress-bar" data-testid="printing-progress-sending">
-				<div v-if="element.state >= 1" class="progress"
-					 :style="`width: ${element.state == 2 ? 100 : element.progress}%`" />
+				<div v-if="element.state >= QUEUE_STATE.SENDING" class="progress"
+					 :style="`width: ${element.state == QUEUE_STATE.PRINTING ? 100 : element.progress}%`" />
 			</div>
 
 			<div data-testid="printing-progress-step" class="progress-step"
-				 :style="element.state != 2 ? 'background-color: rgb(var(--light-grey-color))!important' : ''" />
+				 :style="element.state != QUEUE_STATE.PRINTING ? 'background-color: rgb(var(--light-grey-color))!important' : ''" />
 
 			<div data-testid="printing-progress-printing" class="progress-bar">
-				<div v-if="element.state == 2" id="printProgress" class="progress progress-print"
+				<div v-if="element.state == QUEUE_STATE.PRINTING" id="printProgress" class="progress progress-print"
 					 :style="`min-width: 10px; width: ${element.progress}%`" />
 			</div>
 		</div>
@@ -93,13 +93,17 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import type { QueueImage } from '../../interfaces/QueueImage';
+import { QUEUE_STATE, type QueueImage } from '../../interfaces/QueueImage';
 import LoadingButton from '../controls/LoadingButton.vue';
 import CloseButton from '../controls/CloseButton.vue';
 import downloadIcon from '@/assets/icons/controls/download.svg';
 import { downloadDataUrl, polaroidFilename, polaroidFromPrintImage } from '../../cropper/cropper.download';
 
-const emit = defineEmits(['cancel', 'quantity-change', 'retry'])
+const emit = defineEmits<{
+	(e: 'cancel'): void;
+	(e: 'quantity-change', quantity: number): void;
+	(e: 'retry'): void;
+}>()
 
 const props = defineProps<{
 	element: QueueImage;

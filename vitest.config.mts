@@ -12,11 +12,13 @@ export default mergeConfig(
 		test: {
 			globals: true,
 			environment: 'jsdom',
-			exclude: [...configDefaults.exclude, 'e2e/*'],
+			exclude: [...configDefaults.exclude],
 			root: fileURLToPath(new URL('./', import.meta.url)),
 			coverage: {
 				provider: 'istanbul',
-				all: false,
+				// files with no spec at all were omitted from the report entirely,
+				// which quietly overstated how much of the app is covered
+				all: true,
 				reporter: ['text', 'lcov'],
 				reportsDirectory: './coverage',
 				exclude: [

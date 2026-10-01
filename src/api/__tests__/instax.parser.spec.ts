@@ -33,8 +33,39 @@ describe('instax response parser', () => {
 			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 2, [0b10001010], 0)?.photosLeft).toBe(10);
 		});
 
-		it('returns nothing for an unknown command', () => {
-			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 99, [0], 0)).toBeUndefined();
+		it('still describes a command it has no fields for', () => {
+			// it used to return undefined, and a well formed reply that mapped to
+			// nothing was reported upstream as "the printer did not answer"
+			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 99, [0], 4)).toMatchObject({
+				eventCode: INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, command: 99, payload: [0], status: 4
+			});
+		});
+
+		it('carries the status on the film count reply', () => {
+			// this branch used to drop it, so a printer reporting a count it cannot
+			// honour was indistinguishable from one that can - and the print fault
+			// watcher, which only looks at status, could never see a fault here
+			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 2, [7], 0xb4)?.status).toBe(0xb4);
+		});
+
+		it('carries the status on the dimensions and battery replies too', () => {
+			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, [0, 0], 9)?.status).toBe(9);
+			expect(parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 1, [0, 0], 9)?.status).toBe(9);
+		});
+
+		it('does not read an empty film count reply as an empty pack', () => {
+			// `undefined & 15` is 0, which the app reports to the user as no film left
+			const response = parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 2, [], 0);
+
+			expect(response?.photosLeft).toBeUndefined();
+			expect(response?.status).toBe(0);
+		});
+
+		it('keeps the film state bytes beside the count', () => {
+			const response = parse(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 2, [0x9a, 0xf4, 0xf0, 0x0c], 0);
+
+			expect(response?.photosLeft).toBe(10);
+			expect(response?.filmState).toEqual([0xf4, 0xf0, 0x0c]);
 		});
 	});
 
@@ -42,14 +73,18 @@ describe('instax response parser', () => {
 		const ascii = (text: string) => Array.from(text).map((character) => character.charCodeAt(0));
 
 		it('reads the company, model and serial as text', () => {
-			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 0, ascii('FUJIFILM'), 0)).toEqual({ company: 'FUJIFILM' });
-			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 1, ascii('SQ10'), 0)).toEqual({ printerTypeId: 'SQ10' });
-			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 2, ascii('12345'), 0)).toEqual({ serialNumber: '12345' });
+			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 0, ascii('FUJIFILM'), 0)).toMatchObject({ company: 'FUJIFILM' });
+			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 1, ascii('SQ10'), 0)).toMatchObject({ printerTypeId: 'SQ10' });
+			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 2, ascii('12345'), 0)).toMatchObject({ serialNumber: '12345' });
+		});
+
+		it('carries the status alongside the text', () => {
+			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 0, ascii('FUJIFILM'), 7)?.status).toBe(7);
 		});
 
 		it('falls back to the raw packet for an unknown command', () => {
 			expect(parse(INSTAX_OPCODES.DEVICE_INFO_SERVICE, 99, [1, 2], 0))
-				.toEqual({ eventCode: INSTAX_OPCODES.DEVICE_INFO_SERVICE, command: 99, payload: [1, 2] });
+				.toEqual({ eventCode: INSTAX_OPCODES.DEVICE_INFO_SERVICE, command: 99, payload: [1, 2], status: 0 });
 		});
 	});
 

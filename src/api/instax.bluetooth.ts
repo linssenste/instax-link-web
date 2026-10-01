@@ -12,8 +12,6 @@ export class InstaxBluetooth {
 		write: null
 	}
 
-	protected isBusy = false
-
 	/**
 	 * The subscription, kept open for as long as the printer is connected.
 	 *
@@ -54,12 +52,18 @@ export class InstaxBluetooth {
 			if (this._characteristicRef.notify !== null) {
 				await this._characteristicRef.notify.stopNotifications()
 			}
-			this._characteristicRef.server!.disconnect()
+			this._characteristicRef.server?.disconnect()
 		} catch (error) {
 			console.error('> error on manual disconnect: ', error)
 			return
 		} finally {
+			// clearing these is not left to the disconnect event: if the teardown above
+			// threw, that event may never arrive and a later write would go to a dead
+			// characteristic and fail with a raw GATT error instead of a clear one
 			this._forgetSubscription()
+			this._characteristicRef.write = null
+			this._characteristicRef.notify = null
+			this._characteristicRef.server = null
 		}
 	}
 
@@ -94,39 +98,69 @@ export class InstaxBluetooth {
 		return this._listening
 	}
 
+	/**
+	 * Writes are serialised through this, one at a time, in the order asked.
+	 *
+	 * The link carries one logical conversation: a reply is matched to a request
+	 * only by being the next notification to arrive, so two commands in flight at
+	 * once would race for the same answer. This used to be guarded by a boolean
+	 * that *dropped* the second command and resolved `undefined`, which in the
+	 * image loop meant a slice was quietly never written and the packet went out
+	 * truncated. Queueing costs nothing here and cannot lose a command.
+	 */
+	private _chain: Promise<void> = Promise.resolve()
+
 	protected async send(command: Uint8Array, response = true): Promise<Event | void> {
-		if (this.isBusy === true) return
-		this.isBusy = true
+		const run = this._chain.then(() => this._sendNow(command, response))
+
+		// the queue must outlive a failed command, and must not itself look like an
+		// unhandled rejection to the runtime
+		this._chain = run.then(() => undefined, () => undefined)
+
+		return run
+	}
+
+	private async _sendNow(command: Uint8Array, response: boolean): Promise<Event | void> {
+		// the disconnect handler nulls these, so they are genuinely nullable and a
+		// `!` here turned a lost connection into a TypeError with no cause
+		const write = this._characteristicRef.write
+		if (write == null) throw new Error('Not connected to a printer')
+
+		if (response !== true) {
+			await write.writeValueWithoutResponse(command as BufferSource)
+			return
+		}
+
+		await this._listen()
+
+		let timer: ReturnType<typeof setTimeout> | undefined
+		let waiter: ((event: Event) => void) | undefined
+
+		const release = (): void => {
+			if (timer != null) clearTimeout(timer)
+			// only ever give up our own slot. A stale timer used to null whatever was
+			// waiting by the time it fired, so a write that failed here stole the
+			// reply belonging to the next command sent
+			if (waiter != null && this._waiting === waiter) this._waiting = null
+		}
+
+		const answer = new Promise<Event>((resolve, reject) => {
+			waiter = resolve
+			this._waiting = resolve
+			timer = setTimeout(() => reject(new Error('Notification timeout')), RESPONSE_TIMEOUT)
+		})
+
+		// if the write below throws after the timer has already fired, nothing would
+		// be awaiting this rejection
+		answer.catch(() => { /* handled by the await, or deliberately abandoned */ })
 
 		try {
-			if (response !== true) {
-				await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
-				return
-			}
-
-			await this._listen()
-
-			let timeout: ReturnType<typeof setTimeout> | null = null
-			const answer = new Promise<Event>((resolve, reject) => {
-				this._waiting = resolve
-				timeout = setTimeout(() => {
-					this._waiting = null
-					reject(new Error('Notification timeout'))
-				}, RESPONSE_TIMEOUT)
-			})
-
 			// the waiter is armed before the write, so a printer that answers
 			// immediately cannot reply into a gap
-			await this._characteristicRef.write!.writeValueWithoutResponse(command as BufferSource)
-
-			try {
-				return await answer
-			} finally {
-				if (timeout) clearTimeout(timeout)
-			}
+			await write.writeValueWithoutResponse(command as BufferSource)
+			return await answer
 		} finally {
-			// held until the reply, so two writes can never wait on the same slot
-			this.isBusy = false
+			release()
 		}
 	}
 

@@ -33,14 +33,40 @@ describe('SelectImageUpload Component', () => {
 	});
 
 	describe('Event Emission', () => {
-		it('emits "selected" event when a file is selected', async () => {
-
-			// mocking of event data not allowed??
-
+		/** jsdom will not let a FileList be assigned, so the input is stood in for. */
+		const chooseFiles = async (files: File[]) => {
 			const input = wrapper.find('[data-testid="input-file"]');
+			Object.defineProperty(input.element, 'files', { value: files, configurable: true });
 
 			await input.trigger('change');
-			expect(wrapper.emitted('selected')).toBeTruthy();
+			return input.element as HTMLInputElement;
+		};
+
+		it('emits the file that was chosen', async () => {
+			// this used to fire a change with no files at all and assert only that
+			// something was emitted - so it passed on `selected: undefined`, and the
+			// cancelled-picker case was being asserted as a success
+			const file = new File(['photo'], 'holiday.jpg', { type: 'image/jpeg' });
+
+			await chooseFiles([file]);
+
+			expect(wrapper.emitted('selected')).toHaveLength(1);
+			expect(wrapper.emitted('selected')![0]).toEqual([file]);
+		});
+
+		it('emits nothing when the picker is cancelled', async () => {
+			await chooseFiles([]);
+
+			expect(wrapper.emitted('selected')).toBeUndefined();
+		});
+
+		it('clears the input so the same file can be chosen again', async () => {
+			// without this the browser fires no change event for an identical
+			// selection, so remove-then-reselect the same photo did nothing
+			const file = new File(['photo'], 'holiday.jpg', { type: 'image/jpeg' });
+			const input = await chooseFiles([file]);
+
+			expect(input.value).toBe('');
 		});
 
 	});

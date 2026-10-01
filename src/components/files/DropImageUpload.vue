@@ -75,7 +75,7 @@ const dragEnter = (e: DragEvent) => {
 const dragLeave = (e: DragEvent) => {
 	e.preventDefault();
 	e.stopPropagation();
-	dragCounter--;
+	dragCounter = Math.max(0, dragCounter - 1);
 	if (dragCounter === 0) {
 		updateDragState(false);
 	}

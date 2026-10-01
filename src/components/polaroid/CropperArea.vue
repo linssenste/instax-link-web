@@ -34,7 +34,10 @@ import {
 } from '../../polaroid/frame.geometry';
 import { compressedImage } from '../../cropper/cropper.print'
 
-const emit = defineEmits(['save', 'remove-image', 'alignment']);
+const emit = defineEmits<{
+	(e: 'remove-image'): void;
+	(e: 'alignment', alignment: FrameAlignment): void;
+}>();
 
 const props = defineProps<{
 	src: string,

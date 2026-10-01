@@ -2,7 +2,7 @@ import type Konva from 'konva'
 import { InstaxFilmVariant } from '../interfaces/PrinterStateConfig'
 import { PRINT_RESOLUTION } from '../polaroid/frame.geometry'
 import { encodeWithinBudget } from './compress.quality'
-import type { CompressResponse } from './compress.worker'
+import type { CompressRequest, CompressResponse } from './compress.worker'
 
 /**
  * The transfer packs the payload length into a uint16, so 65535 is a hard ceiling
@@ -31,10 +31,39 @@ function canOffloadCompression(): boolean {
 let compressionWorker: Worker | null = null
 let requestId = 0
 
+/**
+ * How long a compression may take before the worker is presumed dead.
+ *
+ * Generous: this is not a performance budget, it is the difference between a
+ * failed print and an editor that never stops saying "rendering".
+ */
+const WORKER_TIMEOUT = 20_000
+
+function discardWorker(worker: Worker | null): void {
+	if (worker == null) return
+
+	// a worker left running keeps its OffscreenCanvas and blobs alive, and the next
+	// print starts a second one beside it
+	worker.terminate()
+	if (compressionWorker === worker) compressionWorker = null
+}
+
 function getCompressionWorker(): Worker {
 	if (compressionWorker == null) {
-		compressionWorker = new Worker(new URL('./compress.worker.ts', import.meta.url), { type: 'module' })
+		const worker = new Worker(new URL('./compress.worker.ts', import.meta.url), { type: 'module' })
+
+		// attached here rather than per request: a module worker whose script fails
+		// to load constructs fine and then fires `error` asynchronously, which used
+		// to arrive before any request had added a listener - so the worker stayed
+		// cached, dead, and every later postMessage went nowhere at all
+		worker.addEventListener('error', (event) => {
+			console.warn('> the compression worker failed to start', event.message)
+			discardWorker(worker)
+		})
+
+		compressionWorker = worker
 	}
+
 	return compressionWorker
 }
 
@@ -82,9 +111,19 @@ function compressInWorker(
 			worker.removeEventListener('messageerror', onFailure)
 		}
 
+		// even with the listeners above, a worker can go quiet without ever raising
+		// an event - a message that never arrives would otherwise leave the editor
+		// showing its loading overlay with no way out but a reload
+		const watchdog = setTimeout(() => {
+			stopListening()
+			discardWorker(worker)
+			reject(new Error('The compression worker stopped responding'))
+		}, WORKER_TIMEOUT)
+
 		const onMessage = (event: MessageEvent<CompressResponse>) => {
 			if (event.data.id !== id) return
 			stopListening()
+			clearTimeout(watchdog)
 
 			if (event.data.dataUrl != null) {
 				lastQuality = event.data.quality
@@ -97,14 +136,28 @@ function compressInWorker(
 		// would otherwise leave this promise pending and the editor stuck loading
 		const onFailure = () => {
 			stopListening()
-			compressionWorker = null
+			clearTimeout(watchdog)
+			discardWorker(worker)
 			reject(new Error('The compression worker stopped responding'))
 		}
 
 		worker.addEventListener('message', onMessage)
 		worker.addEventListener('error', onFailure)
 		worker.addEventListener('messageerror', onFailure)
-		worker.postMessage({ id, bitmap, width, height, maxSize: MAX_PRINT_BYTES, hint: lastQuality }, [bitmap])
+
+		const request: CompressRequest = {
+			id, bitmap, width, height, maxSize: MAX_PRINT_BYTES, hint: lastQuality
+		}
+
+		try {
+			worker.postMessage(request, [bitmap])
+		} catch (error) {
+			// the bitmap was never transferred, so closing it is still ours to do
+			stopListening()
+			clearTimeout(watchdog)
+			bitmap.close()
+			reject(error instanceof Error ? error : new Error('Could not hand the image to the worker'))
+		}
 	})
 }
 
@@ -124,16 +177,25 @@ export async function compressedImage(
 		let worker: Worker | null = null
 		let bitmap: ImageBitmap | null = null
 
+		let rasterised: HTMLCanvasElement | null = null
+
 		try {
 			worker = getCompressionWorker()
-			bitmap = await createImageBitmap(stage.toCanvas({ pixelRatio }))
+			rasterised = stage.toCanvas({ pixelRatio })
+			bitmap = await createImageBitmap(rasterised)
 			rasteriseMs = performance.now() - startedAt
 		} catch (error) {
 			bitmap?.close()
+			bitmap = null
 			console.warn('> compression worker unavailable, falling back to the main thread', error)
 		}
 
 		if (worker != null && bitmap != null) return compressInWorker(worker, bitmap, width, height, startedAt)
+
+		// the canvas is already in hand; asking the stage to draw itself a second
+		// time would double the allocation at the exact moment the first attempt
+		// failed for want of memory
+		if (rasterised != null) return compressCanvas(rasterised, width, height, startedAt)
 	}
 
 	return compressOnMainThread(stage, width, height, pixelRatio, startedAt)
@@ -173,8 +235,15 @@ async function compressOnMainThread(
 	pixelRatio: number,
 	startedAt = 0
 ): Promise<string> {
-	const source = stage.toCanvas({ pixelRatio })
+	return compressCanvas(stage.toCanvas({ pixelRatio }), width, height, startedAt)
+}
 
+async function compressCanvas(
+	source: HTMLCanvasElement,
+	width: number,
+	height: number,
+	startedAt = 0
+): Promise<string> {
 	const canvas = document.createElement('canvas')
 	canvas.width = width
 	canvas.height = height
@@ -185,7 +254,7 @@ async function compressOnMainThread(
 	context.fillStyle = '#FFFFFF'
 	context.fillRect(0, 0, width, height)
 	context.drawImage(source, 0, 0, width, height)
-	rasteriseMs = startedAt > 0 ? performance.now() - startedAt : 0
+	if (startedAt > 0) rasteriseMs = performance.now() - startedAt
 
 	const result = await encodeWithinBudget((quality) => encodeCanvas(canvas, quality), MAX_PRINT_BYTES, lastQuality)
 	if (result == null) throw new Error('Unable to compress image below target size')

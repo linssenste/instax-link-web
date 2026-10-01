@@ -36,7 +36,13 @@ function inputChanged(e: Event): void {
 	const target = e.target as HTMLInputElement;
 
 	if (!target.files) return;
-	const file = target.files[0];
+	const file = target.files[0] ?? null;
+
+	// cleared before emitting, so choosing the same file again still fires a change
+	// event: without this, remove-then-reselect the same photo did nothing at all
+	target.value = '';
+
+	if (file == null) return;
 	emit('selected', file)
 
 }

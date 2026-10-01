@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig'
-import { POLAROID_EXPORT_WIDTH, POLAROID_FRAME_WIDTH, POLAROID_FRAME_HEIGHT } from '../frame.geometry'
+import { POLAROID_EXPORT_WIDTH, POLAROID_FRAME_WIDTH, POLAROID_FRAME_HEIGHT, PRINT_RESOLUTION } from '../frame.geometry'
 
 /**
  * The frame artwork has a transparent window and the photo goes behind it, so the
@@ -139,5 +139,32 @@ describe('How far the frame overlaps the photo', () => {
 				expect(onPrint / (artwork.width / box), `${variant}`).toBeCloseTo(onScreen, 0)
 			}
 		})
+	})
+
+	describe('the crop window matches what the printer will be handed', () => {
+		const aspectOf = (variant: string): number => {
+			const source = readFileSync(resolve(__dirname, '../../components/polaroid/PolaroidFrame.vue'), 'utf8')
+			const start = source.indexOf(`.inner-${variant} {`)
+			expect(start, `.inner-${variant} not found`).toBeGreaterThan(-1)
+
+			const block = source.slice(start, source.indexOf('}', start))
+			const match = /aspect-ratio:\s*(\d+)\s*\/\s*(\d+)/.exec(block)
+			expect(match, `.inner-${variant} has no aspect-ratio`).not.toBeNull()
+
+			return Number(match![1]) / Number(match![2])
+		}
+
+		it.each(['mini', 'square', 'wide'] as const)(
+			'%s crops at the printer resolution, so nothing is stretched on the way out',
+			(variant) => {
+				// the export rasterises at the crop window's aspect and the printer is
+				// handed exactly its own pixel size, so any difference is a stretch.
+				// mini was authored 600/790 against a 600x800 print and came out 1.3%
+				// tall; wide was 1260/850 against 1260x840 and came out squashed
+				const print = PRINT_RESOLUTION[variant as InstaxFilmVariant]
+
+				expect(aspectOf(variant)).toBeCloseTo(print.width / print.height, 5)
+			}
+		)
 	})
 })

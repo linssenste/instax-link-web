@@ -124,11 +124,12 @@ describe('App print queue', () => {
 		expect(queue()).toHaveLength(0)
 	})
 
+	const failWith = (reason = 'not-printed' as const) =>
+		printer.printImage.mockRejectedValue(
+			new InstaxPrintError(reason, 'the printer used no film', 0x09, [0x01])
+		)
+
 	describe('when the print fails', () => {
-		const failWith = (reason = 'not-printed' as const) =>
-			printer.printImage.mockRejectedValue(
-				new InstaxPrintError(reason, 'the printer used no film', 0x09, [0x01])
-			)
 
 		const failedRun = async () => {
 			failWith()
@@ -368,6 +369,144 @@ describe('App print queue', () => {
 
 			expect(queue()).toHaveLength(0)
 		})
+	})
+
+	describe('taking a photo off the queue', () => {
+		const cancel = (id: number) => wrapper.findComponent(PanelStub).vm.$emit('cancel', id)
+
+		it('removes a queued photo the user gives up on', async () => {
+			// the handler only ever called abort() on the head, and never removed
+			// anything, so the x button did nothing at all
+			mountApp()
+			await connect()
+			printer.sendImage.mockImplementation(() => new Promise(() => { }))
+			await queueImage()
+			await queueImage()
+
+			cancel(queue()[1].id)
+			await flushPromises()
+
+			expect(queue()).toHaveLength(1)
+		})
+
+		it('removes one that is not at the head', async () => {
+			mountApp()
+			await connect()
+			printer.sendImage.mockImplementation(() => new Promise(() => { }))
+			await queueImage()
+			await queueImage()
+			await queueImage()
+
+			const middle = queue()[1].id
+			cancel(middle)
+			await flushPromises()
+
+			expect(queue().map((photo) => photo.id)).not.toContain(middle)
+			expect(queue()).toHaveLength(2)
+		})
+
+		it('removes a failed photo, so it cannot jam the queue', async () => {
+			// the queue is worked from the head, so a failed photo nothing can remove
+			// blocks every photo behind it for the life of the page
+			failWith()
+			mountApp()
+			await connect()
+			await queueImage()
+			await settle()
+
+			cancel(queue()[0].id)
+			await flushPromises()
+
+			expect(queue()).toHaveLength(0)
+		})
+
+		it('stops a transfer that is running rather than orphaning the printer', async () => {
+			let abortSeen = false
+			printer.sendImage.mockImplementation((...args: unknown[]) => new Promise((resolve) => {
+				const signal = args[4] as AbortSignal
+				signal.addEventListener('abort', () => { abortSeen = true; resolve(undefined) })
+			}))
+
+			mountApp()
+			await connect()
+			await queueImage()
+			await settle()
+
+			cancel(queue()[0].id)
+			await settle()
+
+			expect(abortSeen).toBe(true)
+		})
+
+		it('takes the photo that printed, not whichever has moved up since', async () => {
+			// finishUpPrinting used to shift() position 0 after a 500ms wait, so a
+			// removal during that wait deleted the next, unprinted photo instead
+			mountApp()
+			await connect()
+			await queueImage()
+			await queueImage()
+			// each photo costs a poll tick plus its own sleeps, so two need room
+			await settle(16_000)
+
+			// both are gone only if each run removed its own photo
+			expect(queue()).toHaveLength(0)
+			expect(printer.printImage).toHaveBeenCalledTimes(2)
+		})
+	})
+
+	describe('copies', () => {
+		it('never prints zero copies and loses the photo', async () => {
+			// a quantity of 0 transferred the image, printed nothing, said nothing,
+			// and then dropped the photo off the queue as though it had printed
+			mountApp()
+			await connect()
+			printer.sendImage.mockImplementation(() => new Promise(() => { }))
+			await queueImage()
+
+			wrapper.findComponent(PanelStub).vm.$emit('quantity-change', queue()[0].id, 0)
+			await flushPromises()
+
+			expect(queue()[0].quantity).toBe(1)
+		})
+
+		it('holds the copies to what the printer accepts', async () => {
+			mountApp()
+			await connect()
+			printer.sendImage.mockImplementation(() => new Promise(() => { }))
+			await queueImage()
+
+			const id = queue()[0].id
+			for (const [asked, expected] of [[0, 1], [-3, 1], [99, 10], [4, 4]]) {
+				wrapper.findComponent(PanelStub).vm.$emit('quantity-change', id, asked)
+				await flushPromises()
+				expect(queue()[0].quantity).toBe(expected)
+			}
+		})
+
+		it('prints at least one copy even if the field was left empty', async () => {
+			mountApp()
+			await connect()
+			await queueImage()
+
+			wrapper.findComponent(PanelStub).vm.$emit('quantity-change', queue()[0].id, Number(''))
+			await settle()
+
+			expect(printer.printImage).toHaveBeenCalledWith(1, expect.any(Function), expect.any(Object))
+		})
+	})
+
+	it('keeps the photo when the failure is not one it recognises', async () => {
+		// a printer switched off mid-print throws a plain Error, and that used to
+		// fall through to the queue being shifted with nothing said at all
+		printer.printImage.mockRejectedValue(new Error('NetworkError: GATT operation failed'))
+		mountApp()
+		await connect()
+		await queueImage()
+		await settle()
+
+		expect(queue()).toHaveLength(1)
+		expect(queue()[0].state).toBe(QUEUE_STATE.FAILED)
+		expect(wrapper.find('[data-testid="print-error-dialog"]').exists()).toBe(true)
 	})
 
 	it('takes no more photos than the queue is allowed to hold', async () => {

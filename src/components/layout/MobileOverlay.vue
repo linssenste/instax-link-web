@@ -20,7 +20,8 @@
 
             <div class="settings-area">
                 <ThemeColorSelector v-on:color-change="themeChangeEvent" />
-                <PrinterConnection class="connection-button" :queue="queue" :config="config" />
+                <PrinterConnection v-on:retry="$emit('retry')" v-on:cancel="$emit('cancel', $event)"
+                v-on:quantity-change="(id, quantity) => $emit('quantity-change', id, quantity)" class="connection-button" :queue="queue" :config="config" />
             </div>
 
 
@@ -33,13 +34,16 @@ import ThemeColorSelector from './ThemeColorSelector.vue'
 import PolaroidSizeSelector from './PolaroidSizeSelector.vue';
 import PrinterConnection from '../printer/PrinterConnection.vue';
 
-import { type PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { type PrinterStateConfig, type InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 import { type QueueImage } from '../../interfaces/QueueImage';
 
 import { ref } from 'vue';
 const emit = defineEmits<{
-    (e: 'type-change', value: string): void,
-    (e: 'color-change', value: string): void
+    (e: 'type-change', value: InstaxFilmVariant): void,
+    (e: 'color-change', value: string): void,
+    (e: 'retry'): void,
+    (e: 'cancel', id: number): void,
+    (e: 'quantity-change', id: number, quantity: number): void
 }>()
 
 withDefaults(defineProps<{
@@ -50,7 +54,7 @@ withDefaults(defineProps<{
 const showOverlay = ref<boolean>(false)
 
 
-function typeChangeEvent(value: string) {
+function typeChangeEvent(value: InstaxFilmVariant) {
     emit('type-change', value)
 }
 

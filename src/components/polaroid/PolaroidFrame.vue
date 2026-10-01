@@ -68,7 +68,14 @@ function measureDisplayScale(): void {
 
 // the intrinsic width changes with the film variant, so the scale has to be
 // recomputed even when the rendered box stays the same
-watch(() => props.type, measureDisplayScale);
+watch(() => props.type, () => {
+	// a failure belongs to the artwork that failed. loadError used to latch, so one
+	// bad load hid a perfectly loadable frame for every film type chosen after it
+	loadError.value = false;
+	frameLoaded.value = false;
+
+	measureDisplayScale();
+});
 
 let resizeObserver: ResizeObserver | null = null;
 
@@ -141,11 +148,19 @@ defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameR
 /* Percentages of the frame box, so the crop window keeps its place relative to the
    artwork at any size. Each is the artwork's own transparent window plus a 4px lip
    at the displayed size, measured off the artwork rather than guessed: the photo
-   still tucks under the frame with no seam, but only just. */
+   still tucks under the frame with no seam, but only just.
+
+   The aspect ratios are the printer's own resolutions (600x800, 800x800,
+   1260x840), not the artwork window's. They have to be: the export rasterises at
+   the crop window's aspect and the printer is then handed exactly its own pixel
+   size, so a crop window of a different shape is stretched to fit. Mini used to
+   be authored 600/790 and wide 1260/850, which printed them 1.3% tall and 1.2%
+   squashed respectively - square was 800/800 and therefore always correct, which
+   is how it went unnoticed. */
 .inner-mini {
 	top: 7.614%;
 	width: 88.121%;
-	aspect-ratio: 600/790;
+	aspect-ratio: 600/800;
 }
 
 .inner-square {
@@ -157,7 +172,7 @@ defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameR
 .inner-wide {
 	top: 7.864%;
 	width: 93.103%;
-	aspect-ratio: 1260/850;
+	aspect-ratio: 1260/840;
 }
 
 .polaroid-frame {
