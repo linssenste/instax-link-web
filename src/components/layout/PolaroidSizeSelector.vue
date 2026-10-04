@@ -1,9 +1,10 @@
 <template>
 	<div>
-		<div oncontextmenu="return false" class="size-selector">
-			<div v-for="filmType in [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.WIDE]"
-				:key="filmType" :title="polaroidTitle(filmType)" :style="polaroidClass(filmType)"
-				@click="selectedType = filmType" class="polaroid" :data-testid="`polaroid-selector-${filmType}`">
+		<div oncontextmenu="return false" class="size-selector" role="group" aria-label="Polaroid film size">
+			<button v-for="filmType in FILM_VARIANTS" :key="filmType" type="button" :title="polaroidTitle(filmType)"
+				:style="polaroidClass(filmType)" :aria-label="polaroidTitle(filmType)"
+				:aria-pressed="selectedType === filmType" @click="selectedType = filmType" class="polaroid"
+				:data-testid="`polaroid-selector-${filmType}`">
 
 				<!-- inner polaroid develops (fade-in) and shows random image if selected -->
 				<div class="inner-polaroid">
@@ -14,7 +15,7 @@
 
 					<div class="overlay" :id="`${filmType}-overlay`"></div>
 				</div>
-			</div>
+			</button>
 
 		</div>
 
@@ -29,7 +30,12 @@
 import { ref, watch } from 'vue';
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
 
-const selectedType = ref<InstaxFilmVariant>(localStorage.getItem("polaroid") ?? InstaxFilmVariant.SQUARE);
+const FILM_VARIANTS = [InstaxFilmVariant.MINI, InstaxFilmVariant.SQUARE, InstaxFilmVariant.WIDE];
+
+const storedType = localStorage.getItem('polaroid') as InstaxFilmVariant | null;
+const selectedType = ref<InstaxFilmVariant>(
+	storedType != null && FILM_VARIANTS.includes(storedType) ? storedType : InstaxFilmVariant.SQUARE
+);
 
 // events
 const emit = defineEmits<{
@@ -69,31 +75,28 @@ const imageWidth = (filmType: InstaxFilmVariant) => {
 const polaroidClass = (filmType: InstaxFilmVariant) => {
 	return {
 		width: `${imageWidth(filmType)}px`,
-		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .25 : 0})`,
+		boxShadow: `0px 0px 5px rgba(0, 0, 0, ${filmType === selectedType.value ? .5 : .25})`,
 		transform: filmType === selectedType.value ? 'scale(1.15)' : "",
 	}
 }
 
-
-const retryCount = ref(0); // retry count for image loading
-
 // set fallback image (dog jasper) if image loading fails
 function setFallbackImage(e: Event, filmType: InstaxFilmVariant) {
-	if (retryCount.value > 5 || filmType !== selectedType.value) return;
+	if (filmType !== selectedType.value) return;
 
-	const target = e.target as HTMLImageElement;
-	retryCount.value++;
 
+	const target = e.target as HTMLImageElement; 
 	if (!target) return;
-	target.src = `/public/fallback-images/fallback-${selectedType.value.charAt(0)}.webp`;
+	target.src = `/public/fallback-images/fallback-${selectedType.value.charAt(0)}.webp`; 
+	beginImageDevelopment()
 
 }
 
 // start image development on selected polaroid after image loaded (fade-out overlay)
-function beginImageDevelopment() {
-	console.log("begin image development");
+function beginImageDevelopment() { 
 	const overlay = document.getElementById(`${selectedType.value}-overlay`) as HTMLElement;
-	console.log(overlay);
+
+	
 	if (overlay) {
 		overlay.classList.add('develop-polaroid');
 	}
@@ -120,14 +123,27 @@ watch(selectedType, (newType, oldType) => {
 <style scoped>
 .polaroid {
 	position: relative;
+	box-sizing: content-box;
 	padding: 3px;
-	height: 48px;
+	height: 42px;
 	padding-top: 4px;
 	border-radius: 2px;
 	cursor: pointer;
-	background-color: var(--white-color);
+	background-color: rgb(var(--white-color));
 	transition: transform 250ms;
-	;
+	border: none;
+	padding-bottom: 12px;
+	opacity: 1;
+	display: block;
+}
+
+.polaroid:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
+.polaroid img {
+	margin-right: 0;
 }
 
 .inner-polaroid {
@@ -138,7 +154,7 @@ watch(selectedType, (newType, oldType) => {
 	background-position: center;
 	border-radius: 0;
 	border-radius: 1px;
-	background-color: var(--grey-color);
+	background-color: rgb(var(--grey-color));
 	overflow: hidden;
 }
 
@@ -148,7 +164,7 @@ watch(selectedType, (newType, oldType) => {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	background-color: var(--black-color) !important;
+	background-color: rgb(var(--black-color)) !important;
 	opacity: 1;
 }
 
@@ -169,7 +185,7 @@ watch(selectedType, (newType, oldType) => {
 	position: relative;
 	display: flex;
 	flex-direction: row;
-	gap: 10px;
+	gap: 13px;
 	justify-content: center;
 }
 
@@ -179,7 +195,7 @@ watch(selectedType, (newType, oldType) => {
 	margin-top: 12px;
 	width: 100%;
 	font-size: 15px;
-	color: var(--black-color);
+	color: rgb(var(--black-color));
 }
 
 

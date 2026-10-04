@@ -17,6 +17,46 @@ describe('PolaroidSizeSelector', () => {
 		wrapper.unmount();
 	});
 
+	describe('Accessibility', () => {
+		it('exposes every size as a named button', () => {
+			const sizes = wrapper.findAll('[data-testid^="polaroid-selector-"]');
+
+			expect(sizes.length).toBe(3);
+			sizes.forEach((size) => {
+				expect(size.element.tagName).toBe('BUTTON');
+				expect(size.attributes('aria-label')).toBeTruthy();
+			});
+		});
+
+		it('marks the selected size as pressed', async () => {
+			await wrapper.find('[data-testid="polaroid-selector-mini"]').trigger('click');
+			await nextTick();
+
+			expect(wrapper.find('[data-testid="polaroid-selector-mini"]').attributes('aria-pressed')).toBe('true');
+			expect(wrapper.find('[data-testid="polaroid-selector-wide"]').attributes('aria-pressed')).toBe('false');
+		});
+	});
+
+	describe('Stored selection', () => {
+		afterEach(() => localStorage.removeItem('polaroid'));
+
+		it('restores a valid stored size', () => {
+			localStorage.setItem('polaroid', 'wide');
+			const restored = mount(PolaroidSizeSelector);
+
+			expect(restored.vm.selectedType).toBe('wide');
+			restored.unmount();
+		});
+
+		it('falls back to square for a value that is not a film size', () => {
+			localStorage.setItem('polaroid', 'not-a-size');
+			const restored = mount(PolaroidSizeSelector);
+
+			expect(restored.vm.selectedType).toBe('square');
+			restored.unmount();
+		});
+	});
+
 	describe('Rendering', () => {
 		it('mounts the component', () => {
 			expect(wrapper.exists()).toBe(true);

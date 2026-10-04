@@ -1,75 +1,266 @@
+import type Konva from 'konva'
+import { InstaxFilmVariant } from '../interfaces/PrinterStateConfig'
+import { PRINT_RESOLUTION } from '../polaroid/frame.geometry'
+import { encodeWithinBudget } from './compress.quality'
+import type { CompressRequest, CompressResponse } from './compress.worker'
 
-import { InstaxFilmVariant } from "../interfaces/PrinterStateConfig";
-import Compressor from 'compressorjs';
+/**
+ * The transfer packs the payload length into a uint16, so 65535 is a hard ceiling
+ * and this leaves room under it. The search below aims well under this on most
+ * images rather than filling it, because every byte here is time on the wire.
+ */
+const MAX_PRINT_BYTES = 1024 * 60
 
+/**
+ * The quality the last image settled on, used to open the search on the next one.
+ *
+ * Images printed in a row come out of the same editor at the same size, so the
+ * previous answer is usually close. It is only ever an opening guess for the
+ * constrained path; an image that fits at full quality never sees it.
+ */
+let lastQuality: number | undefined
 
-async function compressFile(file: Blob, width: number, height: number, rate: number): Promise<Blob> {
-	return new Promise<Blob>(async (resolve, reject) => {
+// Rasterising the stage has to happen here, on the canvas the browser owns, but
+// the quality search that follows is pure pixel work and does not.
+function canOffloadCompression(): boolean {
+	return typeof Worker !== 'undefined'
+		&& typeof OffscreenCanvas !== 'undefined'
+		&& typeof createImageBitmap === 'function'
+}
 
-		new Compressor(file, {
-			quality: rate,
-			width: width,
-			minWidth: width,
-			maxWidth: width,
+let compressionWorker: Worker | null = null
+let requestId = 0
 
-			height: height,
-			minHeight: height,
-			maxHeight: height,
+/**
+ * How long a compression may take before the worker is presumed dead.
+ *
+ * Generous: this is not a performance budget, it is the difference between a
+ * failed print and an editor that never stops saying "rendering".
+ */
+const WORKER_TIMEOUT = 20_000
 
-			// The compression process is asynchronous,
-			// which means you have to access the `result` in the `success` hook function.
-			success(result: Blob) {
-				resolve(result)
-			},
-			error(err) {
-				reject(err.message)
-			},
-		});
+function discardWorker(worker: Worker | null): void {
+	if (worker == null) return
 
-	});
-} export async function compressedImage(type, image, background, stage) {
-	return new Promise(async (resolve, reject) => {
-		try {
+	// a worker left running keeps its OffscreenCanvas and blobs alive, and the next
+	// print starts a second one beside it
+	worker.terminate()
+	if (compressionWorker === worker) compressionWorker = null
+}
 
-			const canvasUrl = stage.toDataURL({ pixelRatio: 2 });
+function getCompressionWorker(): Worker {
+	if (compressionWorker == null) {
+		const worker = new Worker(new URL('./compress.worker.ts', import.meta.url), { type: 'module' })
 
-			const canvasImageBlob = await fetch(canvasUrl).then(res => res.blob());
+		// attached here rather than per request: a module worker whose script fails
+		// to load constructs fine and then fires `error` asynchronously, which used
+		// to arrive before any request had added a listener - so the worker stayed
+		// cached, dead, and every later postMessage went nowhere at all
+		worker.addEventListener('error', (event) => {
+			console.warn('> the compression worker failed to start', event.message)
+			discardWorker(worker)
+		})
 
-			const file = new File([canvasImageBlob], "compressed-image.jpeg", { type: "image/jpeg" });
-			const width = ((type == InstaxFilmVariant.MINI ? 600 : (type == InstaxFilmVariant.SQUARE ? 800 : 1260)) ?? 800)
-			const height = ((type == InstaxFilmVariant.MINI ? 800 : (type == InstaxFilmVariant.SQUARE ? 800 : 840)) ?? 800)
-			const maxSize = 1024 * 60;
+		compressionWorker = worker
+	}
 
-			let minQuality = 0, maxQuality = 1, quality = 0.5;
-			let result = null;
+	return compressionWorker
+}
 
-			while (minQuality <= maxQuality) {
-				quality = (minQuality + maxQuality) / 2;
-				result = await compressFile(file, width, height, quality);
+/** how long the last rasterise took, so the log can say where the time went */
+let rasteriseMs = 0
 
-				if (result.size > maxSize) {
-					maxQuality = quality - 0.01;
-				} else {
-					if (maxQuality - minQuality < 0.02) break
-					minQuality = quality + 0.01;
-				}
-			}
+function report(size: number | undefined, quality: number | undefined, attempts: number | undefined, started = 0): void {
+	if (!import.meta.env.DEV || size == null) return
 
-			if (!result || result.size > (maxSize + 5000)) {
-				reject('Unable to compress image below target size');
-				return;
-			}
+	const total = started > 0 ? ` (${Math.round(performance.now() - started)}ms: ` +
+		`${Math.round(rasteriseMs)}ms rasterise, ${Math.round(performance.now() - started - rasteriseMs)}ms encode)` : ''
 
-			// console.log(result.width(), result.height())
-			const reader = new FileReader();
-			reader.onloadend = () => {
+	console.log(
+		`> print image ${(size / 1024).toFixed(1)}kB at q${quality?.toFixed(2)} in ${attempts} encode(s)${total}`
+	)
+}
 
-				const base64 = reader.result;
-				resolve(base64);
-			};
-			reader.readAsDataURL(result);
-		} catch (error) {
-			reject(error);
+/**
+ * Start the compression worker before there is anything to compress.
+ *
+ * The worker is a module of its own, so the first print otherwise waits on it
+ * being fetched and compiled on top of the work it actually has to do. Starting
+ * it when the editor opens moves that off the path entirely.
+ */
+export function warmCompression(): void {
+	if (!canOffloadCompression()) return
+
+	try {
+		getCompressionWorker()
+	} catch (error) {
+		// it is only a head start; the real attempt makes one again if this failed
+		console.warn('> could not start the compression worker early', error)
+	}
+}
+
+function compressInWorker(
+	worker: Worker, bitmap: ImageBitmap, width: number, height: number, startedAt: number
+): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		const id = ++requestId
+
+		const stopListening = () => {
+			worker.removeEventListener('message', onMessage)
+			worker.removeEventListener('error', onFailure)
+			worker.removeEventListener('messageerror', onFailure)
 		}
-	});
+
+		// even with the listeners above, a worker can go quiet without ever raising
+		// an event - a message that never arrives would otherwise leave the editor
+		// showing its loading overlay with no way out but a reload
+		const watchdog = setTimeout(() => {
+			stopListening()
+			discardWorker(worker)
+			reject(new Error('The compression worker stopped responding'))
+		}, WORKER_TIMEOUT)
+
+		const onMessage = (event: MessageEvent<CompressResponse>) => {
+			if (event.data.id !== id) return
+			stopListening()
+			clearTimeout(watchdog)
+
+			if (event.data.dataUrl != null) {
+				lastQuality = event.data.quality
+				report(event.data.size, event.data.quality, event.data.attempts, startedAt)
+				resolve(event.data.dataUrl)
+			} else reject(new Error(event.data.error ?? 'Compression failed'))
+		}
+
+		// a worker that fails to start, or a reply that cannot be deserialised,
+		// would otherwise leave this promise pending and the editor stuck loading
+		const onFailure = () => {
+			stopListening()
+			clearTimeout(watchdog)
+			discardWorker(worker)
+			reject(new Error('The compression worker stopped responding'))
+		}
+
+		worker.addEventListener('message', onMessage)
+		worker.addEventListener('error', onFailure)
+		worker.addEventListener('messageerror', onFailure)
+
+		const request: CompressRequest = {
+			id, bitmap, width, height, maxSize: MAX_PRINT_BYTES, hint: lastQuality
+		}
+
+		try {
+			worker.postMessage(request, [bitmap])
+		} catch (error) {
+			// the bitmap was never transferred, so closing it is still ours to do
+			stopListening()
+			clearTimeout(watchdog)
+			bitmap.close()
+			reject(error instanceof Error ? error : new Error('Could not hand the image to the worker'))
+		}
+	})
+}
+
+export async function compressedImage(
+	type: InstaxFilmVariant,
+	image: Konva.Image,
+	background: Konva.Rect,
+	stage: Konva.Stage
+): Promise<string> {
+	const { width, height } = PRINT_RESOLUTION[type] ?? PRINT_RESOLUTION[InstaxFilmVariant.SQUARE]
+	const pixelRatio = stage.width() > 0 ? (width / stage.width()) : 2
+	const startedAt = performance.now()
+
+	if (canOffloadCompression()) {
+		// only the handover may fall back: once the worker has the job, whatever it
+		// reports is the answer, successful or not
+		let worker: Worker | null = null
+		let bitmap: ImageBitmap | null = null
+
+		let rasterised: HTMLCanvasElement | null = null
+
+		try {
+			worker = getCompressionWorker()
+			rasterised = stage.toCanvas({ pixelRatio })
+			bitmap = await createImageBitmap(rasterised)
+			rasteriseMs = performance.now() - startedAt
+		} catch (error) {
+			bitmap?.close()
+			bitmap = null
+			console.warn('> compression worker unavailable, falling back to the main thread', error)
+		}
+
+		if (worker != null && bitmap != null) return compressInWorker(worker, bitmap, width, height, startedAt)
+
+		// the canvas is already in hand; asking the stage to draw itself a second
+		// time would double the allocation at the exact moment the first attempt
+		// failed for want of memory
+		if (rasterised != null) return compressCanvas(rasterised, width, height, startedAt)
+	}
+
+	return compressOnMainThread(stage, width, height, pixelRatio, startedAt)
+}
+
+function encodeCanvas(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+	return new Promise<Blob>((resolve, reject) => {
+		canvas.toBlob(
+			(blob) => blob != null ? resolve(blob) : reject(new Error('Could not encode the print image')),
+			'image/jpeg',
+			quality
+		)
+	})
+}
+
+function toDataUrl(blob: Blob): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onloadend = () => resolve(reader.result as string)
+		reader.onerror = () => reject(new Error('Could not read the compressed image'))
+		reader.readAsDataURL(blob)
+	})
+}
+
+/**
+ * The same job, where there is no worker to hand it to.
+ *
+ * This used to hand a data URL to compressorjs, which decoded and resized the
+ * image again on every step of the search - six decodes of a canvas that was
+ * already in hand. The canvas encodes itself, so the pixels are prepared once and
+ * only the encode repeats, exactly as in the worker.
+ */
+async function compressOnMainThread(
+	stage: Konva.Stage,
+	width: number,
+	height: number,
+	pixelRatio: number,
+	startedAt = 0
+): Promise<string> {
+	return compressCanvas(stage.toCanvas({ pixelRatio }), width, height, startedAt)
+}
+
+async function compressCanvas(
+	source: HTMLCanvasElement,
+	width: number,
+	height: number,
+	startedAt = 0
+): Promise<string> {
+	const canvas = document.createElement('canvas')
+	canvas.width = width
+	canvas.height = height
+
+	const context = canvas.getContext('2d', { alpha: false })
+	if (context == null) throw new Error('Could not prepare the print image')
+
+	context.fillStyle = '#FFFFFF'
+	context.fillRect(0, 0, width, height)
+	context.drawImage(source, 0, 0, width, height)
+	if (startedAt > 0) rasteriseMs = performance.now() - startedAt
+
+	const result = await encodeWithinBudget((quality) => encodeCanvas(canvas, quality), MAX_PRINT_BYTES, lastQuality)
+	if (result == null) throw new Error('Unable to compress image below target size')
+
+	lastQuality = result.quality
+	report(result.blob.size, result.quality, result.attempts, startedAt)
+
+	return toDataUrl(result.blob)
 }

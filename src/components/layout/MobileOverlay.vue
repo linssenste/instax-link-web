@@ -1,21 +1,27 @@
 <template>
     <div>
         <button class="close-button" v-on:click="showOverlay = true">
-        <img draggable="false" alt="settings icon"
-                src="@/assets/icons/printer/menu.svg" width="25" height="25" />
+        <span class="menu-icon" aria-hidden="true" />
     </button>
         <div v-if="showOverlay" class="overlay">
 
-            <button v-on:click="showOverlay = false" class="close-button"><img draggable="false" alt="close icon"
-                    src="@/assets/icons/controls/xmark.svg" width="20" height="20" /></button>
+            <!-- a pointer shortcut, not a second tab stop: the close button is the
+                 real way out -->
+            <button type="button" class="scrim" tabindex="-1" aria-hidden="true"
+                v-on:click="showOverlay = false" />
+
+            <button type="button" v-on:click="showOverlay = false" class="close-button"
+                aria-label="Close settings" title="Close settings">
+                <span class="close-icon" aria-hidden="true" />
+            </button>
             <PolaroidSizeSelector v-if="!config.connection" class="polaroid-size-selector"
                 v-on:type-change="typeChangeEvent" connected="square" />
 
 
-
             <div class="settings-area">
                 <ThemeColorSelector v-on:color-change="themeChangeEvent" />
-                <PrinterConnection class="connection-button" :queue="queue" :config="config" />
+                <PrinterConnection v-on:retry="$emit('retry')" v-on:cancel="$emit('cancel', $event)"
+                v-on:quantity-change="(id, quantity) => $emit('quantity-change', id, quantity)" class="connection-button" :queue="queue" :config="config" />
             </div>
 
 
@@ -28,28 +34,27 @@ import ThemeColorSelector from './ThemeColorSelector.vue'
 import PolaroidSizeSelector from './PolaroidSizeSelector.vue';
 import PrinterConnection from '../printer/PrinterConnection.vue';
 
-import { type PrinterStateConfig } from './interfaces/PrinterStateConfig';
-import { QueueImage } from './interfaces/QueueImage';
+import { type PrinterStateConfig, type InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
+import { type QueueImage } from '../../interfaces/QueueImage';
 
 import { ref } from 'vue';
 const emit = defineEmits<{
-    (e: 'type-change', value: string): void,
-    (e: 'color-change', value: string): void
+    (e: 'type-change', value: InstaxFilmVariant): void,
+    (e: 'color-change', value: string): void,
+    (e: 'retry'): void,
+    (e: 'cancel', id: number): void,
+    (e: 'quantity-change', id: number, quantity: number): void
 }>()
 
-const props = withDefaults(defineProps<{
-    config?: PrinterStateConfig
+withDefaults(defineProps<{
+    config: PrinterStateConfig
     queue?: QueueImage[]
-}>(), {
-    config: () => (null),
-    queue: () => []
-})
-props.config;
+}>(), { queue: () => [] });
 
 const showOverlay = ref<boolean>(false)
 
 
-function typeChangeEvent(value: string) {
+function typeChangeEvent(value: InstaxFilmVariant) {
     emit('type-change', value)
 }
 
@@ -77,10 +82,31 @@ function themeChangeEvent(value: string) {
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: var(--dynamic-bg-color);
+        background-color: rgb(var(--dynamic-bg-color));
         opacity: .2;
         z-index: -1;
     }
+}
+
+/* Sits behind the controls, which are positioned siblings that come after it.
+   height: auto overrides the app's 40px button height, which would otherwise leave
+   only a band across the top clickable. */
+.scrim {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* the global button hover outranks a single class and would paint it over */
+.scrim:hover {
+    background-color: transparent;
+    box-shadow: none;
 }
 
 .settings-area {
@@ -137,22 +163,34 @@ function themeChangeEvent(value: string) {
     }
 
 
-    .close-button:hover img {
+    .close-button:hover .close-icon {
         opacity: 1;
     }
 }
 
-.close-button img {
-    opacity: .75;
-
-
+/* a mask rather than an image: the icon ships with a placeholder fill that would
+   vanish against the overlay */
+.close-icon {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    opacity: .75;
+    background-color: #000000;
+    -webkit-mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
+    mask: url('@/assets/icons/controls/close.svg') center / contain no-repeat;
+}
 
-    -moz-user-select: none;
-    -webkit-user-select: none;
-    user-select: none;
+/* a mask rather than an img: the icon ships with a grey placeholder fill, so it
+   never took the theme colour the rest of the controls are in */
+.menu-icon {
+    display: block;
+    width: 25px;
+    height: 25px;
+    background-color: rgb(var(--dynamic-bg-color));
+    -webkit-mask: url('@/assets/icons/printer/menu.svg') center / contain no-repeat;
+    mask: url('@/assets/icons/printer/menu.svg') center / contain no-repeat;
 }
 </style>

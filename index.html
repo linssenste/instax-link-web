@@ -7,6 +7,16 @@
 	<meta name="theme-color" content="#FF5A5A">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Instax Web</title>
+
+	<!-- The polaroid frame is the first thing on screen. Referenced only from a
+		 component, it would not be requested until the module graph has loaded and
+		 Vue has mounted; preloading starts the fetch during HTML parse instead.
+		 Square is the variant the editor opens with. -->
+	<link rel="preload" as="image" href="/polaroids/square.webp" fetchpriority="high" />
+
+	<!-- the other variants are only needed once the film size is switched -->
+	<link rel="prefetch" as="image" href="/polaroids/mini.webp" />
+	<link rel="prefetch" as="image" href="/polaroids/wide.webp" />
 </head>
 
 <body>

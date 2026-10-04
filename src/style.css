@@ -1,22 +1,30 @@
 :root {
-	--dynamic-bg-color: #FF5A5A;
+	--dynamic-bg-color: 255, 90, 90;
 
-	--yellow-color: #FFD840;
-	--blue-color: #3FC2C3;
-	--pink-color: #830065;
+	--yellow-color: 255, 182, 1;
+	--blue-color: 26, 139, 217; 
 
-	--orange-color: #FF8025;
-	--green-color: #01667E;
-	--red-color: #FF4D33;
+	--orange-color: 255, 130, 3;
+	--green-color: 121, 190, 33;
 
+	--red-color: 239, 56, 38;
 
-	--error-color: #FF5A5A;
-	--grey-color: #a0a0a0;
-	--light-grey-color: #e0e0e0;
-	--white-color: #ffffff;
-	--black-color: #000
+	--error-color: 255, 90, 90;
+	--grey-color: 160, 160, 160;
+	--light-grey-color: 224, 224, 224;
+	--white-color: 255, 255, 255;
+	--black-color: 0, 0, 0;
+
+	/* how far the corner panels sit in from the window edge; the print queue
+	   reaches past it so its scrollbar lands in that gutter */
+	--panel-inset: 25px;
+
+	/* The printer panel's width, held steady whatever it is showing. Without this
+	   it sized to its contents, so connecting - or opening the queue while
+	   disconnected - changed the width of everything in it, the connect button
+	   included. The status card fills it exactly. */
+	--printer-panel-width: 330px;
 }
-
 
 
 html,
@@ -47,11 +55,13 @@ button {
 	padding-right: 16px;
 	outline: none;
 	border: none;
-	border-radius: 10px;
+	border-radius: 20px;
 	font-weight: 400;
 	text-transform: uppercase;
 	letter-spacing: 2px;
-	opacity: .85;
+
+	/* the chosen colour exactly, rather than a faded pass at it */
+	opacity: 1;
 
 
 	display: flex;
@@ -60,7 +70,7 @@ button {
 	justify-content: center;
 	transition: all 100ms ease-in-out;
 	cursor: pointer;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 
 }
 
@@ -69,40 +79,43 @@ button img {
 	margin-right: 8px;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: 2px;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
-	button:hover {
-		opacity: 1;
+	/* A disabled button still matches :hover, so it is excluded here: otherwise it
+	   lightens under the cursor and reads as though it can still be pressed.
+
+	   :where() keeps that exclusion free of specificity, so this stays a plain
+	   element rule and any component that sets its own background still wins. */
+	button:hover:where(:not(:disabled)) {
+		/* lightened by mixing white into the chosen colour, so hover reads as a
+		   lift away from the resting state rather than a return to full strength.
+		   Buttons that set their own background keep it: this only has the weight
+		   of an element selector */
+		background-color: color-mix(in srgb, rgb(var(--dynamic-bg-color)) 80%, #ffffff);
 		z-index: 10;
 		box-shadow: 0px 0px 5px rgba(0, 0, 0, .05);
 
 	}
 
-	button:hover i {
+	button:hover:where(:not(:disabled)) i {
 		opacity: 1;
 	}
 }
-
-
 
 
 h1 {
 	font-family: 'Keedy Sans';
 
 	letter-spacing: 2px;
-	color: var(--dynamic-bg-color);
+	color: rgb(var(--dynamic-bg-color));
 	padding-top: 20px;
 	font-size: 24px;
-}
-
-
-.polaroid-caption {
-
-
-	color: rgba(0, 15, 85, .75);
-	font-size: 25px;
-	padding-top: 3px;
-	width: 100%;
-	font-family: 'biro_script_standardregular';
-	text-transform: uppercase;
 }

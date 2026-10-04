@@ -1,16 +1,16 @@
 <template>
-	<div class="editor">
+	<div ref="frameRef" class="editor" :class="`polaroid-${type}`" :style="{ '--polaroid-scale': displayScale }">
 		<div class="inner" id="polaroid-frame" :class="`inner-${type}`">
 			<slot name="polaroid-area" />
-
 		</div>
 
-		<div class="polaroid">
-			<img v-show="loadError == false" v-on:load="frameLoaded = true" v-on:error="loadError = true"
-				 :src="polaroidImageSource" :alt="`${type} Polaroid-themed frame`" draggable="false" preload
-				 :width="polaroidImageWidth" height="440" fetchpriority="high" class="polaroid-frame" />
-
-		</div>
+		<!-- polaroid image frame; intrinsic size is kept so the browser can
+			 reserve the correct box before the image arrives (no layout shift),
+			 while the actual rendering size is driven by CSS -->
+		<img v-show="!loadError" v-on:load="frameReadyEvent(true)" v-on:error="frameReadyEvent(false)"
+			 :src="polaroidImageSource" :alt="`${type} Polaroid-themed frame`" draggable="false"
+			 :width="polaroidImageWidth" :height="POLAROID_FRAME_HEIGHT" fetchpriority="high" class="polaroid-frame"
+			 :style="{ opacity: frameLoaded ? 1 : 0 }" />
 
 		<div class="polaroid-text">
 			<slot name="polaroid-text" />
@@ -19,98 +19,176 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { InstaxFilmVariant } from '../../interfaces/PrinterStateConfig';
+import { POLAROID_FRAME_HEIGHT, POLAROID_FRAME_WIDTH } from '../../polaroid/frame.geometry';
+
+const emit = defineEmits<{
+	/** the artwork has settled, either because it loaded or because it never will */
+	(e: 'ready'): void;
+}>();
 
 const loadError = ref(false)
 const frameLoaded = ref(false);
 
-
 const props = defineProps<{
 	type: InstaxFilmVariant
 }>();
-props.type;
 
+// the editor waits for this before it appears, so the frame, the caption and the
+// crop area all arrive together rather than assembling themselves on screen
+function frameReadyEvent(loaded: boolean): void {
+	if (loaded) frameLoaded.value = true;
+	else loadError.value = true;
 
-const polaroidImageWidth = computed(() => {
-	return props.type == InstaxFilmVariant.SQUARE ? 368 : (props.type == InstaxFilmVariant.MINI ? 282 : 522)
-});
+	emit('ready');
+}
+
+const frameRef = ref<HTMLDivElement | null>(null);
+
+// how much the frame is currently scaled down from its intrinsic size. Anything
+// that has to keep its proportions - the caption, the exported pixel size - is
+// derived from this instead of guessing from the viewport
+const displayScale = ref(1);
+
+const polaroidImageWidth = computed(() => POLAROID_FRAME_WIDTH[props.type]);
 
 const polaroidImageSource = computed(() => {
 	return `/polaroids/${props.type}.webp`
 });
 
+function measureDisplayScale(): void {
+	if (!frameRef.value) return;
 
+	const { width } = frameRef.value.getBoundingClientRect();
+	if (width <= 0) return;
 
+	displayScale.value = width / POLAROID_FRAME_WIDTH[props.type];
+}
 
+// the intrinsic width changes with the film variant, so the scale has to be
+// recomputed even when the rendered box stays the same
+watch(() => props.type, () => {
+	// a failure belongs to the artwork that failed. loadError used to latch, so one
+	// bad load hid a perfectly loadable frame for every film type chosen after it
+	loadError.value = false;
+	frameLoaded.value = false;
+
+	measureDisplayScale();
+});
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+	measureDisplayScale();
+
+	if (typeof ResizeObserver === 'undefined' || !frameRef.value) return;
+	resizeObserver = new ResizeObserver(measureDisplayScale);
+	resizeObserver.observe(frameRef.value);
+});
+
+onBeforeUnmount(() => {
+	resizeObserver?.disconnect();
+	resizeObserver = null;
+});
+
+defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameReadyEvent });
 </script>
-
 
 <style scoped>
 .editor {
-
 	position: relative;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
 
-	width: auto;
-	z-index: 200 !important;
+	/* never taller than the artwork, never wider than the viewport */
+	max-height: 440px;
+	width: 100%;
 	border-radius: 10px;
-	margin-left: 18px;
-	margin-right: 18px;
-	margin-top: 0px;
-	margin-bottom: 68px;
-}
 
-.polaroid {
-	position: absolute;
-	top: -30px;
-	left: -18px;
+	/* box-shadow on the (fully opaque) frame box instead of a filter:
+	   drop-shadow, which would be re-rasterized on every resize step */
+	/* box-shadow: 2px 2px 2px #00000022, -2px -2px 2px #00000022; */
+
 	-webkit-user-drag: none;
-
-
 	-moz-user-select: none;
 	-webkit-user-select: none;
 	user-select: none;
-	pointer-events: none;
+}
+
+/* aspect ratios mirror the intrinsic artwork sizes, so the frame scales down
+   proportionally and the inner crop window stays aligned with the artwork */
+.polaroid-mini {
+	max-width: 282px;
+	aspect-ratio: 282 / 440;
+}
+
+.polaroid-square {
+	max-width: 368px;
+	aspect-ratio: 368 / 440;
+}
+
+.polaroid-wide {
+	max-width: 522px;
+	aspect-ratio: 522 / 440;
 }
 
 .inner {
-	height: 328px;
-	background-color: white;
-	z-index: 2000000;
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
 	overflow: hidden;
+	top: 10px;
+	background-color: white;
 }
 
+/* Percentages of the frame box, so the crop window keeps its place relative to the
+   artwork at any size. Each is the artwork's own transparent window plus a 4px lip
+   at the displayed size, measured off the artwork rather than guessed: the photo
+   still tucks under the frame with no seam, but only just.
+
+   The aspect ratios are the printer's own resolutions (600x800, 800x800,
+   1260x840), not the artwork window's. They have to be: the export rasterises at
+   the crop window's aspect and the printer is then handed exactly its own pixel
+   size, so a crop window of a different shape is stretched to fit. Mini used to
+   be authored 600/790 and wide 1260/850, which printed them 1.3% tall and 1.2%
+   squashed respectively - square was 800/800 and therefore always correct, which
+   is how it went unnoticed. */
 .inner-mini {
-	padding-top: 5px;
-	padding-left: 1px;
+	top: 7.614%;
+	width: 88.121%;
 	aspect-ratio: 600/800;
 }
 
 .inner-square {
-	padding-left: 4px;
-	padding-top: 5px;
+	top: 8.182%;
+	width: 88.043%;
 	aspect-ratio: 800/800;
 }
 
 .inner-wide {
-	padding-top: 5px;
-	padding-left: 2px;
+	top: 8.5%;
+	width: 93.103%;
 	aspect-ratio: 1260/840;
 }
 
-
 .polaroid-frame {
-	height: 440px;
-	-webkit-filter: drop-shadow(2px 2px 2px #00000022) drop-shadow(-2px -2px 2px #00000022);
-	filter: drop-shadow(2px 2px 2px #00000022) drop-shadow(-2px -2px 2px #00000022);
-	will-change: filter;
+	pointer-events: none;
+	width: 100%;
+	height: 100%;
+	z-index: 1000;
+	transition: opacity 150ms ease-in-out;
 }
-
-
 
 .polaroid-text {
 	position: absolute;
-	top: calc(100% + 22px);
+	/* 15px of the 440px artwork, kept proportional as the frame scales down, so
+	   the caption sits centred in the frame's bottom border */
+	bottom: 3.409%;
+	line-height: 1;
 	z-index: 10000;
 	width: 100%;
 	display: flex;
@@ -120,4 +198,3 @@ const polaroidImageSource = computed(() => {
 	justify-content: center;
 }
 </style>
-  

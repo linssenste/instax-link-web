@@ -4,7 +4,9 @@
 
 			<!-- Printer type in instax-font -->
 			<div class="printer-name" data-testid="printer-name">
-				<div />
+				<!-- the pulse carries the printer's state: green while it is happy,
+					 amber while something it reported is still outstanding -->
+				<div :class="{ fault: config.fault }" data-testid="printer-pulse" />
 				<span>instax</span> <span class="printer-name-type">{{ printerType
 				}}</span>
 
@@ -13,8 +15,7 @@
 			<!-- disconnect icon button -->
 			<button data-testid="disconnect-printer-button" v-on:click="config.disconnect" title="Disconnect INSTAX Printer"
 					class="disconnect-button">
-				<img width="18" alt="bluetooth icon to disconnect" draggable="false"
-					 src="@/assets/icons/printer/bluetooth-disconnect.svg" />
+				<span class="disconnect-icon" aria-hidden="true" />
 
 			</button>
 		</div>
@@ -26,8 +27,8 @@
 			<div v-if="config.status != null && config.status.polaroidCount != null && config.status.battery.level != null"
 				 class="printer-status-polaroids" data-testid="printer-polaroid-count">
 
-				<img :title="`${remainingPolaroids} Polaroids left`" draggable="false"
-					 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" />
+				<img :title="`${config.status?.polaroidCount ?? 0} Polaroids left`" draggable="false"
+					 :src="`/polaroids/stack/icon-${config.type}.webp`" height="30" alt="" />
 				<span style="letter-spacing: 2px">{{ config.status.polaroidCount }}/10</span>
 			</div>
 
@@ -36,19 +37,19 @@
 				 class="printer-status-battery" data-testid="printer-battery-level">
 
 				<img v-if="config.status.battery.charging" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-charging.svg" />
-				<img v-else-if="batteryIcon == 0" draggable="false" width="25" src="@/assets/icons/battery/battery-0.svg" />
+					 src="@/assets/icons/battery/battery-charging.svg" alt="" />
+				<img v-else-if="batteryIcon == 0" draggable="false" width="25" src="@/assets/icons/battery/battery-0.svg" alt="" />
 				<img v-else-if="batteryIcon == 25" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-25.svg" />
+					 src="@/assets/icons/battery/battery-25.svg" alt="" />
 				<img v-else-if="batteryIcon == 50" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-50.svg" />
+					 src="@/assets/icons/battery/battery-50.svg" alt="" />
 				<img v-else-if="batteryIcon == 75" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-75.svg" />
+					 src="@/assets/icons/battery/battery-75.svg" alt="" />
 				<img v-else-if="batteryIcon == 100" draggable="false" width="25"
-					 src="@/assets/icons/battery/battery-100.svg" />
+					 src="@/assets/icons/battery/battery-100.svg" alt="" />
 
 				<span v-if="config.status.battery.charging" data-testid="printer-battery-charging-text"
-					  class="printer-chargingin-text">POWER</span>
+					  class="printer-charging-text">POWER</span>
 				<span v-else>
 					{{ config.status.battery.level }}%</span>
 			</div>
@@ -64,15 +65,14 @@
 
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
-import { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
+import { computed } from 'vue';
+import type { PrinterStateConfig } from '../../interfaces/PrinterStateConfig';
 
 
 const props = defineProps<{
 	config: PrinterStateConfig
 }>();
 
-const remainingPolaroids = ref(10)
 
 const printerType = computed(() => {
 	if (props.config.status == null || props.config.status?.battery.level == null || props.config.status?.polaroidCount == null) return ''
@@ -100,7 +100,10 @@ const batteryIcon = computed(() => {
 	position: relative;
 	background-color: rgba(255, 255, 255, .75);
 	padding: 15px;
-	width: 300px;
+	/* fills the panel rather than setting its width: the panel owns that now, so
+	   the card and the queue below it cannot end up different widths */
+	box-sizing: border-box;
+	width: 100%;
 	border-radius: 10px;
 	transition: all 150ms ease-in-out;
 
@@ -130,7 +133,7 @@ const batteryIcon = computed(() => {
 
 .printer-name span {
 	margin-left: 8px;
-	color: var(--dynamic-bg-color);
+	color: rgb(var(--dynamic-bg-color));
 
 }
 
@@ -145,6 +148,7 @@ const batteryIcon = computed(() => {
 	height: 12px;
 	border-radius: 50%;
 	background-color: green;
+	transition: background-color 200ms linear;
 	margin-left: 2px;
 	margin-right: 5px;
 	opacity: 1;
@@ -152,6 +156,10 @@ const batteryIcon = computed(() => {
 	animation: pulse 1s infinite ease-in-out
 }
 
+
+.printer-name div.fault {
+	background-color: rgb(var(--yellow-color));
+}
 
 @keyframes pulse {
 	0% {
@@ -189,7 +197,7 @@ const batteryIcon = computed(() => {
 }
 
 .printer-charging-text {
-	color: var(--orange-color);
+	color: rgb(var(--orange-color));
 	letter-spacing: 1px
 }
 
@@ -221,11 +229,18 @@ const batteryIcon = computed(() => {
 
 }
 
-.disconnect-button img {
+/* a mask rather than an img: the icon ships with a grey placeholder fill, which
+   is what left it looking washed out on the coloured card */
+.disconnect-icon {
 	position: absolute;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%)
+	width: 18px;
+	height: 18px;
+	transform: translate(-50%, -50%);
+	background-color: #ffffff;
+	-webkit-mask: url('@/assets/icons/printer/bluetooth-disconnect.svg') center / contain no-repeat;
+	mask: url('@/assets/icons/printer/bluetooth-disconnect.svg') center / contain no-repeat;
 }
 
 
@@ -233,6 +248,6 @@ const batteryIcon = computed(() => {
 	text-transform: uppercase;
 	letter-spacing: 1.5px;
 	font-weight: 400px;
-	color: var(--grey-color)
+	color: rgb(var(--grey-color))
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
-	<div class="upload-area" data-testid="upload-area" title="Upload or drop an image" v-on:click="uploadImage()">
+	<button type="button" class="upload-area" data-testid="upload-area" title="Upload or drop an image"
+			aria-label="Choose an image to print" v-on:click="uploadImage()">
 
 		<!-- opaque background color in theme color -->
 		<div class="area-background" data-testid="area-bg" />
@@ -9,10 +10,10 @@
 			   hidden title="Upload image input" placeholder="">
 
 		<!-- centered plus icon -->
-		<img width="50" data-testid="plus-icon" title="Upload or drop an image" class="upload-icon"
+		<img width="50" data-testid="plus-icon" alt="" class="upload-icon"
 			 src="@/assets/icons/printer/plus.svg" />
 
-	</div>
+	</button>
 </template>
 
 <script lang="ts" setup>
@@ -35,7 +36,13 @@ function inputChanged(e: Event): void {
 	const target = e.target as HTMLInputElement;
 
 	if (!target.files) return;
-	const file = target.files[0];
+	const file = target.files[0] ?? null;
+
+	// cleared before emitting, so choosing the same file again still fires a change
+	// event: without this, remove-then-reselect the same photo did nothing at all
+	target.value = '';
+
+	if (file == null) return;
 	emit('selected', file)
 
 }
@@ -54,10 +61,21 @@ function uploadImage(): void {
 	background-color: white;
 	width: 100%;
 	position: relative;
+	padding: 0;
+	border: none;
+	border-radius: 0;
+	opacity: 1;
+	display: block;
+}
+
+.upload-area:focus-visible {
+	outline: 2px solid rgb(var(--dynamic-bg-color));
+	outline-offset: -4px;
 }
 
 
 .upload-icon {
+	margin-right: 0;
 	opacity: .5;
 	transition: all 150ms ease-in-out;
 	position: absolute;
@@ -77,7 +95,9 @@ function uploadImage(): void {
 	width: 100%;
 	height: 100%;
 	position: absolute;
-	opacity: .5;
-	background-color: var(--dynamic-bg-color);
+	top: 0;
+	left: 0;
+	/* opacity: .5; */
+	background-color: rgb(var(--dynamic-bg-color));
 }
 </style>

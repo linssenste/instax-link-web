@@ -4,16 +4,15 @@
 		<!-- opaque background color in theme color -->
 		<div data-testid="color-overlay" class="color-overlay" />
 
-		<img width="60" class="plus-icon" data-testid="plus-icon" title="add new image"
+		<img width="60" class="plus-icon" data-testid="plus-icon" alt=""
 			 src="@/assets/icons/printer/plus.svg" />
 
 	</div>
-
-	<div class="drop-image-text">
-		... or drop it here!</div>
+	<!-- <div v-if="!hasImage" class="drop-image-text">
+		... or drop it here!</div> -->
 </template>
-	
-	
+
+
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -27,6 +26,11 @@ const emit = defineEmits<{
 	 */
 	(e: 'dropped', type: File): void;
 }>();
+
+withDefaults(defineProps<{
+	/** the hint only helps while there is nothing on the polaroid yet */
+	hasImage?: boolean;
+}>(), { hasImage: false });
 
 
 onMounted(() => {
@@ -42,7 +46,6 @@ onUnmounted(() => {
 	document.removeEventListener('dragleave', dragLeave);
 	document.removeEventListener('drop', onDrop);
 });
-
 
 
 let dragCounter = 0; // debounce drag cursor in edge cases
@@ -72,7 +75,7 @@ const dragEnter = (e: DragEvent) => {
 const dragLeave = (e: DragEvent) => {
 	e.preventDefault();
 	e.stopPropagation();
-	dragCounter--;
+	dragCounter = Math.max(0, dragCounter - 1);
 	if (dragCounter === 0) {
 		updateDragState(false);
 	}
@@ -93,7 +96,7 @@ const onDrop = (e: DragEvent) => {
 };
 
 </script>
-	
+
 <style scoped lang="scss">
 .drop-overlay {
 	z-index: 1000000 !important;
@@ -112,7 +115,7 @@ const onDrop = (e: DragEvent) => {
 .color-overlay {
 	position: absolute;
 	top: 0px;
-	background-color: var(--dynamic-bg-color);
+	background-color: rgb(var(--dynamic-bg-color));
 	left: 0px;
 	width: 100%;
 	height: 100%;
@@ -126,9 +129,9 @@ const onDrop = (e: DragEvent) => {
 	left: 50%;
 	transform: translate(-50%, -50%);
 	font-size: 75px;
+	color: white;
 	z-index: 10
 }
-
 
 
 .drop-image-text {
@@ -152,4 +155,4 @@ const onDrop = (e: DragEvent) => {
 		display: none !important;
 	}
 }
-</style> 
+</style>
