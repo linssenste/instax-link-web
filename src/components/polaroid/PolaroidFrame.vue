@@ -170,7 +170,7 @@ defineExpose({ displayScale, measureDisplayScale, loadError, frameLoaded, frameR
 }
 
 .inner-wide {
-	top: 7.864%;
+	top: 8.5%;
 	width: 93.103%;
 	aspect-ratio: 1260/840;
 }

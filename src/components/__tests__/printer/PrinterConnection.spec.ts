@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { cssOf } from '../css';
 
 // the queue card reaches the download module, which pulls in Konva
 vi.mock('konva', async () => ({ default: (await import('../polaroid/konva.mock')).konvaMock }));
@@ -195,14 +196,38 @@ describe('YourComponent', () => {
 			global: { stubs: { PrinterStatusCard: true, StatusAlerts: true, QueueElement: true } }
 		});
 
-		it('is not rendered while nothing is queued, so it cannot show empty scrollbars', () => {
-			expect(mountWith([]).find('.printing-queue').exists()).toBe(false);
+		it('holds no cards while nothing is queued', () => {
+			// The box itself stays mounted. It used to be dropped the moment the count
+			// reached zero, which destroyed a card that was still animating out - so
+			// removing the last photo, which is most removals, never animated at all.
+			// With no children it is zero height, so there is nothing to scroll.
+			const empty = mountWith([]);
+
+			expect(empty.find('.printing-queue').exists()).toBe(true);
+			expect(empty.findAll('queue-element-stub')).toHaveLength(0);
 		});
 
 		it('is rendered once something is queued', () => {
 			const queued = mountWith([{ base64: 'x', state: 0, quantity: 1, progress: 0 }]);
 
 			expect(queued.find('.printing-queue').exists()).toBe(true);
+			expect(queued.findAll('queue-element-stub')).toHaveLength(1);
+		});
+
+		it('measures a card before it leaves, so the collapse has a height to run from', () => {
+			// `height: auto` is not something CSS can animate away from, and only the
+			// element knows what it is
+			const wrapper = mountWith([{ base64: 'x', state: 0, quantity: 1, progress: 0 }]);
+			const card = wrapper.find('queue-element-stub').element as HTMLElement;
+
+			vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ height: 123 } as DOMRect);
+
+			const remember = (wrapper.vm as unknown as { rememberCardHeight: (el: Element) => void })
+				.rememberCardHeight;
+			expect(remember, 'the leave hook is gone').toBeTypeOf('function');
+			remember(card);
+
+			expect(card.style.getPropertyValue('--card-height')).toBe('123px');
 		});
 	});
 
@@ -238,4 +263,154 @@ describe('YourComponent', () => {
 			expect(wrapper.find('[data-testid="help-dialog"]').exists()).toBe(false);
 		});
 	});
+
+	describe('the print queue', () => {
+		const queued = (count: number) => Array.from({ length: count }, (_, index) => ({
+			id: index + 1,
+			base64: 'data:image/jpeg;base64,photo',
+			thumbnail: 'data:image/jpeg;base64,thumb',
+			quantity: 1, state: 0, progress: 0, type: InstaxFilmVariant.SQUARE
+		}));
+
+		const mountWithQueue = (count: number) => mount(PrinterConnection, {
+			props: {
+				config: { ...mockConfig, connection: true, status: mockStatus },
+				queue: queued(count)
+			},
+			global: { stubs: { QueueElement: true, PrinterStatusCard: true, StatusAlerts: true } }
+		});
+
+		it('keys each card to its photo, so a removal can be animated', async () => {
+			// an index key makes Vue reuse the card for whatever slides up into the
+			// slot, which both leaks that card's state and gives it nothing to animate
+			const wrapper = mountWithQueue(3);
+
+			expect(wrapper.findAll('queue-element-stub')).toHaveLength(3);
+		});
+
+		it('passes the photo id up when a card asks to be removed', async () => {
+			const wrapper = mountWithQueue(3);
+			const cards = wrapper.findAllComponents({ name: 'QueueElement' });
+
+			await cards[1].vm.$emit('cancel');
+
+			expect(wrapper.emitted('cancel')).toEqual([[2]]);
+		});
+
+		it('passes the photo id up with a change of copies', async () => {
+			const wrapper = mountWithQueue(2);
+            const cards = wrapper.findAllComponents({ name: 'QueueElement' });
+
+			await cards[0].vm.$emit('quantity-change', 4);
+
+			expect(wrapper.emitted('quantity-change')).toEqual([[1, 4]]);
+		});
+	})
+
+	describe('a queue with no printer', () => {
+		const offline = (count: number) => mount(PrinterConnection, {
+			props: {
+				config: { ...mockConfig, connection: false },
+				queue: Array.from({ length: count }, (_, index) => ({
+					id: index + 1, base64: 'x', thumbnail: 'x', state: 0,
+					progress: 0, quantity: 1, type: InstaxFilmVariant.SQUARE
+				}))
+			},
+			global: { stubs: { QueueElement: true, HelpDialog: true } }
+		});
+
+		it('says nothing when there is nothing waiting', () => {
+			expect(offline(0).find('[data-testid="offline-queue-toggle"]').exists()).toBe(false);
+		});
+
+		it('counts what is waiting under the connect button', () => {
+			expect(offline(5).find('[data-testid="offline-queue-toggle"]').text()).toContain('5 images waiting');
+		});
+
+		it('counts one photo in the singular', () => {
+			expect(offline(1).find('[data-testid="offline-queue-toggle"]').text()).toContain('1 image waiting');
+		});
+
+		it('keeps the queue folded away until it is asked for', () => {
+			const wrapper = offline(3);
+
+			expect(wrapper.find('.printing-queue').exists()).toBe(false);
+			expect(wrapper.find('[data-testid="offline-queue-toggle"]').attributes('aria-expanded')).toBe('false');
+		});
+
+		it('opens and closes on the toggle', async () => {
+			const wrapper = offline(3);
+			const toggle = wrapper.find('[data-testid="offline-queue-toggle"]');
+
+			await toggle.trigger('click');
+			expect(wrapper.find('.printing-queue').exists()).toBe(true);
+			expect(wrapper.findAll('queue-element-stub')).toHaveLength(3);
+			expect(toggle.attributes('aria-expanded')).toBe('true');
+
+			await toggle.trigger('click');
+			expect(wrapper.find('.printing-queue').exists()).toBe(false);
+		});
+
+		it('lets a photo be edited and dropped while it is open', async () => {
+			const wrapper = offline(2);
+			await wrapper.find('[data-testid="offline-queue-toggle"]').trigger('click');
+
+			const cards = wrapper.findAllComponents({ name: 'QueueElement' });
+			await cards[1].vm.$emit('cancel');
+			await cards[0].vm.$emit('quantity-change', 3);
+
+			expect(wrapper.emitted('cancel')).toEqual([[2]]);
+			expect(wrapper.emitted('quantity-change')).toEqual([[1, 3]]);
+		});
+
+		it('folds itself away once the last photo has gone', async () => {
+			// otherwise it would reopen to an empty box the next time something queued
+			const wrapper = offline(1);
+			await wrapper.find('[data-testid="offline-queue-toggle"]').trigger('click');
+			expect(wrapper.find('.printing-queue').exists()).toBe(true);
+
+			await wrapper.setProps({ queue: [] });
+
+            expect(wrapper.find('.printing-queue').exists()).toBe(false);
+		});
+	})
+
+	describe('the panel width', () => {
+		const panelCss = cssOf('src/components/printer/PrinterConnection.vue');
+		const cardCss = cssOf('src/components/printer/PrinterStatusCard.vue');
+
+		it('is fixed, so nothing inside moves when the contents change', () => {
+			// it used to size to its contents, so connecting - or opening the queue
+			// while disconnected - changed the width of the connect button with it
+			expect(panelCss('#printer-settings')).toContain('width: var(--printer-panel-width)');
+		});
+
+		it('is the one place the width is set', () => {
+			// the status card used to carry its own 300px, which is what the queue and
+			// the connect row were then measured against
+			const card = cardCss('.connection-box');
+
+			expect(card).toContain('width: 100%');
+			expect(card).not.toMatch(/width:\s*\d+px/);
+		});
+
+		it('lets the queue reach past it for its scrollbar, and no further', () => {
+			expect(panelCss('.printing-queue')).toContain('calc(100% + var(--panel-inset))');
+		});
+
+		it('puts the waiting count against the right edge', () => {
+			expect(panelCss('.queue-summary')).toContain('justify-content: flex-end');
+		});
+
+		it('does not stretch the connect button to fill it', () => {
+			// the panel holds a fixed width so the queue cards match the connected
+			// ones; the button sizing itself to that made it absurdly long
+			expect(panelCss('.connect-row .connect-button')).toContain('flex: 0 0 auto');
+			expect(panelCss('.connect-row')).toContain('width: auto');
+		});
+
+		it('keeps the connect row against the right edge, where the panel is', () => {
+			expect(panelCss('.printer-connection')).toContain('align-items: flex-end');
+		});
+	})
 });

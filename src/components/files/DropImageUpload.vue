@@ -129,6 +129,7 @@ const onDrop = (e: DragEvent) => {
 	left: 50%;
 	transform: translate(-50%, -50%);
 	font-size: 75px;
+	color: white;
 	z-index: 10
 }
 

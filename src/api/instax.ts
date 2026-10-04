@@ -6,8 +6,14 @@ import { InstaxFilmVariant, type PrinterBatteryStatus } from '../interfaces/Prin
 import { TransferTuning, writeStride } from './instax.transfer'
 import { InstaxPrintError, isPrintError } from './instax.errors'
 
-/** How long a sheet takes to come out of the printer. */
-const PRINT_DURATION = 15000
+/**
+ * How long a sheet takes to come out of the printer.
+ *
+ * Exported because the queue card draws its printing bar over exactly this long:
+ * two hardcoded fifteen-second values that had to coincide is how the bar came to
+ * finish before the printer did.
+ */
+export const PRINT_DURATION = 15000
 
 /**
  * Opcodes whose unsolicited replies say something about the print.
@@ -22,6 +28,14 @@ const PRINT_FAULT_OPCODES: ReadonlySet<number> = new Set([
 	INSTAX_OPCODES.PRINT_IMAGE_DOWNLOAD_END,
 	INSTAX_OPCODES.SUPPORT_FUNCTION_INFO
 ])
+
+/**
+ * Answer to a transfer start that means "not yet".
+ *
+ * Measured on a Link printer: inserting a pack makes it report ten shots while it
+ * is still preparing them, and a transfer started then is answered with this.
+ */
+const PRINTER_NOT_READY = 0x01
 
 /** The transfer packs the payload length into two bytes, so this is the ceiling. */
 const MAX_TRANSFER_BYTES = 65535
@@ -40,12 +54,24 @@ export class InstaxPrinter extends InstaxBluetooth {
 		return Array.from(command, (byte) => byte.toString(16).padStart(2, '0')).join(' ')
 	}
 
+	/**
+	 * Set the printer's own light.
+	 *
+	 * The reply is waited for even though nothing is done with it: the printer
+	 * answers this command, and leaving that answer unclaimed is what used to
+	 * desynchronise every reply after it. A printer that does not answer costs a
+	 * timeout here and nothing else - the light is not worth failing a print over.
+	 */
 	public async setColor(colors: string[], speed = 20, repeat = 0, when = 0): Promise<void> {
-		await this.sendCommand(
-			INSTAX_OPCODES.LED_PATTERN_SETTINGS,
-			encodeColor(colors, speed, repeat, when),
-			false
-		)
+		try {
+			await this.sendCommand(
+				INSTAX_OPCODES.LED_PATTERN_SETTINGS,
+				encodeColor(colors, speed, repeat, when),
+				true
+			)
+		} catch (error) {
+			if (import.meta.env.DEV) console.warn('> could not set the printer light', error)
+		}
 	}
 
 
@@ -57,7 +83,9 @@ export class InstaxPrinter extends InstaxBluetooth {
 		// Log the command as a hex string for debugging purposes
 		if (import.meta.env.DEV) console.log('>', this._printableHex(instaxCommandData))
 
-		const response = await this.send(instaxCommandData, awaitResponse)
+		// the opcode goes with it, so a reply meant for something else cannot be
+		// mistaken for this command's answer
+		const response = await this.send(instaxCommandData, awaitResponse, opCode)
 		return this._decode(response)
 	}
 
@@ -125,10 +153,19 @@ export class InstaxPrinter extends InstaxBluetooth {
 	 * and whether it is any further through the pack afterwards.
 	 */
 	async printImage(
-		printCount: number = 1,
+		copies: number | (() => number) = 1,
 		callback: (imageId: number) => void,
 		signal: AbortSignal
 	): Promise<void> {
+		// Read before every sheet rather than captured once. The print command is
+		// issued per copy, so the number can still be changed while a photo is
+		// printing - and it used to be fixed at the start, so asking for another
+		// copy mid-print changed the card and nothing else.
+		const total = (): number => {
+			const asked = Math.floor(Number(typeof copies === 'function' ? copies() : copies));
+			return Number.isFinite(asked) && asked > 0 ? asked : 1;
+		};
+
 		if (signal.aborted) {
 			callback(-1)
 			return
@@ -140,7 +177,7 @@ export class InstaxPrinter extends InstaxBluetooth {
 			aborted = true
 		}, { once: true })
 
-		for (let index = 0; index < (printCount); index++) {
+		for (let index = 0; index < total(); index++) {
 			const before = await this._filmCount()
 
 			const response = await this.sendCommand(INSTAX_OPCODES.PRINT_IMAGE, [], true)
@@ -308,8 +345,16 @@ export class InstaxPrinter extends InstaxBluetooth {
 				if (response == null) throw new Error('The printer did not answer the transfer start')
 
 				if (response.status != 0) {
+					// 0x01 is the printer still getting ready rather than refusing: it
+					// reports a fresh pack's full count before it has finished setting
+					// the pack up, and a transfer begun in that window lands here
+					const reason = response.status === PRINTER_NOT_READY ? 'busy' : 'refused'
+
 					throw new InstaxPrintError(
-						'refused', 'The printer would not accept the image',
+						reason,
+						reason === 'busy'
+							? 'The printer is not ready yet'
+							: 'The printer would not accept the image',
 						response.status, response.payload ?? []
 					)
 				}

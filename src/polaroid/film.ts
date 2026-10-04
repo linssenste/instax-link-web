@@ -32,14 +32,14 @@ const MIDTONE_GAMMA = 2;
 
 /** a shortened range, a warm cast in the shadows, and no grain: film is not grainy */
 export const DEFAULT_ADJUSTMENTS: FilmAdjustments = {
-	brightness: 0.02,
-	contrast: 16,
+	brightness: 0.0,
+	contrast: 0,
 	midtones: 0,
-	saturation: 0.45,
-	temperature: 28,
+	saturation: 0,
+	temperature: 0,
 	tint: 0,
-	lift: 0.85,
-	wash: 0.85,
+	lift: 0,
+	wash: 0,
 	grain: 0,
 	blur: 0
 }

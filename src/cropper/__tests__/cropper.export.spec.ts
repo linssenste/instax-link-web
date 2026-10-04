@@ -400,4 +400,65 @@ describe('Export resolution', () => {
 			});
 		});
 	});
+
+	describe('queueThumbnail', () => {
+		let queueThumbnail: typeof import('../cropper.download').queueThumbnail
+
+		beforeEach(async () => {
+			vi.resetModules();
+			({ queueThumbnail } = await import('../cropper.download'));
+		});
+
+		it('shrinks a print image to something a card can hold', async () => {
+			// an <img> decodes at its source's size, so a card showing the print image
+			// kept a 800x800 bitmap decoded for as long as the photo was queued
+			const encode = vi.mocked(HTMLCanvasElement.prototype.toDataURL);
+			encode.mockClear();
+
+			const thumbnail = await queueThumbnail('data:image/jpeg;base64,photo', 180);
+
+			expect(thumbnail).toBe('data:image/png;base64,text');
+			expect(encode).toHaveBeenCalledWith('image/jpeg', 0.8);
+		});
+
+		it('keeps the long edge within the size asked for', async () => {
+			const context = stubCanvas();
+
+			await queueThumbnail('data:image/jpeg;base64,photo', 180);
+
+			// the stub image is 836x1000, so height is the long edge
+			const [, , , width, height] = context.drawImage.mock.calls[0];
+			expect(Math.max(width, height)).toBeLessThanOrEqual(180);
+			expect(width / height).toBeCloseTo(836 / 1000, 2);
+		});
+
+		it('falls back to the print image rather than failing the photo', async () => {
+			// a card showing the full image is wasteful; losing the photo is not
+			vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+
+			const source = 'data:image/jpeg;base64,photo';
+			await expect(queueThumbnail(source)).resolves.toBe(source);
+		});
+
+		it('does not wait for ever on an image that never decodes', async () => {
+			vi.useFakeTimers();
+
+			try {
+				// neither load nor error: without a ceiling this promise never settles
+				class SilentImage {
+					set src(_value: string) { /* nothing ever fires */ }
+				}
+				vi.stubGlobal('Image', SilentImage);
+				window.Image = SilentImage as never;
+
+				const source = 'data:image/jpeg;base64,photo';
+				const pending = queueThumbnail(source);
+
+				await vi.advanceTimersByTimeAsync(6000);
+				await expect(pending).resolves.toBe(source);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
 });

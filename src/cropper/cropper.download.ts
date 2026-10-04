@@ -105,6 +105,44 @@ export async function downloadPolaroid(type: InstaxFilmVariant, text: string, im
 }
 
 
+/** How long a thumbnail decode may take before the card keeps the print image. */
+const THUMBNAIL_TIMEOUT = 4000
+
+/**
+ * A small copy of a print image, for the queue card to show.
+ *
+ * A card renders its photo 90px tall, but an `<img>` decodes at the source's own
+ * size - so showing the print image directly kept a full 800x800 (or 1260x840)
+ * bitmap decoded for as long as the photo sat in the queue: 2.4-4MB each. The
+ * decode still happens once, here, and then only the small copy is held.
+ */
+export async function queueThumbnail(source: string, maxEdge = 180): Promise<string> {
+	try {
+		// an image that neither loads nor errors would otherwise leave this pending
+		// for the life of the page
+		const image = await Promise.race([
+			loadImage(source),
+			new Promise<never>((_, reject) => setTimeout(
+				() => reject(new Error('Timed out decoding the queue thumbnail')), THUMBNAIL_TIMEOUT
+			))
+		])
+
+		const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+		const canvas = document.createElement('canvas')
+		canvas.width = Math.max(1, Math.round(image.width * scale))
+		canvas.height = Math.max(1, Math.round(image.height * scale))
+
+		const context = canvas.getContext('2d')
+		if (context == null) return source
+
+		context.drawImage(image, 0, 0, canvas.width, canvas.height)
+		return canvas.toDataURL('image/jpeg', 0.8)
+	} catch {
+		// the card showing the print image is wasteful, not broken
+		return source
+	}
+}
+
 /** Name the downloaded file after the caption when there is one. */
 export function polaroidFilename(caption?: string): string {
 	const trimmed = caption?.trim();

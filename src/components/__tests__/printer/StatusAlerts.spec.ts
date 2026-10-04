@@ -188,4 +188,42 @@ describe('StatusAlerts Component', () => {
 			expect(wrapper.find('[data-testid="battery-status"]').exists()).toBe(false);
 		});
 	});
+
+	describe('while the printer is getting a pack ready', () => {
+		const healthy = {
+			type: InstaxFilmVariant.SQUARE,
+			battery: { charging: false, level: 80 },
+			polaroidCount: 10,
+			filmState: '0,0,12,0,0,0,0'
+		};
+
+		it('says what it is doing', () => {
+			const wrapper = mount(StatusAlerts, { props: { status: healthy, preparing: true } });
+
+			expect(wrapper.find('[data-testid="preparing-status"]').exists()).toBe(true);
+			expect(wrapper.text()).toContain('Preparing film pack');
+		});
+
+		it('does not dress it up as an error', () => {
+			// nothing is wrong: the printer reports a fresh pack's full count before
+			// it has finished setting it up, and that clears itself
+			const wrapper = mount(StatusAlerts, { props: { status: healthy, preparing: true } });
+			const notice = wrapper.find('[data-testid="preparing-status"]');
+
+			expect(notice.classes()).toContain('notice-card');
+			expect(notice.classes()).not.toContain('error-card');
+		});
+
+		it('says nothing when the printer is ready', () => {
+			const wrapper = mount(StatusAlerts, { props: { status: healthy, preparing: false } });
+
+			expect(wrapper.find('[data-testid="preparing-status"]').exists()).toBe(false);
+		});
+
+		it('says nothing when it is not told either way', () => {
+			const wrapper = mount(StatusAlerts, { props: { status: healthy } });
+
+			expect(wrapper.find('[data-testid="preparing-status"]').exists()).toBe(false);
+		});
+	})
 });

@@ -4,7 +4,9 @@
 
 			<!-- Printer type in instax-font -->
 			<div class="printer-name" data-testid="printer-name">
-				<div />
+				<!-- the pulse carries the printer's state: green while it is happy,
+					 amber while something it reported is still outstanding -->
+				<div :class="{ fault: config.fault }" data-testid="printer-pulse" />
 				<span>instax</span> <span class="printer-name-type">{{ printerType
 				}}</span>
 
@@ -98,7 +100,10 @@ const batteryIcon = computed(() => {
 	position: relative;
 	background-color: rgba(255, 255, 255, .75);
 	padding: 15px;
-	width: 300px;
+	/* fills the panel rather than setting its width: the panel owns that now, so
+	   the card and the queue below it cannot end up different widths */
+	box-sizing: border-box;
+	width: 100%;
 	border-radius: 10px;
 	transition: all 150ms ease-in-out;
 
@@ -143,6 +148,7 @@ const batteryIcon = computed(() => {
 	height: 12px;
 	border-radius: 50%;
 	background-color: green;
+	transition: background-color 200ms linear;
 	margin-left: 2px;
 	margin-right: 5px;
 	opacity: 1;
@@ -150,6 +156,10 @@ const batteryIcon = computed(() => {
 	animation: pulse 1s infinite ease-in-out
 }
 
+
+.printer-name div.fault {
+	background-color: rgb(var(--yellow-color));
+}
 
 @keyframes pulse {
 	0% {

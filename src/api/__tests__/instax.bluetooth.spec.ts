@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { InstaxPrinter } from '../instax'
 import { INSTAX_OPCODES } from '../events'
+import { RESPONSE_TIMEOUT } from '../instax.bluetooth'
 
 /** A well formed reply frame: header, length, opcode, status, command, checksum. */
 function replyFor(opCode: number, status = 0, command = 0): DataView {
@@ -151,11 +152,82 @@ describe('InstaxBluetooth transport', () => {
 				.rejects.toThrow(/Not connected/)
 		})
 
-		it('says so for a command that wants no answer either', async () => {
+		it('does not fail a print over the printer light', async () => {
+			// setColor swallows its own failure: the light is cosmetic, and it is
+			// called from paths that are not waiting on it
 			const { printer } = fakeLink()
 			;(printer as unknown as { _characteristicRef: { write: null } })._characteristicRef.write = null
 
-			await expect(printer.setColor(['#ffffff'])).rejects.toThrow(/Not connected/)
+			await expect(printer.setColor(['#ffffff'])).resolves.toBeUndefined()
+		})
+	})
+
+	describe('matching replies to commands', () => {
+		it('does not let an unclaimed reply answer the next command', async () => {
+			// Measured on a real printer: it answers the LED command, and that command
+			// used to be sent without waiting for one. The loose reply was taken as
+			// the answer to whatever was asked next, and every reply after it was one
+			// behind for the rest of the connection.
+			vi.useFakeTimers()
+			const { printer, deliver } = fakeLink({ autoReply: false })
+
+			const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+
+			// the command has to be waiting before the stray lands, which is the
+			// order it happened in: the LED reply came back after the next command
+			// had already gone out
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.LED_PATTERN_SETTINGS, 0, 0)
+
+			// then the real one
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, 1)
+
+			const answer = await pending
+			expect(answer?.command).toBe(1)
+			expect(answer?.eventCode).toBe(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO)
+		})
+
+		it('keeps every later command on its own reply', async () => {
+			// the desync was permanent: once one reply was consumed by the wrong
+			// command, every reply after it was one behind for the whole connection
+			vi.useFakeTimers()
+			const { printer, deliver } = fakeLink({ autoReply: false })
+
+			const first = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.LED_PATTERN_SETTINGS, 0, 0)
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, 1)
+			expect((await first)?.command).toBe(1)
+
+			const second = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [2])
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, 2)
+			expect((await second)?.command).toBe(2)
+		})
+
+		it('still times out if only the wrong replies ever arrive', async () => {
+			vi.useFakeTimers()
+			const { printer, deliver } = fakeLink({ autoReply: false })
+
+			const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+			const settled = expect(pending).rejects.toThrow(/timeout/i)
+
+			await vi.advanceTimersByTimeAsync(20)
+			deliver(INSTAX_OPCODES.LED_PATTERN_SETTINGS, 0, 0)
+			await vi.advanceTimersByTimeAsync(RESPONSE_TIMEOUT + 100)
+
+			await settled
+		})
+
+		it('claims the reply to the printer light, so it cannot go astray', async () => {
+			const { printer, writes } = fakeLink()
+
+			await printer.setColor(['#ffb601'], 8, 255)
+
+			// sent and answered, rather than fired off and left hanging
+			expect(writes.some((frame) => ((frame[4] << 8) | frame[5]) === 0x3001)).toBe(true)
 		})
 	})
 
@@ -176,9 +248,56 @@ describe('InstaxBluetooth transport', () => {
 
 			const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
 			const settled = expect(pending).rejects.toThrow(/timeout/i)
-			await vi.advanceTimersByTimeAsync(1000)
+			await vi.advanceTimersByTimeAsync(RESPONSE_TIMEOUT + 500)
 
 			await settled
+		})
+
+		it('waits long enough for a printer that is merely slow', async () => {
+			// 500ms was the old window. A printer on a low battery takes longer than
+			// that over a status command, and because a late reply has nobody waiting
+			// for it, every command failed and the answer was thrown away - the
+			// printer looked silent while it was actually talking
+			vi.useFakeTimers()
+			const { printer, deliver } = fakeLink({ autoReply: false })
+
+			const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+
+			await vi.advanceTimersByTimeAsync(900)
+			deliver(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, 1)
+
+			await expect(pending).resolves.toBeDefined()
+		})
+
+		it('says how long it waited, so a tight window is visible in the log', async () => {
+			vi.useFakeTimers()
+			const { printer } = fakeLink({ autoReply: false })
+
+			const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+			const settled = expect(pending).rejects.toThrow(String(RESPONSE_TIMEOUT))
+			await vi.advanceTimersByTimeAsync(RESPONSE_TIMEOUT + 500)
+
+			await settled
+		})
+
+		it('does not swallow a reply that arrived too late to be matched', async () => {
+			// silently dropped, a late reply is indistinguishable from no reply
+			vi.useFakeTimers()
+			const warn = vi.spyOn(console, 'warn').mockImplementation(() => { })
+			const { printer, deliver } = fakeLink({ autoReply: false })
+
+			try {
+				const pending = printer.sendCommand(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, [1])
+				const settled = expect(pending).rejects.toThrow(/timeout/i)
+				await vi.advanceTimersByTimeAsync(RESPONSE_TIMEOUT + 100)
+				await settled
+
+				deliver(INSTAX_OPCODES.SUPPORT_FUNCTION_INFO, 0, 1)
+
+				expect(warn).toHaveBeenCalledWith(expect.stringContaining('nothing waiting'))
+			} finally {
+				warn.mockRestore()
+			}
 		})
 	})
 })

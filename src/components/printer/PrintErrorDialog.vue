@@ -45,6 +45,7 @@ defineEmits<{ (e: 'close'): void; (e: 'retry'): void; (e: 'discard'): void }>();
  */
 const headline = computed<string>(() => {
 	switch (props.error?.reason) {
+		case 'busy': return 'The printer is still getting ready.';
 		case 'refused': return 'The printer turned the print down.';
 		case 'reported': return 'The printer stopped part way through.';
 		case 'not-printed': return 'The printer never used a sheet.';
@@ -60,6 +61,9 @@ const advice = computed<string>(() => {
 		case 'reported':
 			return 'The pack is most likely empty. Reseating a pack sets the counter back to a full one, '
 				+ 'so the printer can show shots it does not have. The photo stays on the queue.';
+		case 'busy':
+			return 'It has been setting the film pack up for a while now. Check the pack is seated '
+				+ 'properly, then try again. The photo stays on the queue.';
 		case 'refused':
 			return 'Check that there is a film pack in the printer and that the cover is shut. '
 				+ 'The photo stays on the queue.';

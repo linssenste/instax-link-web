@@ -18,6 +18,12 @@
 	/* how far the corner panels sit in from the window edge; the print queue
 	   reaches past it so its scrollbar lands in that gutter */
 	--panel-inset: 25px;
+
+	/* The printer panel's width, held steady whatever it is showing. Without this
+	   it sized to its contents, so connecting - or opening the queue while
+	   disconnected - changed the width of everything in it, the connect button
+	   included. The status card fills it exactly. */
+	--printer-panel-width: 330px;
 }
 
 

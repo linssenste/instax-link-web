@@ -8,6 +8,14 @@
  * on as though it had printed.
  */
 export type PrintFailure =
+	/**
+	 * The printer is not ready yet rather than unwilling.
+	 *
+	 * Measured: a freshly inserted pack reports its full ten shots while the
+	 * printer is still setting it up, and a transfer started in that window is
+	 * answered with status 0x01. It is not a fault - it only needs another moment.
+	 */
+	| 'busy'
 	/** the printer turned the print command down outright */
 	| 'refused'
 	/** the printer reported a fault of its own while printing */

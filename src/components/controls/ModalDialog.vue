@@ -6,8 +6,12 @@
 			<div v-if="open" class="backdrop">
 
 				<!-- clicking away is a pointer shortcut, so it is a real button but not
-					 a second tab stop: Escape and the close button are the real paths -->
-				<button type="button" class="scrim" tabindex="-1" aria-hidden="true" v-on:click="close" />
+					 a second tab stop: Escape and the close button are the real paths.
+					 A dialog that cannot be dismissed still needs the dim, so the scrim
+					 stays but stops being a way out. -->
+				<button v-if="dismissible" type="button" class="scrim" tabindex="-1" aria-hidden="true"
+						v-on:click="close" />
+				<div v-else class="scrim" aria-hidden="true" />
 
 				<div ref="panelRef" class="panel" :class="{ compact }" tabindex="-1" role="dialog"
 					 aria-modal="true" :data-testid="testid" :aria-labelledby="titleId">
@@ -16,7 +20,7 @@
 						 and the actions stay reachable however little room there is -->
 					<header class="head">
 						<h2 :id="titleId">{{ title }}</h2>
-						<CloseButton :label="`Close ${title}`" title="Close"
+						<CloseButton v-if="dismissible" :label="`Close ${title}`" title="Close"
 									 :testid="testid ? `${testid}-close` : undefined" v-on:click="close" />
 					</header>
 
@@ -37,13 +41,21 @@
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import CloseButton from './CloseButton.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	open: boolean;
 	title: string;
 	testid?: string;
 	/** a narrow panel, for a dialog that says something rather than offering somewhere to work */
 	compact?: boolean;
-}>();
+	/**
+	 * Whether there is a way out of it.
+	 *
+	 * False leaves the dialog with no close button, no Escape and no click away:
+	 * for the cases where carrying on regardless would do harm, and one of the
+	 * choices offered has to be made.
+	 */
+	dismissible?: boolean;
+}>(), { dismissible: true });
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 
@@ -57,7 +69,7 @@ function close(): void {
 }
 
 function escapeEvent(event: KeyboardEvent): void {
-	if (event.key === 'Escape') close();
+	if (event.key === 'Escape' && props.dismissible) close();
 }
 
 watch(() => props.open, async (open) => {

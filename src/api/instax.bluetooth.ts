@@ -3,7 +3,18 @@ import { INSTAX_PRINTER_NAME_PREFIX, INSTAX_PRINTER_SERVICES } from './instax.co
 import type { CHARACTERISTIC_REF } from './instax.types'
 
 /** How long the printer is given to answer a write that expects a reply. */
-const RESPONSE_TIMEOUT = 500
+/**
+ * How long the printer is given to answer a write that expects a reply.
+ *
+ * 500ms was too tight. A printer on a low battery, or simply a slower model,
+ * takes longer than that over a status command - and because a late reply has
+ * nobody left waiting for it, every command then failed and the late answer was
+ * dropped without trace. The printer looked silent while it was in fact talking.
+ *
+ * This only sets how long a *failure* takes to notice; a healthy printer answers
+ * in a few tens of milliseconds and nothing waits the difference.
+ */
+export const RESPONSE_TIMEOUT = 2000
 
 export class InstaxBluetooth {
 	protected _characteristicRef: CHARACTERISTIC_REF = {
@@ -40,8 +51,23 @@ export class InstaxBluetooth {
 		const waiting = this._waiting
 		this._waiting = null
 
-		if (waiting != null) waiting(event)
-		else this._onUnsolicited?.(event)
+		if (waiting != null) {
+			waiting(event)
+			return
+		}
+
+		if (this._onUnsolicited != null) {
+			this._onUnsolicited(event)
+			return
+		}
+
+		// nobody was waiting and nothing is watching: either the printer volunteered
+		// something outside a print, or a reply arrived after its command had given
+		// up on it. The second is worth seeing rather than swallowing - it is the
+		// difference between a silent printer and a slow one
+		if (import.meta.env.DEV) {
+			console.warn('> a printer reply arrived with nothing waiting for it')
+		}
 	}
 
 	/**
@@ -110,8 +136,18 @@ export class InstaxBluetooth {
 	 */
 	private _chain: Promise<void> = Promise.resolve()
 
-	protected async send(command: Uint8Array, response = true): Promise<Event | void> {
-		const run = this._chain.then(() => this._sendNow(command, response))
+	/**
+	 * The opcode a notification is answering, or null if it is not a readable frame.
+	 */
+	private _opCodeOf(event: Event): number | null {
+		const value = (event.target as { value?: DataView } | null)?.value
+		if (value == null || value.byteLength < 6) return null
+
+		return value.getUint16(4, false)
+	}
+
+	protected async send(command: Uint8Array, response = true, expect?: number): Promise<Event | void> {
+		const run = this._chain.then(() => this._sendNow(command, response, expect))
 
 		// the queue must outlive a failed command, and must not itself look like an
 		// unhandled rejection to the runtime
@@ -120,7 +156,7 @@ export class InstaxBluetooth {
 		return run
 	}
 
-	private async _sendNow(command: Uint8Array, response: boolean): Promise<Event | void> {
+	private async _sendNow(command: Uint8Array, response: boolean, expect?: number): Promise<Event | void> {
 		// the disconnect handler nulls these, so they are genuinely nullable and a
 		// `!` here turned a lost connection into a TypeError with no cause
 		const write = this._characteristicRef.write
@@ -145,9 +181,36 @@ export class InstaxBluetooth {
 		}
 
 		const answer = new Promise<Event>((resolve, reject) => {
-			waiter = resolve
-			this._waiting = resolve
-			timer = setTimeout(() => reject(new Error('Notification timeout')), RESPONSE_TIMEOUT)
+			// Matched by opcode where the caller knows it. Without this a reply that
+			// nobody asked for - the printer answers the LED command even when the
+			// command is sent without waiting for one - was taken as the answer to
+			// whatever was asked next, and every reply after it was one behind for
+			// the rest of the connection: status reads returned another command's
+			// fields, and packet acknowledgements went to the wrong packet.
+			waiter = (event: Event) => {
+				const arrived = this._opCodeOf(event)
+
+				if (expect != null && arrived != null && arrived !== expect) {
+					if (import.meta.env.DEV) {
+						console.warn(
+							`> ignoring a reply for 0x${arrived.toString(16).padStart(4, '0')}`
+							+ ` while waiting on 0x${expect.toString(16).padStart(4, '0')}`
+						)
+					}
+
+					// put the slot back and keep waiting for the right one
+					this._waiting = waiter ?? null
+					return
+				}
+
+				resolve(event)
+			}
+
+			this._waiting = waiter
+			timer = setTimeout(
+				() => reject(new Error(`Notification timeout after ${RESPONSE_TIMEOUT}ms`)),
+				RESPONSE_TIMEOUT
+			)
 		})
 
 		// if the write below throws after the timer has already fired, nothing would
